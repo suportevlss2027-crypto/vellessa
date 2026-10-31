@@ -246,4 +246,3 @@ export function VideoPlayer({ cover, title, duration, videoUrl, onAutoComplete }
     </div>
   );
 }
-}
