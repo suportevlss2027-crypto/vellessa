@@ -13,7 +13,14 @@ export const affiliate = {
   id: "VLS-20481",
 };
 
-export type Lesson = { id: string; title: string; duration: string; done?: boolean };
+export type Lesson = {
+  id: string;
+  title: string;
+  duration: string;
+  done?: boolean;
+  video_url?: string;
+  description?: string;
+};
 export type Module = {
   id: string;
   title: string;

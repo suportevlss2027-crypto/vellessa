@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Search, Shield, UserCheck, Users, Mail, Phone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Shield, UserCheck, Users, Mail, Phone, RefreshCw } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_admin/admin/afiliados")({
   head: () => ({
@@ -13,6 +15,43 @@ export const Route = createFileRoute("/_admin/admin/afiliados")({
 function AdminAfiliadosPage() {
   const { profile } = useAffiliateStore();
   const [search, setSearch] = useState("");
+  const [dbAffiliates, setDbAffiliates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchAffiliates = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (data && !error && data.length > 0) {
+        setDbAffiliates(
+          data.map((p) => ({
+            id: p.affiliate_code || p.id.slice(0, 8),
+            rawId: p.id,
+            name: p.name,
+            email: p.email,
+            level: p.level || "Afiliada Ouro",
+            status: p.status === "active" ? "Ativo" : p.status,
+            phone: p.phone || "—",
+            role: p.role,
+            date: new Date(p.created_at).toLocaleDateString("pt-BR"),
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("Could not fetch profiles from Supabase:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAffiliates();
+  }, []);
 
   const sampleAffiliates = [
     {
@@ -57,7 +96,25 @@ function AdminAfiliadosPage() {
     },
   ];
 
-  const filtered = sampleAffiliates.filter(
+  const affiliatesList = dbAffiliates.length > 0 ? dbAffiliates : sampleAffiliates;
+
+  const handleToggleAdmin = async (affiliate: any) => {
+    if (!affiliate.rawId || !isSupabaseConfigured || !supabase) {
+      toast.info("Ação simulada: em produção com Supabase conectado altera a permissão.");
+      return;
+    }
+    const newRole = affiliate.role === "admin" ? "affiliate" : "admin";
+    try {
+      const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", affiliate.rawId);
+      if (error) throw error;
+      toast.success(`Permissão de ${affiliate.name} atualizada para ${newRole}!`);
+      fetchAffiliates();
+    } catch (e: any) {
+      toast.error(`Erro ao atualizar: ${e.message}`);
+    }
+  };
+
+  const filtered = affiliatesList.filter(
     (a) =>
       a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -73,14 +130,24 @@ function AdminAfiliadosPage() {
             Acompanhe a lista de afiliadas da sua operação, códigos de rastreamento e status de conta.
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-xs text-muted-foreground w-full sm:w-64">
-          <Search className="h-4 w-4" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome, e-mail ou ID..."
-            className="w-full bg-transparent outline-none placeholder:text-muted-foreground text-foreground"
-          />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchAffiliates}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-gold" : ""}`} />
+            Atualizar
+          </button>
+          <div className="flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-xs text-muted-foreground w-full sm:w-64">
+            <Search className="h-4 w-4" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nome, e-mail ou ID..."
+              className="w-full bg-transparent outline-none placeholder:text-muted-foreground text-foreground"
+            />
+          </div>
         </div>
       </div>
 
@@ -94,7 +161,8 @@ function AdminAfiliadosPage() {
                 <th className="p-4">Nível</th>
                 <th className="p-4">Papel</th>
                 <th className="p-4">Status</th>
-                <th className="p-4 pr-6">Data de Entrada</th>
+                <th className="p-4">Data de Entrada</th>
+                <th className="p-4 pr-6 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y text-foreground">
@@ -130,7 +198,16 @@ function AdminAfiliadosPage() {
                       <UserCheck className="h-3 w-3" /> {a.status}
                     </span>
                   </td>
-                  <td className="p-4 pr-6 text-xs text-muted-foreground">{a.date}</td>
+                  <td className="p-4 text-xs text-muted-foreground">{a.date}</td>
+                  <td className="p-4 pr-6 text-right">
+                    <button
+                      onClick={() => handleToggleAdmin(a)}
+                      className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition"
+                      title="Alternar entre Admin e Afiliada"
+                    >
+                      {a.role === "admin" ? "Tornar Afiliada" : "Tornar Admin"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -487,6 +487,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       id: `l-${Date.now()}`,
       title: data.title,
       duration: data.duration || "10:00",
+      video_url: data.videoUrl,
+      description: data.description,
       done: false,
     };
     const updated = modulesList.map((m) => {

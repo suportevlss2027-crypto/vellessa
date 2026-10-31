@@ -61,6 +61,7 @@ function LessonPage() {
           cover={lesson.module.cover}
           title={lesson.title}
           duration={lesson.duration}
+          videoUrl={lesson.video_url}
           onAutoComplete={() => markLessonDone(lesson.id)}
         />
 
@@ -84,7 +85,8 @@ function LessonPage() {
         </div>
 
         <p className="mt-4 max-w-2xl leading-relaxed text-muted-foreground">
-          Nesta aula você vai entender, de forma prática, como aplicar este conteúdo na sua rotina de divulgação do Sérum Vellessa — com exemplos reais, scripts de alta conversão e os erros mais comuns para evitar.
+          {lesson.description ||
+            "Nesta aula você vai entender, de forma prática, como aplicar este conteúdo na sua rotina de divulgação do Sérum Vellessa — com exemplos reais, scripts de alta conversão e os erros mais comuns para evitar."}
         </p>
 
         <div className="mt-6 rounded-2xl border bg-card p-5">
