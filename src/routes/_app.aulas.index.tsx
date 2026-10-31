@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PlayCircle } from "lucide-react";
 import { PageHeader, ProgressBar } from "@/components/AppShell";
-import { modules } from "@/data/content";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 
 export const Route = createFileRoute("/_app/aulas/")({
@@ -17,7 +16,7 @@ export const Route = createFileRoute("/_app/aulas/")({
 });
 
 function Aulas() {
-  const { isLessonDone } = useAffiliateStore();
+  const { isLessonDone, modulesList } = useAffiliateStore();
 
   return (
     <>
@@ -27,10 +26,13 @@ function Aulas() {
         description="Do primeiro passo à escala: módulos pensados para você vender com elegância e consistência."
       />
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {modules.map((m, i) => {
+        {modulesList.map((m, i) => {
           const done = m.lessons.filter((l) => isLessonDone(l.id)).length;
-          const pct = Math.round((done / m.lessons.length) * 100);
-          const first = m.lessons.find((l) => !isLessonDone(l.id)) ?? m.lessons[0]!;
+          const pct = m.lessons.length > 0 ? Math.round((done / m.lessons.length) * 100) : 0;
+          const first = m.lessons.find((l) => !isLessonDone(l.id)) ?? m.lessons[0];
+
+          if (!first) return null;
+
           return (
             <Link
               key={m.id}

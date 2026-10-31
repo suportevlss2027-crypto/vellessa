@@ -1,21 +1,16 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play } from "lucide-react";
-import { allLessons, modules } from "@/data/content";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/aulas/$id")({
-  loader: ({ params }) => {
-    const lesson = allLessons.find((l) => l.id === params.id);
-    if (!lesson) throw notFound();
-    return { title: lesson.title };
-  },
-  head: ({ loaderData }) => ({
+  loader: () => ({}),
+  head: () => ({
     meta: [
-      { title: `${loaderData?.title ?? "Aula"} — Vellessa Afiliados` },
+      { title: "Aula — Vellessa Afiliados" },
       { name: "description", content: "Assista à aula na Academia Vellessa." },
-      { property: "og:title", content: `${loaderData?.title ?? "Aula"} — Vellessa` },
+      { property: "og:title", content: "Aula — Vellessa Afiliados" },
       { property: "og:description", content: "Assista à aula na Academia Vellessa." },
     ],
   }),
@@ -24,12 +19,23 @@ export const Route = createFileRoute("/_app/aulas/$id")({
 
 function LessonPage() {
   const { id } = Route.useParams();
-  const { isLessonDone, toggleLessonDone, markLessonDone, downloadAsset } = useAffiliateStore();
+  const { isLessonDone, toggleLessonDone, markLessonDone, downloadAsset, allLessonsList, modulesList } = useAffiliateStore();
 
-  const idx = allLessons.findIndex((l) => l.id === id);
-  const lesson = allLessons[idx] ?? allLessons[0]!;
-  const prev = allLessons[idx - 1];
-  const next = allLessons[idx + 1];
+  const idx = allLessonsList.findIndex((l) => l.id === id);
+  const lesson = allLessonsList[idx] ?? allLessonsList[0];
+  const prev = idx > 0 ? allLessonsList[idx - 1] : undefined;
+  const next = idx >= 0 && idx < allLessonsList.length - 1 ? allLessonsList[idx + 1] : undefined;
+
+  if (!lesson) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+        <p className="text-lg font-semibold">Aula não encontrada</p>
+        <Link to="/aulas" className="text-sm text-gold hover:underline">
+          ← Voltar para todas as aulas
+        </Link>
+      </div>
+    );
+  }
 
   const done = isLessonDone(lesson.id);
 
@@ -126,7 +132,7 @@ function LessonPage() {
       </div>
 
       <aside className="h-fit rounded-3xl border bg-card p-3 xl:sticky xl:top-24">
-        {modules.map((m, mi) => (
+        {modulesList.map((m, mi) => (
           <div key={m.id} className="p-2">
             <p className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Módulo {mi + 1} · {m.title}

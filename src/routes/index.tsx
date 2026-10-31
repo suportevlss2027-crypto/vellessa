@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Lock, Mail } from "lucide-react";
+import { ArrowRight, Lock, Mail, User, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Logo, ThemeToggle } from "@/components/AppShell";
 import { images } from "@/data/content";
@@ -17,41 +17,54 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Login,
+  component: AuthPage,
 });
 
-function Login() {
+function AuthPage() {
   const navigate = useNavigate();
-  const { login } = useAffiliateStore();
-  const [email, setEmail] = useState("mariana@email.com");
-  const [password, setPassword] = useState("••••••••");
-  const [loading, setLoading] = useState(false);
+  const { login, signUp, resetPassword, authLoading, profile } = useAffiliateStore();
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !email.includes("@")) {
       toast.error("Por favor, insira um e-mail válido.");
       return;
     }
-    if (!password.trim() || password.length < 4) {
-      toast.error("Por favor, insira uma senha válida.");
+    if (!password.trim() || password.length < 6) {
+      toast.error("A senha deve conter no mínimo 6 caracteres.");
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      login(email.trim());
-      setLoading(false);
+    if (mode === "signup") {
+      if (!name.trim()) {
+        toast.error("Por favor, informe seu nome completo.");
+        return;
+      }
+      const success = await signUp(email, password, name);
+      if (success) {
+        setMode("login");
+      }
+      return;
+    }
+
+    // Login mode
+    const ok = await login(email, password);
+    if (ok) {
+      // Se for admin, pode ir para o admin ou painel
       navigate({ to: "/painel" });
-    }, 400);
+    }
   };
 
-  const handleForgotPassword = () => {
-    toast.info("Instruções de redefinição enviadas para seu e-mail cadastrado.");
-  };
-
-  const handleRequestAccess = () => {
-    toast.info("Inscrições abertas! Entre em contato com o suporte oficial Vellessa no WhatsApp.");
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      toast.error("Digite seu e-mail no campo acima para redefinir a senha.");
+      return;
+    }
+    await resetPassword(email);
   };
 
   return (
@@ -64,13 +77,13 @@ function Login() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/10 to-transparent" />
         <div className="absolute bottom-12 left-12 right-12">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">Programa de Afiliados</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">Plataforma de Afiliadas & Gestão</p>
           <h2 className="mt-3 text-5xl font-semibold leading-[1.05]">
             Venda luxo.<br />
             <span className="italic text-gold-gradient">Viva de beleza.</span>
           </h2>
           <p className="mt-4 max-w-md text-muted-foreground">
-            Tudo que você precisa para vender o Sérum Vellessa com elegância e alta conversão — em um só lugar.
+            Acesse seus links de afiliada, aulas em alta resolução, criativos prontos e materiais oficiais da marca.
           </p>
         </div>
       </div>
@@ -80,64 +93,132 @@ function Login() {
           <Logo />
           <ThemeToggle />
         </div>
+
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
-          <h1 className="text-4xl font-semibold">Bem-vinda de volta</h1>
-          <p className="mt-2 text-muted-foreground">Acesse sua área exclusiva de membros.</p>
-          <form className="mt-10 space-y-4" onSubmit={handleSubmit}>
+          <div className="mb-6 flex rounded-full border bg-card p-1">
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={`flex-1 rounded-full py-2 text-xs font-semibold transition ${
+                mode === "login"
+                  ? "bg-gold-gradient text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className={`flex-1 rounded-full py-2 text-xs font-semibold transition ${
+                mode === "signup"
+                  ? "bg-gold-gradient text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Criar Conta
+            </button>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-semibold">
+            {mode === "login" ? "Bem-vinda de volta" : "Cadastre-se na Vellessa"}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {mode === "login"
+              ? "Insira seus dados para acessar a área de membros."
+              : "Preencha seus dados para receber seu link e começar a divulgar."}
+          </p>
+
+          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+            {mode === "signup" && (
+              <Field
+                icon={<User className="h-4 w-4" />}
+                label="Nome completo"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Seu nome"
+                required
+              />
+            )}
+
             <Field
               icon={<Mail className="h-4 w-4" />}
               label="E-mail"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@email.com"
+              placeholder="seu@email.com"
               required
             />
+
             <Field
               icon={<Lock className="h-4 w-4" />}
               label="Senha"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Mínimo 6 caracteres"
               required
             />
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
-                <input type="checkbox" className="accent-[var(--gold)]" defaultChecked /> Lembrar de mim
-              </label>
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                className="font-medium text-gold hover:underline"
-              >
-                Esqueci a senha
-              </button>
-            </div>
+
+            {mode === "login" && (
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
+                  <input type="checkbox" className="accent-[var(--gold)]" defaultChecked /> Lembrar de mim
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="font-medium text-gold hover:underline"
+                >
+                  Esqueci a senha
+                </button>
+              </div>
+            )}
+
             <button
-              disabled={loading}
-              className="group mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gold-gradient font-semibold text-primary-foreground shadow-gold transition hover:brightness-105 disabled:opacity-70"
+              disabled={authLoading}
+              className="group mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gold-gradient font-semibold text-primary-foreground shadow-gold transition hover:brightness-105 disabled:opacity-60"
             >
-              {loading ? (
-                "Acessando..."
+              {authLoading ? (
+                "Aguarde..."
               ) : (
                 <>
-                  Entrar na plataforma <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                  {mode === "login" ? "Entrar na plataforma" : "Criar minha conta"}
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                 </>
               )}
             </button>
           </form>
+
+          {profile?.role === "admin" && (
+            <div className="mt-6 rounded-2xl border border-gold/30 bg-gold/10 p-3 text-center">
+              <p className="text-xs font-semibold text-gold flex items-center justify-center gap-1.5">
+                <ShieldCheck className="h-4 w-4" /> Acesso de Produtor / Admin detectado
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/admin" })}
+                className="mt-2 text-xs font-semibold underline text-foreground hover:text-gold"
+              >
+                Abrir Painel Admin (/admin) →
+              </button>
+            </div>
+          )}
+
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            Ainda não é afiliada?{" "}
+            {mode === "login" ? "Ainda não tem cadastro? " : "Já tem uma conta? "}
             <button
               type="button"
-              onClick={handleRequestAccess}
-              className="font-medium text-gold hover:underline"
+              onClick={() => setMode(mode === "login" ? "signup" : "login")}
+              className="font-semibold text-gold hover:underline"
             >
-              Solicite acesso
+              {mode === "login" ? "Cadastre-se aqui" : "Faça login"}
             </button>
           </p>
         </div>
+
         <p className="text-center text-xs text-muted-foreground">© 2026 Vellessa. Todos os direitos reservados.</p>
       </div>
     </div>

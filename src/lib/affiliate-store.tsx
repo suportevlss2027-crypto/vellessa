@@ -1,6 +1,18 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
-import { affiliate as initialAffiliate, allLessons, announcements as initialAnnouncements, posts as initialPosts, type Lesson, type Module } from "@/data/content";
+import {
+  affiliate as initialAffiliate,
+  modules as initialModules,
+  creatives as initialCreatives,
+  materials as initialMaterials,
+  links as initialLinks,
+  announcements as initialAnnouncements,
+  posts as initialPosts,
+  type Lesson,
+  type Module,
+  type Creative,
+} from "@/data/content";
+import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
 
 export interface AffiliateProfile {
   name: string;
@@ -10,6 +22,7 @@ export interface AffiliateProfile {
   id: string;
   phone: string;
   instagram: string;
+  role: "admin" | "affiliate";
 }
 
 export interface CommunityPost {
@@ -33,11 +46,33 @@ export interface AnnouncementItem {
   read?: boolean;
 }
 
+export interface DynamicModule extends Module {
+  order_index?: number;
+}
+
+export interface DynamicLink {
+  id?: string;
+  label: string;
+  url: string;
+  note: string;
+}
+
+export interface DynamicMaterial {
+  id?: string;
+  title: string;
+  kind: string;
+  size: string;
+  file_url?: string;
+}
+
 interface AffiliateStoreContextType {
   profile: AffiliateProfile;
-  updateProfile: (updated: Partial<AffiliateProfile>) => void;
-  
-  // Lesson state
+  isAdmin: boolean;
+  updateProfile: (updated: Partial<AffiliateProfile>) => Promise<void>;
+
+  // Dynamic Course & Lessons State
+  modulesList: DynamicModule[];
+  allLessonsList: (Lesson & { module: DynamicModule })[];
   completedLessonIds: string[];
   isLessonDone: (id: string) => boolean;
   toggleLessonDone: (id: string) => void;
@@ -45,23 +80,45 @@ interface AffiliateStoreContextType {
   completedCount: number;
   totalLessonsCount: number;
   progressPercentage: number;
-  nextLesson: (Lesson & { module: Module }) | null;
-  
+  nextLesson: (Lesson & { module: DynamicModule }) | null;
+
+  // Dynamic Creatives, Materials, Links
+  creativesList: Creative[];
+  materialsList: DynamicMaterial[];
+  linksList: DynamicLink[];
+
+  // Admin CMS Actions
+  createModule: (data: { title: string; subtitle: string; cover?: string }) => Promise<void>;
+  deleteModule: (id: string) => Promise<void>;
+  createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string }) => Promise<void>;
+  deleteLesson: (lessonId: string) => Promise<void>;
+  createCreative: (data: { title: string; type: "Feed" | "Stories" | "Reels" | "Copy"; format: string; image?: string; text?: string }) => Promise<void>;
+  deleteCreative: (id: string) => Promise<void>;
+  createMaterial: (data: { title: string; kind: string; size: string; file_url?: string }) => Promise<void>;
+  deleteMaterial: (id: string) => Promise<void>;
+  createAffiliateLink: (data: { label: string; url: string; note: string }) => Promise<void>;
+  deleteAffiliateLink: (id: string) => Promise<void>;
+  seedInitialDataToDatabase: () => Promise<void>;
+
   // Community state
   posts: CommunityPost[];
   addPost: (body: string) => void;
   toggleLikePost: (postId: string) => void;
-  
+
   // Notifications state
   announcements: AnnouncementItem[];
   unreadAnnouncementsCount: number;
   markAllNotificationsRead: () => void;
-  
+  createAnnouncement: (title: string, body: string, pinned?: boolean) => Promise<void>;
+
   // Auth state
   isAuthenticated: boolean;
-  login: (email: string) => void;
-  logout: () => void;
-  
+  authLoading: boolean;
+  login: (email: string, password?: string) => Promise<boolean>;
+  signUp: (email: string, password: string, name: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<boolean>;
+
   // Utilities
   copyText: (text: string, successLabel?: string) => Promise<boolean>;
   downloadAsset: (url: string, filename: string) => void;
@@ -73,11 +130,17 @@ const STORAGE_KEYS = {
   POSTS: "vellessa_community_posts",
   READ_ANNOUNCEMENTS: "vellessa_read_announcements",
   AUTH: "vellessa_auth_state",
+  MODULES: "vellessa_dynamic_modules",
+  CREATIVES: "vellessa_dynamic_creatives",
+  MATERIALS: "vellessa_dynamic_materials",
+  LINKS: "vellessa_dynamic_links",
 };
 
 const AffiliateStoreContext = createContext<AffiliateStoreContextType | null>(null);
 
 export function AffiliateStoreProvider({ children }: { children: React.ReactNode }) {
+  const [authLoading, setAuthLoading] = useState(false);
+
   // 1. Profile State
   const [profile, setProfile] = useState<AffiliateProfile>(() => {
     if (typeof window === "undefined") {
@@ -85,46 +148,87 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         ...initialAffiliate,
         phone: "(11) 98765-4321",
         instagram: "@mari.beauty",
+        role: "admin", // Permite alternar visão administrativa inicialmente
       };
     }
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
       if (saved) return JSON.parse(saved);
     } catch (e) {
-      console.error("Error reading profile from localStorage", e);
+      console.error(e);
     }
     return {
       ...initialAffiliate,
       phone: "(11) 98765-4321",
       instagram: "@mari.beauty",
+      role: "admin",
     };
   });
 
-  const updateProfile = (updated: Partial<AffiliateProfile>) => {
-    setProfile((prev) => {
-      const next = { ...prev, ...updated };
-      try {
-        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
-      } catch (e) {
-        console.error("Error saving profile", e);
-      }
-      return next;
-    });
-    toast.success("Perfil atualizado com sucesso!");
-  };
+  const isAdmin = profile.role === "admin";
 
-  // 2. Completed Lessons State
+  // 2. Dynamic Content Lists
+  const [modulesList, setModulesList] = useState<DynamicModule[]>(() => {
+    if (typeof window === "undefined") return initialModules;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.MODULES);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return initialModules;
+  });
+
+  const [creativesList, setCreativesList] = useState<Creative[]>(() => {
+    if (typeof window === "undefined") return initialCreatives;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CREATIVES);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return initialCreatives;
+  });
+
+  const [materialsList, setMaterialsList] = useState<DynamicMaterial[]>(() => {
+    if (typeof window === "undefined") return initialMaterials;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.MATERIALS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return initialMaterials;
+  });
+
+  const [linksList, setLinksList] = useState<DynamicLink[]>(() => {
+    if (typeof window === "undefined") return initialLinks;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LINKS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return initialLinks;
+  });
+
+  // Calculate dynamic lessons
+  const allLessonsList = useMemo(() => {
+    return modulesList.flatMap((m) => m.lessons.map((l) => ({ ...l, module: m })));
+  }, [modulesList]);
+
+  // 3. Completed Lessons
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>(() => {
     if (typeof window === "undefined") {
-      return allLessons.filter((l) => l.done).map((l) => l.id);
+      return allLessonsList.filter((l) => l.done).map((l) => l.id);
     }
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.COMPLETED_LESSONS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
-      console.error("Error reading completed lessons", e);
+      console.error(e);
     }
-    return allLessons.filter((l) => l.done).map((l) => l.id);
+    return allLessonsList.filter((l) => l.done).map((l) => l.id);
   });
 
   const isLessonDone = (id: string) => completedLessonIds.includes(id);
@@ -135,7 +239,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       try {
         localStorage.setItem(STORAGE_KEYS.COMPLETED_LESSONS, JSON.stringify(next));
       } catch (e) {
-        console.error("Error saving completed lessons", e);
+        console.error(e);
       }
       return next;
     });
@@ -148,37 +252,361 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       try {
         localStorage.setItem(STORAGE_KEYS.COMPLETED_LESSONS, JSON.stringify(next));
       } catch (e) {
-        console.error("Error saving completed lessons", e);
+        console.error(e);
       }
       return next;
     });
   };
 
-  const totalLessonsCount = allLessons.length;
+  const totalLessonsCount = allLessonsList.length;
   const completedCount = completedLessonIds.length;
-  const progressPercentage = Math.round((completedCount / totalLessonsCount) * 100);
+  const progressPercentage = totalLessonsCount > 0 ? Math.round((completedCount / totalLessonsCount) * 100) : 0;
 
-  // Next pending lesson with safe fallback
   const nextLesson = useMemo(() => {
-    const pending = allLessons.find((l) => !completedLessonIds.includes(l.id));
-    return pending ?? allLessons[0] ?? null;
-  }, [completedLessonIds]);
+    const pending = allLessonsList.find((l) => !completedLessonIds.includes(l.id));
+    return pending ?? allLessonsList[0] ?? null;
+  }, [allLessonsList, completedLessonIds]);
 
-  // 3. Community Posts
+  // 4. Update Profile
+  const updateProfile = async (updated: Partial<AffiliateProfile>) => {
+    setProfile((prev) => {
+      const next = { ...prev, ...updated };
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("profiles").update({
+            name: updated.name,
+            phone: updated.phone,
+            instagram: updated.instagram,
+          }).eq("id", user.id);
+        }
+      } catch (e) {
+        console.error("Supabase profile sync error:", e);
+      }
+    }
+
+    toast.success("Perfil atualizado com sucesso!");
+  };
+
+  // 5. Auth Implementation with Supabase
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.AUTH);
+      return saved === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const checkSupabaseSession = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setIsAuthenticated(true);
+        // Fetch real profile
+        const { data: dbProfile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
+
+        if (dbProfile) {
+          setProfile({
+            id: dbProfile.affiliate_code || session.user.id.slice(0, 8),
+            name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliada",
+            first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Afiliada",
+            email: session.user.email || "",
+            level: dbProfile.level || "Afiliada Ouro",
+            phone: dbProfile.phone || "",
+            instagram: dbProfile.instagram || "",
+            role: dbProfile.role === "admin" ? "admin" : "affiliate",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Session check error", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSupabaseSession();
+  }, [checkSupabaseSession]);
+
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    setAuthLoading(true);
+    try {
+      if (isSupabaseConfigured && supabase && password) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim(),
+        });
+
+        if (error) {
+          toast.error(`Falha no login: ${error.message}`);
+          setAuthLoading(false);
+          return false;
+        }
+
+        if (data.user) {
+          setIsAuthenticated(true);
+          localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+          await checkSupabaseSession();
+          toast.success("Autenticado com sucesso!");
+          setAuthLoading(false);
+          return true;
+        }
+      }
+
+      // Offline / Demo fallback
+      setIsAuthenticated(true);
+      setProfile((prev) => ({
+        ...prev,
+        email: email || prev.email,
+        first: email.split("@")[0] || prev.first,
+        name: email.split("@")[0] || prev.name,
+      }));
+      localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+      toast.success("Acesso autenticado com sucesso!");
+      setAuthLoading(false);
+      return true;
+    } catch (err) {
+      console.error("Login error", err);
+      toast.error("Ocorreu um erro ao entrar.");
+      setAuthLoading(false);
+      return false;
+    }
+  };
+
+  const signUp = async (email: string, password: string, name: string): Promise<boolean> => {
+    setAuthLoading(true);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: password.trim(),
+          options: {
+            data: {
+              name: name.trim(),
+              role: "affiliate",
+            },
+          },
+        });
+
+        if (error) {
+          toast.error(`Falha no cadastro: ${error.message}`);
+          setAuthLoading(false);
+          return false;
+        }
+
+        if (data.user) {
+          toast.success("Conta criada! Você já pode acessar a plataforma.");
+          setAuthLoading(false);
+          return true;
+        }
+      }
+
+      toast.success("Cadastro realizado com sucesso!");
+      setAuthLoading(false);
+      return true;
+    } catch (e) {
+      console.error("Signup error", e);
+      toast.error("Erro ao cadastrar.");
+      setAuthLoading(false);
+      return false;
+    }
+  };
+
+  const resetPassword = async (email: string): Promise<boolean> => {
+    if (!email.trim()) {
+      toast.error("Insira o seu e-mail para recuperar a senha.");
+      return false;
+    }
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/`,
+      });
+      if (error) {
+        toast.error(`Erro: ${error.message}`);
+        return false;
+      }
+    }
+    toast.success("Instruções de redefinição de senha enviadas para o seu e-mail!");
+    return true;
+  };
+
+  const logout = async () => {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut().catch(() => {});
+    }
+    setIsAuthenticated(false);
+    localStorage.setItem(STORAGE_KEYS.AUTH, "false");
+    toast.info("Você saiu da plataforma.");
+  };
+
+  // 6. Admin CMS Methods
+  const createModule = async (data: { title: string; subtitle: string; cover?: string }) => {
+    const newMod: DynamicModule = {
+      id: `mod-${Date.now()}`,
+      title: data.title,
+      subtitle: data.subtitle,
+      cover: data.cover || initialModules[0]?.cover || "",
+      lessons: [],
+    };
+    const updated = [...modulesList, newMod];
+    setModulesList(updated);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    toast.success("Novo módulo criado na Academia!");
+  };
+
+  const deleteModule = async (id: string) => {
+    const updated = modulesList.filter((m) => m.id !== id);
+    setModulesList(updated);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    toast.success("Módulo removido.");
+  };
+
+  const createLesson = async (data: {
+    moduleId: string;
+    title: string;
+    duration: string;
+    videoUrl?: string;
+    description?: string;
+  }) => {
+    const newLesson: Lesson = {
+      id: `l-${Date.now()}`,
+      title: data.title,
+      duration: data.duration || "10:00",
+      done: false,
+    };
+    const updated = modulesList.map((m) => {
+      if (m.id !== data.moduleId) return m;
+      return {
+        ...m,
+        lessons: [...m.lessons, newLesson],
+      };
+    });
+    setModulesList(updated);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    toast.success("Nova aula cadastrada com sucesso!");
+  };
+
+  const deleteLesson = async (lessonId: string) => {
+    const updated = modulesList.map((m) => ({
+      ...m,
+      lessons: m.lessons.filter((l) => l.id !== lessonId),
+    }));
+    setModulesList(updated);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    toast.success("Aula removida.");
+  };
+
+  const createCreative = async (data: {
+    title: string;
+    type: "Feed" | "Stories" | "Reels" | "Copy";
+    format: string;
+    image?: string;
+    text?: string;
+  }) => {
+    const newC: Creative = {
+      id: `c-${Date.now()}`,
+      title: data.title,
+      type: data.type,
+      format: data.format,
+      image: data.image || initialCreatives[0]?.image,
+      text: data.text,
+    };
+    const updated = [newC, ...creativesList];
+    setCreativesList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+    toast.success("Criativo adicionado à biblioteca de afiliados!");
+  };
+
+  const deleteCreative = async (id: string) => {
+    const updated = creativesList.filter((c) => c.id !== id);
+    setCreativesList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+    toast.success("Criativo removido.");
+  };
+
+  const createMaterial = async (data: { title: string; kind: string; size: string; file_url?: string }) => {
+    const newM: DynamicMaterial = {
+      id: `mat-${Date.now()}`,
+      title: data.title,
+      kind: data.kind.toUpperCase(),
+      size: data.size,
+      file_url: data.file_url,
+    };
+    const updated = [...materialsList, newM];
+    setMaterialsList(updated);
+    localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
+    toast.success("Material oficial publicado!");
+  };
+
+  const deleteMaterial = async (id: string) => {
+    const updated = materialsList.filter((m) => (m.id || m.title) !== id);
+    setMaterialsList(updated);
+    localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
+    toast.success("Material removido.");
+  };
+
+  const createAffiliateLink = async (data: { label: string; url: string; note: string }) => {
+    const newL: DynamicLink = {
+      id: `link-${Date.now()}`,
+      label: data.label,
+      url: data.url,
+      note: data.note,
+    };
+    const updated = [...linksList, newL];
+    setLinksList(updated);
+    localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
+    toast.success("Novo link rastreado configurado!");
+  };
+
+  const deleteAffiliateLink = async (id: string) => {
+    const updated = linksList.filter((l) => (l.id || l.url) !== id);
+    setLinksList(updated);
+    localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
+    toast.success("Link removido.");
+  };
+
+  const seedInitialDataToDatabase = async () => {
+    setModulesList(initialModules);
+    setCreativesList(initialCreatives);
+    setMaterialsList(initialMaterials);
+    setLinksList(initialLinks);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(initialModules));
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(initialCreatives));
+    localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(initialMaterials));
+    localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(initialLinks));
+    toast.success("Dados padrão da Vellessa recarregados com sucesso!");
+  };
+
+  // 7. Community Posts
   const [posts, setPosts] = useState<CommunityPost[]>(() => {
     if (typeof window === "undefined") return initialPosts;
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.POSTS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
-      console.error("Error reading posts", e);
+      console.error(e);
     }
     return initialPosts;
   });
 
   const addPost = (body: string) => {
     if (!body.trim()) {
-      toast.error("Por favor, digite uma mensagem antes de publicar.");
+      toast.error("Digite uma mensagem antes de publicar.");
       return;
     }
     const newPost: CommunityPost = {
@@ -195,15 +623,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       replies: 0,
       userLiked: false,
     };
-    setPosts((prev) => {
-      const next = [newPost, ...prev];
-      try {
-        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(next));
-      } catch (e) {
-        console.error("Error saving posts", e);
-      }
-      return next;
-    });
+    const next = [newPost, ...posts];
+    setPosts(next);
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(next));
     toast.success("Publicação compartilhada no mural!");
   };
 
@@ -218,88 +640,54 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           likes: userLiked ? p.likes + 1 : Math.max(0, p.likes - 1),
         };
       });
-      try {
-        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(next));
-      } catch (e) {
-        console.error("Error updating likes", e);
-      }
+      localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(next));
       return next;
     });
   };
 
-  // 4. Announcements & Notifications
+  // 8. Announcements
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(initialAnnouncements);
   const [readAnnouncementIds, setReadAnnouncementIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.READ_ANNOUNCEMENTS);
       if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error("Error reading notifications", e);
+    } catch {
+      return [];
     }
     return [];
   });
 
-  const announcements = useMemo(() => {
-    return initialAnnouncements.map((a) => ({
-      ...a,
-      read: readAnnouncementIds.includes(a.id),
-    }));
-  }, [readAnnouncementIds]);
-
-  const unreadAnnouncementsCount = announcements.filter((a) => !a.read).length;
+  const unreadAnnouncementsCount = announcements.filter((a) => !readAnnouncementIds.includes(a.id)).length;
 
   const markAllNotificationsRead = () => {
-    const allIds = initialAnnouncements.map((a) => a.id);
+    const allIds = announcements.map((a) => a.id);
     setReadAnnouncementIds(allIds);
-    try {
-      localStorage.setItem(STORAGE_KEYS.READ_ANNOUNCEMENTS, JSON.stringify(allIds));
-    } catch (e) {
-      console.error("Error saving notifications", e);
-    }
-    toast.success("Todas as notificações foram marcadas como lidas.");
+    localStorage.setItem(STORAGE_KEYS.READ_ANNOUNCEMENTS, JSON.stringify(allIds));
+    toast.success("Todas as notificações marcadas como lidas.");
   };
 
-  // 5. Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.AUTH);
-      return saved ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
-  });
-
-  const login = (email: string) => {
-    setIsAuthenticated(true);
-    setProfile((prev) => ({ ...prev, email: email || prev.email }));
-    try {
-      localStorage.setItem(STORAGE_KEYS.AUTH, "true");
-    } catch (e) {
-      console.error("Error persisting auth", e);
-    }
-    toast.success("Acesso autenticado com sucesso!");
+  const createAnnouncement = async (title: string, body: string, pinned = false) => {
+    const newA: AnnouncementItem = {
+      id: `a-${Date.now()}`,
+      title,
+      body,
+      author: "Equipe Vellessa (Admin)",
+      time: "Agora",
+      pinned,
+    };
+    setAnnouncements((prev) => [newA, ...prev]);
+    toast.success("Aviso oficial publicado para todas as afiliadas!");
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    try {
-      localStorage.setItem(STORAGE_KEYS.AUTH, "false");
-    } catch (e) {
-      console.error("Error persisting auth", e);
-    }
-    toast.info("Você saiu da plataforma.");
-  };
-
-  // 6. Safe Clipboard Copy
-  const copyText = async (text: string, successLabel: string = "Copiado com sucesso!"): Promise<boolean> => {
+  // 9. Safe Clipboard & Download
+  const copyText = async (text: string, successLabel = "Copiado!"): Promise<boolean> => {
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
         toast.success(successLabel);
         return true;
       }
-      // Fallback using textarea
       const textArea = document.createElement("textarea");
       textArea.value = text;
       textArea.style.position = "fixed";
@@ -313,15 +701,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         toast.success(successLabel);
         return true;
       }
-      throw new Error("Copy command not supported");
-    } catch (err) {
-      console.error("Falha ao copiar:", err);
-      toast.error("Não foi possível copiar automaticamente. Selecione e copie o texto manualmente.");
+      throw new Error();
+    } catch {
+      toast.error("Copie o texto manualmente.");
       return false;
     }
   };
 
-  // 7. Real Asset Download Helper
   const downloadAsset = (url: string, filename: string) => {
     try {
       const a = document.createElement("a");
@@ -332,9 +718,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      toast.success(`Download de "${filename}" preparado!`);
-    } catch (err) {
-      console.error("Download failed:", err);
+      toast.success(`Download de "${filename}" iniciado!`);
+    } catch {
       toast.error("Erro ao iniciar download.");
     }
   };
@@ -343,7 +728,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     <AffiliateStoreContext.Provider
       value={{
         profile,
+        isAdmin,
         updateProfile,
+        modulesList,
+        allLessonsList,
         completedLessonIds,
         isLessonDone,
         toggleLessonDone,
@@ -352,15 +740,33 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         totalLessonsCount,
         progressPercentage,
         nextLesson,
+        creativesList,
+        materialsList,
+        linksList,
+        createModule,
+        deleteModule,
+        createLesson,
+        deleteLesson,
+        createCreative,
+        deleteCreative,
+        createMaterial,
+        deleteMaterial,
+        createAffiliateLink,
+        deleteAffiliateLink,
+        seedInitialDataToDatabase,
         posts,
         addPost,
         toggleLikePost,
         announcements,
         unreadAnnouncementsCount,
         markAllNotificationsRead,
+        createAnnouncement,
         isAuthenticated,
+        authLoading,
         login,
+        signUp,
         logout,
+        resetPassword,
         copyText,
         downloadAsset,
       }}

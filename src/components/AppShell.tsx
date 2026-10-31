@@ -1,7 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Bell, BookOpen, ChevronsLeft, Home, Image, Link2, LogOut, Moon, Search, Sun, Users,
+  Bell, BookOpen, ChevronsLeft, Home, Image, Link2, LogOut, Moon, Search, Shield, Sun, Users,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useAffiliateStore } from "@/lib/affiliate-store";
@@ -108,6 +108,18 @@ export function AppShell() {
             <Link to="/materiais" className="mt-3 inline-block text-xs font-semibold text-gold">Pegar meu link →</Link>
           </div>
         )}
+        {profile.role === "admin" && (
+          <Link
+            to="/admin"
+            className={cn(
+              "mb-2 flex items-center gap-2.5 rounded-xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/20 transition",
+              collapsed && "justify-center"
+            )}
+          >
+            <Shield className="h-4 w-4 shrink-0" />
+            {!collapsed && "Painel Admin (CMS)"}
+          </Link>
+        )}
         <div className="flex flex-col gap-1">
           <button
             onClick={() => setCollapsed((c) => !c)}
@@ -142,6 +154,15 @@ export function AppShell() {
             </button>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {profile.role === "admin" && (
+              <Link
+                to="/admin"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3.5 py-1.5 text-xs font-semibold text-gold hover:bg-gold/20 transition"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                Painel Admin
+              </Link>
+            )}
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Buscar"

@@ -16,8 +16,21 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : (null as unknown as ReturnType<typeof createClient>);
 
+export interface DatabaseTenant {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url?: string;
+  brand_color: string;
+  default_commission: number;
+  active: boolean;
+  created_at: string;
+}
+
 export interface DatabaseProfile {
   id: string;
+  tenant_id?: string;
+  role: "admin" | "affiliate" | "manager";
   name: string;
   first_name: string;
   email: string;
@@ -26,8 +39,66 @@ export interface DatabaseProfile {
   affiliate_code: string;
   level: string;
   commission_rate: number;
+  avatar_url?: string;
+  status: "active" | "suspended" | "pending";
   created_at: string;
   updated_at: string;
+}
+
+export interface DatabaseModule {
+  id: string;
+  tenant_id?: string;
+  title: string;
+  subtitle?: string;
+  cover_url?: string;
+  order_index: number;
+  created_at: string;
+  lessons?: DatabaseLesson[];
+}
+
+export interface DatabaseLesson {
+  id: string;
+  tenant_id?: string;
+  module_id: string;
+  title: string;
+  duration: string;
+  video_url?: string;
+  description?: string;
+  order_index: number;
+  created_at: string;
+}
+
+export interface DatabaseCreative {
+  id: string;
+  tenant_id?: string;
+  title: string;
+  type: "Feed" | "Stories" | "Reels" | "Copy";
+  format: string;
+  media_url?: string;
+  suggested_copy?: string;
+  order_index: number;
+  created_at: string;
+}
+
+export interface DatabaseMaterial {
+  id: string;
+  tenant_id?: string;
+  title: string;
+  kind: string;
+  file_url?: string;
+  size: string;
+  order_index: number;
+  created_at: string;
+}
+
+export interface DatabaseAffiliateLink {
+  id: string;
+  tenant_id?: string;
+  label: string;
+  url_template: string;
+  note?: string;
+  order_index: number;
+  created_at: string;
 }
 
 export interface DatabaseLessonProgress {
@@ -40,6 +111,7 @@ export interface DatabaseLessonProgress {
 
 export interface DatabaseCommunityPost {
   id: string;
+  tenant_id?: string;
   user_id: string;
   author_name: string;
   author_initials: string;
@@ -51,6 +123,7 @@ export interface DatabaseCommunityPost {
 
 export interface DatabaseAnnouncement {
   id: string;
+  tenant_id?: string;
   title: string;
   body: string;
   author: string;
