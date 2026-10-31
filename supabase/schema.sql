@@ -1,5 +1,5 @@
 -- ==============================================================================
--- VELESSA AFILIADOS - SUPABASE DATABASE SCHEMA & RLS POLICIES
+-- VELESSA AFILIADOS - SUPABASE DATABASE SCHEMA & RLS POLICIES (IDEMPOTENTE)
 -- ==============================================================================
 
 -- 1. EXTENSIONS
@@ -111,7 +111,8 @@ begin
     generated_code,
     new.raw_user_meta_data->>'phone',
     new.raw_user_meta_data->>'instagram'
-  );
+  )
+  on conflict (id) do nothing;
 
   return new;
 end;
@@ -124,7 +125,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ==============================================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES (COM DROP IF EXISTS PARA SER 100% IDEMPOTENTE)
 -- ==============================================================================
 
 alter table public.profiles enable row level security;
@@ -135,71 +136,84 @@ alter table public.announcements enable row level security;
 alter table public.read_announcements enable row level security;
 
 -- PROFILES POLICIES
+drop policy if exists "Allow authenticated users to read all profiles" on public.profiles;
 create policy "Allow authenticated users to read all profiles"
   on public.profiles for select
   to authenticated
   using (true);
 
+drop policy if exists "Allow users to update own profile" on public.profiles;
 create policy "Allow users to update own profile"
   on public.profiles for update
   to authenticated
   using (auth.uid() = id);
 
 -- LESSON PROGRESS POLICIES
+drop policy if exists "Users can view own lesson progress" on public.lesson_progress;
 create policy "Users can view own lesson progress"
   on public.lesson_progress for select
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert own lesson progress" on public.lesson_progress;
 create policy "Users can insert own lesson progress"
   on public.lesson_progress for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can delete own lesson progress" on public.lesson_progress;
 create policy "Users can delete own lesson progress"
   on public.lesson_progress for delete
   to authenticated
   using (auth.uid() = user_id);
 
 -- COMMUNITY POSTS POLICIES
+drop policy if exists "Anyone authenticated can view community posts" on public.community_posts;
 create policy "Anyone authenticated can view community posts"
   on public.community_posts for select
   to authenticated
   using (true);
 
+drop policy if exists "Authenticated users can create posts" on public.community_posts;
 create policy "Authenticated users can create posts"
   on public.community_posts for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can delete their own posts" on public.community_posts;
 create policy "Users can delete their own posts"
   on public.community_posts for delete
   to authenticated
   using (auth.uid() = user_id);
 
 -- POST LIKES POLICIES
+drop policy if exists "Anyone authenticated can view likes" on public.post_likes;
 create policy "Anyone authenticated can view likes"
   on public.post_likes for select
   to authenticated
   using (true);
 
+drop policy if exists "Users can add like" on public.post_likes;
 create policy "Users can add like"
   on public.post_likes for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can remove like" on public.post_likes;
 create policy "Users can remove like"
   on public.post_likes for delete
   to authenticated
   using (auth.uid() = user_id);
 
 -- ANNOUNCEMENTS POLICIES
+drop policy if exists "Anyone authenticated can view announcements" on public.announcements;
 create policy "Anyone authenticated can view announcements"
   on public.announcements for select
   to authenticated
   using (true);
 
 -- READ ANNOUNCEMENTS POLICIES
+drop policy if exists "Users can view and set their read announcements" on public.read_announcements;
 create policy "Users can view and set their read announcements"
   on public.read_announcements for all
   to authenticated
