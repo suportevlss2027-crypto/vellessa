@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, ArrowUpRight, Calculator, Lock, Mail, Sparkles, User } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Calculator, Headphones, Lock, Mail, Sparkles, TrendingUp, User } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/AppShell";
 import { images } from "@/data/content";
@@ -91,45 +91,69 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Cinematográfica com Métricas Estratégicas ao Lado (Zero-Scroll Absoluto) */}
-        <div className="relative z-10 my-auto w-full py-1">
-          {/* Halo Dourado Atmosférico de Fundo */}
+        {/* Centro: Vitrine Cinematográfica Centralizada com 3 Luxury Cards (Zero-Scroll Absoluto) */}
+        <div className="relative z-10 my-auto flex flex-col items-center justify-center w-full py-1">
+          {/* Halo Dourado Atmosférico de Fundo Perfeitamente Centrado */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
+            <div className="h-80 w-80 rounded-full bg-gold/15 blur-3xl" />
           </div>
 
-          <div className="relative flex items-center justify-center gap-5 xl:gap-8 max-w-lg mx-auto w-full">
-            {/* Lado 1: Vídeo Cinematográfico do Sérum */}
-            <div className="relative shrink-0 w-[230px] sm:w-[255px] xl:w-[290px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
-              {/* Brilho radial acolhedor atrás dos frascos */}
-              <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                poster="/videos/vellessa-serum-poster.jpg"
-                className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)]"
-              >
-                <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
-              </video>
+          {/* Vídeo Cinematográfico do Sérum — No Centro Absoluto */}
+          <div className="relative w-[225px] sm:w-[245px] xl:w-[270px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
+            {/* Brilho radial acolhedor atrás dos frascos */}
+            <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              poster="/videos/vellessa-serum-poster.jpg"
+              className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)]"
+            >
+              <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
+            </video>
+          </div>
+
+          {/* 3 Glassmorphic Luxury Cards — Bonitos, Informativos e Harmoniosos */}
+          <div className="grid grid-cols-3 gap-2.5 xl:gap-3.5 w-full max-w-lg xl:max-w-xl mx-auto mt-3 xl:mt-3.5">
+            {/* Card 1: Criativos */}
+            <div className="group flex flex-col items-center text-center rounded-2xl border border-gold/20 bg-gradient-to-b from-card/70 to-card/30 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_20px_-4px_oklch(0.80_0.12_82/0.18)] hover:-translate-y-0.5">
+              <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold transition group-hover:scale-110">
+                <Sparkles className="h-3.5 w-3.5 text-gold" />
+              </div>
+              <span className="font-display text-xs xl:text-[13px] font-bold text-foreground leading-tight">
+                Criativos 4K
+              </span>
+              <span className="text-[10px] xl:text-[11px] text-muted-foreground font-medium mt-0.5 leading-tight">
+                Vídeos validados
+              </span>
             </div>
 
-            {/* Lado 2: Pilares Estratégicos ao Lado do Vídeo — Inline Compacto */}
-            <div className="shrink-0 flex flex-col justify-center gap-2.5 text-left border-l border-border/40 pl-5 xl:pl-6">
-              {[
-                { label: "Criativos Prontos", value: "Alta Conversão" },
-                { label: "Comissões", value: "Até 60%" },
-                { label: "Suporte", value: "Exclusivo" },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="text-gold text-[11px]">✦</span>
-                  <span className="text-[11px] xl:text-[12px] font-semibold text-foreground/90">{label}</span>
-                  <span className="text-foreground/30 text-[10px]">·</span>
-                  <span className="text-[11px] xl:text-[12px] font-bold text-gold">{value}</span>
-                </div>
-              ))}
+            {/* Card 2: Comissões */}
+            <div className="group flex flex-col items-center text-center rounded-2xl border border-gold/20 bg-gradient-to-b from-card/70 to-card/30 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_20px_-4px_oklch(0.80_0.12_82/0.18)] hover:-translate-y-0.5">
+              <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold transition group-hover:scale-110">
+                <TrendingUp className="h-3.5 w-3.5 text-gold" />
+              </div>
+              <span className="font-display text-xs xl:text-[13px] font-bold text-gold leading-tight">
+                Até 60%
+              </span>
+              <span className="text-[10px] xl:text-[11px] text-muted-foreground font-medium mt-0.5 leading-tight">
+                Repasse direto
+              </span>
+            </div>
+
+            {/* Card 3: Suporte */}
+            <div className="group flex flex-col items-center text-center rounded-2xl border border-gold/20 bg-gradient-to-b from-card/70 to-card/30 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_20px_-4px_oklch(0.80_0.12_82/0.18)] hover:-translate-y-0.5">
+              <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold transition group-hover:scale-110">
+                <Headphones className="h-3.5 w-3.5 text-gold" />
+              </div>
+              <span className="font-display text-xs xl:text-[13px] font-bold text-foreground leading-tight">
+                Suporte VIP
+              </span>
+              <span className="text-[10px] xl:text-[11px] text-muted-foreground font-medium mt-0.5 leading-tight">
+                Individual 24/7
+              </span>
             </div>
           </div>
         </div>
