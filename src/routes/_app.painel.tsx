@@ -41,8 +41,10 @@ function Dashboard() {
         <img
           src={images.serum}
           alt=""
-          className="pointer-events-none absolute -right-10 top-0 hidden h-full w-[45%] object-cover opacity-80 mix-blend-multiply md:block dark:opacity-40 dark:mix-blend-luminosity"
+          className="pointer-events-none absolute -right-10 top-0 hidden h-full w-[45%] object-cover opacity-70 mix-blend-multiply md:block dark:opacity-35 dark:mix-blend-luminosity"
         />
+        {/* Overlay extra no modo claro para o produto se destacar do fundo */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/60 via-transparent to-transparent dark:from-background/40" />
         <div className="relative max-w-lg">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">{profile.level}</p>
           <h1 className="mt-3 text-4xl font-semibold leading-tight md:text-6xl">Olá, {profile.first}.</h1>

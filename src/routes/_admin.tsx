@@ -90,12 +90,12 @@ function AdminLayout() {
                 "group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition",
                 collapsed && "justify-center",
                 isActive(to)
-                  ? "bg-card text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                  ? "bg-accent text-foreground shadow-soft font-semibold"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               )}
             >
               {isActive(to) && (
-                <span className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-gold-gradient" />
+                <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-gold-gradient" />
               )}
               <Icon className={cn("h-[18px] w-[18px]", isActive(to) && "text-gold")} />
               {!collapsed && label}
@@ -143,7 +143,7 @@ function AdminLayout() {
 
       {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-xl md:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-surface/90 px-4 backdrop-blur-xl md:px-8">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-semibold text-gold">
               <Shield className="h-3.5 w-3.5" />

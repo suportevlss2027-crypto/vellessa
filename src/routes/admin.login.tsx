@@ -69,7 +69,7 @@ function AdminLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col justify-between bg-surface px-6 py-8 sm:px-12">
+    <div className="relative flex min-h-screen flex-col justify-between bg-background px-6 py-8 sm:px-12">
       {/* Top Bar */}
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between">
         <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ function AdminLoginPage() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Seu nome completo"
                     required
-                    className="h-12 w-full rounded-xl border bg-muted/30 pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-ring/15"
+                    className="h-12 w-full rounded-xl border bg-background pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/20 placeholder:text-muted-foreground/60"
                   />
                 </div>
               </label>
@@ -168,7 +168,7 @@ function AdminLoginPage() {
                   placeholder="admin@vellessa.com"
                   autoComplete="email"
                   required
-                  className="h-12 w-full rounded-xl border bg-muted/30 pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-ring/15"
+                  className="h-12 w-full rounded-xl border bg-background pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/20 placeholder:text-muted-foreground/60"
                 />
               </div>
             </label>
@@ -188,7 +188,7 @@ function AdminLoginPage() {
                   placeholder="••••••••"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   required
-                  className="h-12 w-full rounded-xl border bg-muted/30 pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-ring/15"
+                  className="h-12 w-full rounded-xl border bg-background pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/20 placeholder:text-muted-foreground/60"
                 />
               </div>
             </label>
@@ -210,7 +210,7 @@ function AdminLoginPage() {
                     value={masterKey}
                     onChange={(e) => setMasterKey(e.target.value)}
                     placeholder="VELLESSA-MASTER-2026"
-                    className="h-12 w-full rounded-xl border bg-muted/30 pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-ring/15 font-mono text-xs"
+                    className="h-12 w-full rounded-xl border bg-background pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/20 font-mono text-xs placeholder:text-muted-foreground/60"
                   />
                 </div>
                 <p className="mt-1 text-[11px] text-muted-foreground leading-tight">

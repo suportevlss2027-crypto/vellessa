@@ -75,7 +75,7 @@ function AuthPage() {
           alt="Sérum Vellessa"
           className="absolute inset-0 h-full w-full object-cover opacity-90 mix-blend-multiply dark:opacity-60 dark:mix-blend-normal"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
         <div className="absolute bottom-12 left-12 right-12">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">Plataforma de Afiliadas & Gestão</p>
           <h2 className="mt-3 text-5xl font-semibold leading-[1.05]">
@@ -222,7 +222,7 @@ function Field({
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
         <input
           {...props}
-          className="h-12 w-full rounded-xl border bg-card pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-ring/15"
+          className="h-12 w-full rounded-xl border bg-background pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/20 placeholder:text-muted-foreground/60"
         />
       </span>
     </label>

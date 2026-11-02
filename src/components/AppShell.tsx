@@ -76,8 +76,7 @@ export function AppShell() {
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-surface px-4 py-6 transition-all duration-300 md:flex",
           collapsed ? "w-20" : "w-64",
-        )}
-      >
+        )}      >
         <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
           <Link to="/painel"><Logo compact={collapsed} /></Link>
         </div>
@@ -91,11 +90,11 @@ export function AppShell() {
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                 collapsed && "justify-center",
                 isActive(to)
-                  ? "bg-card text-foreground shadow-soft"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+                  ? "bg-accent text-foreground shadow-soft"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
               )}
             >
-              {isActive(to) && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-gold-gradient" />}
+              {isActive(to) && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-gold-gradient" />}
               <Icon className={cn("h-[18px] w-[18px]", isActive(to) && "text-gold")} />
               {!collapsed && label}
             </Link>
@@ -139,7 +138,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-xl md:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-surface/90 px-4 backdrop-blur-xl md:px-8">
           <div className="md:hidden"><Logo compact /></div>
           <div className="relative hidden max-w-md flex-1 sm:block">
             <button
@@ -197,14 +196,14 @@ export function AppShell() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 flex justify-around rounded-2xl border bg-card/95 p-1.5 shadow-soft backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-40 flex justify-around rounded-2xl border bg-surface/95 p-1.5 shadow-soft backdrop-blur-xl md:hidden">
         {nav.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             className={cn(
               "flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-medium transition",
-              isActive(to) ? "bg-accent text-gold" : "text-muted-foreground",
+              isActive(to) ? "bg-accent text-gold font-semibold" : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon className="h-[18px] w-[18px]" />
