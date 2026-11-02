@@ -71,7 +71,7 @@ function AuthPage() {
   return (
     <div className="grid min-h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden lg:grid-cols-[1.1fr_1fr] bg-background">
       {/* Vitrine Editorial de Luxo (Lado Esquerdo) — Zero-Scroll Perfeito */}
-      <div className="relative hidden lg:flex flex-col justify-between border-r border-border/40 bg-surface/30 px-6 py-4 xl:px-10 xl:py-6 h-full overflow-hidden">
+      <div className="relative hidden lg:flex flex-col justify-between border-r border-border/40 bg-surface/30 px-6 py-4 xl:px-10 xl:py-5 pb-5 xl:pb-6 h-full overflow-hidden">
         {/* Glow dourado suave de estúdio */}
         <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-gold/10 blur-3xl" />
         <div className="pointer-events-none absolute right-0 bottom-6 h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
@@ -92,7 +92,7 @@ function AuthPage() {
         </div>
 
         {/* Centro: Vitrine Cinematográfica com Métricas Estratégicas ao Lado (Zero-Scroll Absoluto) */}
-        <div className="relative z-10 my-auto w-full py-1 xl:py-2">
+        <div className="relative z-10 my-auto w-full py-1">
           {/* Halo Dourado Atmosférico de Fundo */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
@@ -100,7 +100,7 @@ function AuthPage() {
 
           <div className="relative flex items-center justify-center gap-5 xl:gap-8 max-w-lg mx-auto w-full">
             {/* Lado 1: Vídeo Cinematográfico do Sérum */}
-            <div className="relative shrink-0 w-[220px] sm:w-[245px] xl:w-[275px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
+            <div className="relative shrink-0 w-[205px] sm:w-[225px] xl:w-[255px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
               {/* Brilho radial acolhedor atrás dos frascos */}
               <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
               <video
@@ -117,7 +117,7 @@ function AuthPage() {
             </div>
 
             {/* Lado 2: Pilares Estratégicos ao Lado do Vídeo (Apenas as Letras) */}
-            <div className="shrink-0 flex flex-col justify-center space-y-4 xl:space-y-5 text-left border-l border-border/40 pl-5 xl:pl-6 max-w-[210px]">
+            <div className="shrink-0 flex flex-col justify-center space-y-3.5 xl:space-y-4 text-left border-l border-border/40 pl-5 xl:pl-6 max-w-[210px]">
               {/* Pilar 1: Criativos Prontos */}
               <div className="flex flex-col">
                 <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
@@ -160,25 +160,21 @@ function AuthPage() {
           </div>
         </div>
 
-        {/* Botão Simulador de Lucros Apple Premium */}
+        {/* Micro-Gatilho Simulador de Lucros (Suave & Alta Joalheria) */}
         <div className="relative z-10 flex justify-center py-1">
           <button
             type="button"
             onClick={() => setIsCalculatorOpen(true)}
-            className="group relative inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 px-4 py-1.5 xl:px-5 xl:py-2 text-xs xl:text-sm font-semibold text-gold transition-all duration-300 hover:scale-[1.02] shadow-sm shadow-gold/10 backdrop-blur-md cursor-pointer"
+            className="group inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 hover:bg-gold/15 px-3 py-1 text-[11px] font-medium text-gold/90 transition-all duration-300 hover:scale-[1.01] hover:text-gold cursor-pointer"
           >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-gold"></span>
-            </span>
-            <Calculator className="h-3.5 w-3.5 text-gold" />
-            <span>Simular Meus Ganhos como Afiliada</span>
-            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-gold/80" />
+            <Calculator className="h-3 w-3 text-gold/80" />
+            <span>Simular ganhos estimados como afiliada</span>
+            <ArrowUpRight className="h-3 w-3 text-gold/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </div>
 
         {/* Base: Selo Editorial de Autenticidade */}
-        <div className="relative z-10 flex items-center justify-between border-t border-border/40 pt-2.5 pb-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium">
+        <div className="relative z-10 flex items-center justify-between border-t border-border/40 pt-3 pb-2 text-[10px] xl:text-[11px] text-muted-foreground font-medium">
           <span>Portal Oficial Vellessa Cosméticos</span>
           <span>Tecnologia & Gestão Segura</span>
         </div>
