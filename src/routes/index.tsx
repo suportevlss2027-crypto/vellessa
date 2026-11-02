@@ -91,17 +91,32 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Cinematográfica Balanceada (Zero-Scroll Absoluto) */}
+        {/* Centro: Vitrine Cinematográfica Orbital (Zero-Scroll Absoluto) */}
         <div className="relative z-10 my-auto w-full py-1">
           {/* Halo Dourado Atmosférico de Fundo */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
+            <div className="h-80 w-80 rounded-full bg-gold/15 blur-3xl" />
           </div>
 
-          <div className="relative flex items-center justify-center gap-4 xl:gap-6 max-w-xl mx-auto w-full">
-            {/* Lado 1: Vídeo Cinematográfico do Sérum */}
-            <div className="relative shrink-0 w-[195px] sm:w-[210px] xl:w-[230px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
-              <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
+          <div className="relative flex items-center justify-center gap-3.5 sm:gap-5 xl:gap-8 max-w-2xl mx-auto w-full">
+            {/* Órbita Esquerda: Criativos Validados */}
+            <div className="flex flex-col justify-center w-[160px] sm:w-[175px] xl:w-[200px] shrink-0 text-right space-y-1">
+              <div className="flex items-center justify-end gap-2">
+                <span className="font-sans text-xs sm:text-[13px] xl:text-sm font-bold tracking-tight text-foreground">
+                  Criativos Validados
+                </span>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold shadow-xs">
+                  <Sparkles className="h-3 w-3 text-gold" />
+                </div>
+              </div>
+              <p className="text-[10.5px] sm:text-[11px] xl:text-xs text-foreground/75 font-medium leading-relaxed">
+                Vídeos e materiais prontos para divulgar em anúncios e redes.
+              </p>
+            </div>
+
+            {/* Centro Hero: Vídeo Cinematográfico Ampliado e Centralizado */}
+            <div className="relative shrink-0 w-[215px] sm:w-[235px] xl:w-[265px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
+              <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.24)_0%,transparent_70%)]" />
               <video
                 autoPlay
                 loop
@@ -115,49 +130,34 @@ function AuthPage() {
               </video>
             </div>
 
-            {/* Lado 2: 3 Glassmorphic Luxury Cards — Bonitos, Informativos e Nobres */}
-            <div className="flex flex-col justify-center gap-2 xl:gap-2.5 w-[240px] xl:w-[270px] shrink-0 text-left">
-              {/* Card 1: Criativos */}
-              <div className="group rounded-xl border border-gold/20 bg-gradient-to-r from-card/75 to-card/35 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_16px_-4px_oklch(0.80_0.12_82/0.18)]">
+            {/* Órbita Direita: Comissões + Suporte */}
+            <div className="flex flex-col justify-center w-[160px] sm:w-[175px] xl:w-[200px] shrink-0 text-left space-y-3 xl:space-y-4">
+              {/* Ponto 1: Comissões */}
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
-                    <Sparkles className="h-3 w-3 text-gold" />
-                  </div>
-                  <span className="font-display text-xs xl:text-[13px] font-bold text-foreground">
-                    Criativos 4K Validados
-                  </span>
-                </div>
-                <p className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium leading-snug">
-                  Vídeos e materiais prontos para anúncios e redes sociais.
-                </p>
-              </div>
-
-              {/* Card 2: Comissões */}
-              <div className="group rounded-xl border border-gold/20 bg-gradient-to-r from-card/75 to-card/35 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_16px_-4px_oklch(0.80_0.12_82/0.18)]">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold shadow-xs">
                     <TrendingUp className="h-3 w-3 text-gold" />
                   </div>
-                  <span className="font-display text-xs xl:text-[13px] font-bold text-gold">
-                    Comissões de até 60%
+                  <span className="font-sans text-xs sm:text-[13px] xl:text-sm font-bold tracking-tight text-gold">
+                    Comissões até 60%
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium leading-snug">
+                <p className="text-[10.5px] sm:text-[11px] xl:text-xs text-foreground/75 font-medium leading-relaxed">
                   Lucro de até R$ 406,20 por kit com repasses rápidos.
                 </p>
               </div>
 
-              {/* Card 3: Suporte */}
-              <div className="group rounded-xl border border-gold/20 bg-gradient-to-r from-card/75 to-card/35 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_16px_-4px_oklch(0.80_0.12_82/0.18)]">
+              {/* Ponto 2: Suporte */}
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-gold/15 text-gold shadow-xs">
                     <Headphones className="h-3 w-3 text-gold" />
                   </div>
-                  <span className="font-display text-xs xl:text-[13px] font-bold text-foreground">
-                    Suporte VIP Individual
+                  <span className="font-sans text-xs sm:text-[13px] xl:text-sm font-bold tracking-tight text-foreground">
+                    Suporte Individual
                   </span>
                 </div>
-                <p className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium leading-snug">
+                <p className="text-[10.5px] sm:text-[11px] xl:text-xs text-foreground/75 font-medium leading-relaxed">
                   Gerente dedicado e treinamentos práticos de escala.
                 </p>
               </div>
