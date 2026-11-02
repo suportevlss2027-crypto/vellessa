@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ArrowRight, KeyRound, Lock, Mail, Shield, ShieldCheck, User } from "lucide-react";
 import { toast } from "sonner";
-import { Logo, ThemeToggle } from "@/components/AppShell";
+import { Logo } from "@/components/AppShell";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 
 export const Route = createFileRoute("/admin/login")({
@@ -69,9 +69,9 @@ function AdminLoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col justify-between bg-background px-6 py-8 sm:px-12">
+    <div className="relative flex min-h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden flex-col justify-between bg-background px-6 py-4 sm:px-12">
       {/* Top Bar */}
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between pt-1">
         <div className="flex items-center gap-3">
           <Logo />
           <span className="hidden sm:inline-block h-4 w-px bg-border" />
@@ -80,15 +80,14 @@ function AdminLoginPage() {
             Central de Gestão
           </span>
         </div>
-        <ThemeToggle />
       </header>
 
       {/* Main Form Center */}
-      <main className="mx-auto my-auto w-full max-w-md py-8">
-        <div className="relative overflow-hidden rounded-3xl border bg-card p-8 md:p-10 shadow-soft">
+      <main className="mx-auto my-auto w-full max-w-md py-4">
+        <div className="relative overflow-hidden rounded-3xl border bg-card p-6 md:p-8 shadow-soft">
           {/* Top Gold Badge */}
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gold-gradient shadow-gold mb-6">
-            <ShieldCheck className="h-7 w-7 text-primary-foreground" />
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gold-gradient shadow-gold mb-4">
+            <ShieldCheck className="h-6 w-6 text-primary-foreground" />
           </div>
 
           <div className="text-center">

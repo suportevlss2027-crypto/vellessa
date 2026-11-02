@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Lock, Mail, User } from "lucide-react";
+import { ArrowRight, Lock, Mail, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
-import { Logo, ThemeToggle } from "@/components/AppShell";
+import { Logo } from "@/components/AppShell";
 import { images } from "@/data/content";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 
@@ -54,7 +54,6 @@ function AuthPage() {
     // Login mode
     const ok = await login(email, password);
     if (ok) {
-      // Se for admin, pode ir para o admin ou painel
       navigate({ to: "/painel" });
     }
   };
@@ -68,38 +67,82 @@ function AuthPage() {
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      <div className="relative hidden overflow-hidden bg-hero-gradient lg:block">
-        <img
-          src={images.serum}
-          alt="Sérum Vellessa"
-          className="absolute inset-0 h-full w-full object-cover opacity-90 mix-blend-multiply dark:opacity-60 dark:mix-blend-normal"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
-        <div className="absolute bottom-12 left-12 right-12">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold">Plataforma de Afiliadas & Gestão</p>
-          <h2 className="mt-3 text-5xl font-semibold leading-[1.05]">
-            Venda luxo.<br />
-            <span className="italic text-gold-gradient">Viva de beleza.</span>
+    <div className="grid min-h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden lg:grid-cols-[1.1fr_1fr] bg-background">
+      {/* Vitrine Editorial de Luxo (Lado Esquerdo) */}
+      <div className="relative hidden lg:flex flex-col justify-between border-r border-border/40 bg-surface/30 p-8 xl:p-12 overflow-hidden">
+        {/* Glow dourado suave de estúdio */}
+        <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 bottom-10 h-80 w-80 rounded-full bg-gold/15 blur-3xl" />
+
+        {/* Topo: Posicionamento de Marca */}
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1 text-xs font-semibold text-gold shadow-xs">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Portal Oficial de Afiliadas & Gestão</span>
+          </div>
+          <h2 className="mt-4 font-display text-4xl xl:text-5xl font-semibold leading-[1.1] tracking-tight">
+            A arte de transformar beleza em{" "}
+            <span className="italic text-gold-gradient">resultados extraordinários.</span>
           </h2>
-          <p className="mt-4 max-w-md text-muted-foreground">
-            Acesse seus links de afiliada, aulas em alta resolução, criativos prontos e materiais oficiais da marca.
+          <p className="mt-3 text-sm text-muted-foreground max-w-md leading-relaxed">
+            Tenha em mãos criativos prontos de alta conversão, suporte dedicado, links com comissões de até 60% e treinamentos práticos.
           </p>
+        </div>
+
+        {/* Centro: Vitrine Emoldurada do Produto */}
+        <div className="relative z-10 my-auto flex items-center justify-center py-4">
+          <div className="relative overflow-hidden rounded-2xl border border-gold/25 bg-card/60 p-3 shadow-2xl shadow-gold/10 backdrop-blur-md max-w-[340px] w-full transition hover:border-gold/50">
+            <div className="overflow-hidden rounded-xl bg-muted aspect-[4/3] flex items-center justify-center">
+              <img
+                src={images.serum}
+                alt="Sérum Vellessa"
+                className="h-full w-full object-cover transition duration-700 hover:scale-105"
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between px-1">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gold">Sérum Facial Vellessa</p>
+                <p className="text-[11px] text-muted-foreground">Rosa Mosqueta + Ácido Hialurônico</p>
+              </div>
+              <span className="rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-[11px] font-bold text-gold">
+                Até 60% comissão
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Base: 3 Pilares com Linha Divisória Refinada */}
+        <div className="relative z-10 grid grid-cols-3 gap-4 border-t border-border/50 pt-4 text-xs">
+          <div>
+            <p className="font-semibold text-foreground">Aulas Práticas</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Do primeiro anúncio à escala</p>
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Criativos Oficiais</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Vídeos e copys validadas</p>
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Alta Retenção</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Produto com recompra real</p>
+          </div>
         </div>
       </div>
 
-      <div className="relative flex flex-col px-6 py-8 sm:px-12">
-        <div className="flex items-center justify-between">
+      {/* Formulário de Acesso (Lado Direito) — Zero Scroll */}
+      <div className="relative flex flex-col justify-between h-full px-6 py-6 sm:px-12 max-w-md mx-auto w-full">
+        {/* Top Header */}
+        <div className="flex items-center justify-between pt-1">
           <Logo />
-          <ThemeToggle />
         </div>
 
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
-          <div className="mb-6 flex rounded-full border bg-card p-1">
+        {/* Form Center */}
+        <div className="my-auto w-full py-4">
+          {/* Alternador Entrar / Criar Conta */}
+          <div className="mb-4 flex rounded-full border bg-card p-1">
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={`flex-1 rounded-full py-2 text-xs font-semibold transition ${
+              className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
                 mode === "login"
                   ? "bg-gold-gradient text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -110,7 +153,7 @@ function AuthPage() {
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`flex-1 rounded-full py-2 text-xs font-semibold transition ${
+              className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
                 mode === "signup"
                   ? "bg-gold-gradient text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
@@ -120,16 +163,16 @@ function AuthPage() {
             </button>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-semibold">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
             {mode === "login" ? "Bem-vinda de volta" : "Cadastre-se na Vellessa"}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {mode === "login"
               ? "Insira seus dados para acessar a área de membros."
               : "Preencha seus dados para receber seu link e começar a divulgar."}
           </p>
 
-          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
             {mode === "signup" && (
               <Field
                 icon={<User className="h-4 w-4" />}
@@ -163,7 +206,7 @@ function AuthPage() {
             />
 
             {mode === "login" && (
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-xs pt-0.5">
                 <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
                   <input type="checkbox" className="accent-[var(--gold)]" defaultChecked /> Lembrar de mim
                 </label>
@@ -179,7 +222,7 @@ function AuthPage() {
 
             <button
               disabled={authLoading}
-              className="group mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gold-gradient font-semibold text-primary-foreground shadow-gold transition hover:brightness-105 disabled:opacity-60"
+              className="group mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gold-gradient font-semibold text-primary-foreground shadow-gold text-sm transition hover:brightness-105 disabled:opacity-60"
             >
               {authLoading ? (
                 "Aguarde..."
@@ -192,7 +235,7 @@ function AuthPage() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-5 text-center text-xs text-muted-foreground">
             {mode === "login" ? "Ainda não tem cadastro? " : "Já tem uma conta? "}
             <button
               type="button"
@@ -204,7 +247,10 @@ function AuthPage() {
           </p>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">© 2026 Vellessa. Todos os direitos reservados.</p>
+        {/* Rodapé Fixo na Base */}
+        <p className="text-center text-[11px] text-muted-foreground pb-1">
+          © 2026 Vellessa. Todos os direitos reservados.
+        </p>
       </div>
     </div>
   );
@@ -217,12 +263,12 @@ function Field({
 }: { icon: React.ReactNode; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-foreground">{label}</span>
       <span className="relative block">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
         <input
           {...props}
-          className="h-12 w-full rounded-xl border bg-background pl-11 pr-4 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/20 placeholder:text-muted-foreground/60"
+          className="h-10 sm:h-11 w-full rounded-xl border bg-card/60 pl-10 pr-3.5 text-xs sm:text-sm outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 placeholder:text-muted-foreground/50"
         />
       </span>
     </label>

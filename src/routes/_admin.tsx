@@ -9,15 +9,12 @@ import {
   LayoutDashboard,
   Link2,
   LogOut,
-  Moon,
   PlusCircle,
   Settings,
   Shield,
   ShieldAlert,
-  Sun,
   Users,
 } from "lucide-react";
-import { useTheme } from "@/lib/theme";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +32,6 @@ const adminNav = [
 
 function AdminLayout() {
   const { profile, logout, isAdmin, isAuthenticated } = useAffiliateStore();
-  const { theme, toggle } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -118,16 +114,6 @@ function AdminLayout() {
         )}
 
         <div className="flex flex-col gap-1 border-t pt-3">
-          <button
-            onClick={toggle}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition",
-              collapsed && "justify-center"
-            )}
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {!collapsed && "Alternar tema"}
-          </button>
           <button
             onClick={handleLogout}
             className={cn(

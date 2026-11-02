@@ -1,9 +1,8 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Bell, BookOpen, ChevronsLeft, Home, Image, Link2, LogOut, Moon, Search, Shield, Sun, Users,
+  Bell, BookOpen, ChevronsLeft, Home, Image, Link2, LogOut, Search, Shield, Users,
 } from "lucide-react";
-import { useTheme } from "@/lib/theme";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
@@ -34,16 +33,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
 }
 
 export function ThemeToggle() {
-  const { theme, toggle } = useTheme();
-  return (
-    <button
-      onClick={toggle}
-      aria-label="Alternar tema"
-      className="grid h-10 w-10 place-items-center rounded-full border bg-card text-foreground transition hover:border-gold hover:text-gold"
-    >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
-  );
+  return null;
 }
 
 export function AppShell() {
@@ -169,7 +159,6 @@ export function AppShell() {
             >
               <Search className="h-4 w-4" />
             </button>
-            <ThemeToggle />
             <button
               onClick={() => setNotificationsOpen(true)}
               aria-label="Notificações"
