@@ -84,8 +84,8 @@ function AuthPage() {
             A arte de transformar beleza em{" "}
             <span className="italic text-gold-gradient">resultados extraordinários.</span>
           </h2>
-          <p className="mt-1 text-xs xl:text-sm text-foreground/80 font-normal leading-relaxed max-w-md">
-            Tenha em mãos criativos prontos de alta conversão, suporte dedicado, links com comissões de até 60% e treinamentos práticos.
+          <p className="mt-1.5 text-xs xl:text-sm text-foreground/80 font-normal leading-relaxed max-w-lg">
+            Acesse criativos validados de alta conversão, comissões de até 60% e suporte exclusivo.
           </p>
         </div>
 
@@ -114,55 +114,54 @@ function AuthPage() {
               </video>
             </div>
 
-            {/* Lado 2: Métricas Estratégicas da Imagem 3 ao Lado do Vídeo (Apenas as Letras) */}
-            <div className="shrink-0 flex flex-col justify-center space-y-3.5 xl:space-y-4 text-left border-l border-border/40 pl-5 xl:pl-6">
-              {/* Métrica 1: Lucro Máximo */}
+            {/* Lado 2: Pilares Estratégicos ao Lado do Vídeo (Apenas as Letras) */}
+            <div className="shrink-0 flex flex-col justify-center space-y-4 xl:space-y-5 text-left border-l border-border/40 pl-5 xl:pl-6 max-w-[210px]">
+              {/* Pilar 1: Criativos Prontos */}
               <div className="flex flex-col">
-                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1">
-                  ✦ Lucro Máximo
+                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
+                  ✦ Criativos Prontos
                 </span>
-                <span className="font-display text-2xl xl:text-3xl font-extrabold text-gold leading-tight mt-0.5">
-                  R$ 406<span className="text-lg xl:text-xl font-bold">,20</span>
+                <span className="font-display text-xl xl:text-2xl font-bold text-foreground leading-tight mt-0.5">
+                  Alta Conversão
                 </span>
-                <span className="text-[10px] xl:text-[11px] text-foreground/80 font-medium">
-                  por venda Kit Master
+                <span className="text-[10px] xl:text-[11px] text-foreground/75 font-medium leading-snug mt-0.5">
+                  Vídeos e materiais validados para divulgar
                 </span>
               </div>
 
-              {/* Métrica 2: Comissão */}
+              {/* Pilar 2: Comissões de até 60% */}
               <div className="flex flex-col">
-                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1">
-                  ✦ Comissão
+                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
+                  ✦ Comissões Diretas
                 </span>
-                <span className="font-display text-2xl xl:text-3xl font-extrabold text-foreground leading-tight mt-0.5">
+                <span className="font-display text-xl xl:text-2xl font-bold text-gold leading-tight mt-0.5">
                   Até 60%
                 </span>
-                <span className="text-[10px] xl:text-[11px] text-foreground/80 font-medium">
-                  comissão direta
+                <span className="text-[10px] xl:text-[11px] text-foreground/75 font-medium leading-snug mt-0.5">
+                  Repasses rápidos a cada venda confirmada
                 </span>
               </div>
 
-              {/* Métrica 3: Esteira */}
+              {/* Pilar 3: Suporte Dedicado */}
               <div className="flex flex-col">
-                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1">
-                  ✦ Esteira
+                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
+                  ✦ Suporte Dedicado
                 </span>
-                <span className="font-display text-2xl xl:text-3xl font-extrabold text-foreground leading-tight mt-0.5">
-                  6 Kits
+                <span className="font-display text-xl xl:text-2xl font-bold text-foreground leading-tight mt-0.5">
+                  Exclusivo
                 </span>
-                <span className="text-[10px] xl:text-[11px] text-foreground/80 font-medium">
-                  R$ 99 até R$ 677
+                <span className="text-[10px] xl:text-[11px] text-foreground/75 font-medium leading-snug mt-0.5">
+                  Acompanhamento contínuo para seus resultados
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Base: Linha Editorial de Diferenciais */}
-        <div className="relative z-10 flex items-center justify-between border-t border-border/40 pt-2.5 pb-1 text-[11px] text-foreground/75 font-medium">
-          <span className="flex items-center gap-1"><span className="text-gold">✦</span> Criativos prontos</span>
-          <span className="flex items-center gap-1"><span className="text-gold">✦</span> Suporte dedicado</span>
-          <span className="flex items-center gap-1"><span className="text-gold">✦</span> Repasses rápidos</span>
+        {/* Base: Selo Editorial de Autenticidade */}
+        <div className="relative z-10 flex items-center justify-between border-t border-border/40 pt-2.5 pb-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium">
+          <span>Portal Oficial Vellessa Cosméticos</span>
+          <span>Tecnologia & Gestão Segura</span>
         </div>
       </div>
 
