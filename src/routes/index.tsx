@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Lock, Mail, Sparkles, User } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Calculator, Lock, Mail, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/AppShell";
 import { images } from "@/data/content";
 import { useAffiliateStore } from "@/lib/affiliate-store";
+import { EarningsCalculatorModal } from "@/components/EarningsCalculatorModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,6 +28,7 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +158,23 @@ function AuthPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Botão Simulador de Lucros Apple Premium */}
+        <div className="relative z-10 flex justify-center py-1">
+          <button
+            type="button"
+            onClick={() => setIsCalculatorOpen(true)}
+            className="group relative inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 px-4 py-1.5 xl:px-5 xl:py-2 text-xs xl:text-sm font-semibold text-gold transition-all duration-300 hover:scale-[1.02] shadow-sm shadow-gold/10 backdrop-blur-md cursor-pointer"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-gold"></span>
+            </span>
+            <Calculator className="h-3.5 w-3.5 text-gold" />
+            <span>Simular Meus Ganhos como Afiliada</span>
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 text-gold/80" />
+          </button>
         </div>
 
         {/* Base: Selo Editorial de Autenticidade */}
@@ -289,6 +308,13 @@ function AuthPage() {
           © 2026 Vellessa. Todos os direitos reservados.
         </p>
       </div>
+
+      {/* Modal Interativo da Calculadora de Afiliadas Vellessa */}
+      <EarningsCalculatorModal
+        open={isCalculatorOpen}
+        onOpenChange={setIsCalculatorOpen}
+        onStartSignup={() => setMode("signup")}
+      />
     </div>
   );
 }
