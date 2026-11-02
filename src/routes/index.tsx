@@ -89,18 +89,25 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Flutuante do Produto */}
+        {/* Centro: Vitrine Cinematográfica em Vídeo */}
         <div className="relative z-10 my-auto flex flex-col items-center justify-center py-2 xl:py-3">
           {/* Halo Dourado Suave */}
-          <div className="pointer-events-none absolute h-48 w-48 rounded-full bg-gold/20 blur-2xl" />
+          <div className="pointer-events-none absolute h-52 w-52 rounded-full bg-gold/20 blur-3xl" />
           
-          <div className="relative overflow-hidden rounded-2xl border border-gold/30 bg-card/50 p-2 shadow-2xl shadow-gold/15 backdrop-blur-md max-w-[240px] xl:max-w-[270px] w-full transition duration-500 hover:-translate-y-1 hover:border-gold/60 hover:shadow-gold/25 group">
-            <div className="overflow-hidden rounded-xl bg-black/60 aspect-square flex items-center justify-center">
-              <img
-                src={images.serumFloating || images.serum}
-                alt="Sérum Vellessa"
+          <div className="relative overflow-hidden rounded-2xl border border-gold/35 bg-card/60 p-2 shadow-2xl shadow-gold/20 backdrop-blur-md max-w-[240px] xl:max-w-[270px] w-full transition duration-500 hover:-translate-y-1 hover:border-gold/60 hover:shadow-gold/30 group">
+            <div className="relative overflow-hidden rounded-xl bg-black aspect-square flex items-center justify-center">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                poster="/videos/vellessa-serum-poster.jpg"
                 className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-              />
+              >
+                <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
+              </video>
+              <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" />
             </div>
             <div className="mt-2 flex items-center justify-between px-1">
               <div>
