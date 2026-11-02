@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Lock, Mail, User, ShieldCheck } from "lucide-react";
+import { ArrowRight, Lock, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { Logo, ThemeToggle } from "@/components/AppShell";
 import { images } from "@/data/content";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { login, signUp, resetPassword, authLoading, profile } = useAffiliateStore();
+  const { login, signUp, resetPassword, authLoading } = useAffiliateStore();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -191,21 +191,6 @@ function AuthPage() {
               )}
             </button>
           </form>
-
-          {profile?.role === "admin" && (
-            <div className="mt-6 rounded-2xl border border-gold/30 bg-gold/10 p-3 text-center">
-              <p className="text-xs font-semibold text-gold flex items-center justify-center gap-1.5">
-                <ShieldCheck className="h-4 w-4" /> Acesso de Produtor / Admin detectado
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/admin" })}
-                className="mt-2 text-xs font-semibold underline text-foreground hover:text-gold"
-              >
-                Abrir Painel Admin (/admin) →
-              </button>
-            </div>
-          )}
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             {mode === "login" ? "Ainda não tem cadastro? " : "Já tem uma conta? "}

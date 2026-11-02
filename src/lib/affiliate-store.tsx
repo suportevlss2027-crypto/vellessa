@@ -115,6 +115,7 @@ interface AffiliateStoreContextType {
   isAuthenticated: boolean;
   authLoading: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
+  adminLogin: (email: string, password?: string) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
@@ -148,7 +149,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         ...initialAffiliate,
         phone: "(11) 98765-4321",
         instagram: "@mari.beauty",
-        role: "admin", // Permite alternar visão administrativa inicialmente
+        role: "affiliate",
       };
     }
     try {
@@ -161,7 +162,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       ...initialAffiliate,
       phone: "(11) 98765-4321",
       instagram: "@mari.beauty",
-      role: "admin",
+      role: "affiliate",
     };
   });
 
@@ -375,6 +376,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         email: email || prev.email,
         first: email.split("@")[0] || prev.first,
         name: email.split("@")[0] || prev.name,
+        role: prev.role || "affiliate",
       }));
       localStorage.setItem(STORAGE_KEYS.AUTH, "true");
       toast.success("Acesso autenticado com sucesso!");
@@ -383,6 +385,83 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (err) {
       console.error("Login error", err);
       toast.error("Ocorreu um erro ao entrar.");
+      setAuthLoading(false);
+      return false;
+    }
+  };
+
+  const adminLogin = async (email: string, password?: string): Promise<boolean> => {
+    setAuthLoading(true);
+    try {
+      if (isSupabaseConfigured && supabase && password) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim(),
+        });
+
+        if (error) {
+          toast.error(`Falha no login administrativo: ${error.message}`);
+          setAuthLoading(false);
+          return false;
+        }
+
+        if (data.user) {
+          // Check if user has admin role in profiles table
+          const { data: dbProfile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", data.user.id)
+            .single();
+
+          if (dbProfile?.role !== "admin") {
+            // Not an admin! Log them out immediately
+            await supabase.auth.signOut().catch(() => {});
+            toast.error("Acesso negado: esta conta não possui permissões administrativas.");
+            setAuthLoading(false);
+            return false;
+          }
+
+          setIsAuthenticated(true);
+          const adminProf: AffiliateProfile = {
+            id: dbProfile.affiliate_code || data.user.id.slice(0, 8),
+            name: dbProfile.name || data.user.email?.split("@")[0] || "Administrador",
+            first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Admin",
+            email: data.user.email || "",
+            level: "Administrador Geral",
+            phone: dbProfile.phone || "",
+            instagram: dbProfile.instagram || "",
+            role: "admin",
+          };
+          setProfile(adminProf);
+          localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(adminProf));
+          localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+          toast.success("Autenticado como Administrador!");
+          setAuthLoading(false);
+          return true;
+        }
+      }
+
+      // Offline / Demo fallback for Admin
+      setIsAuthenticated(true);
+      const demoAdmin: AffiliateProfile = {
+        id: "VLS-ADMIN",
+        name: "Administrador Vellessa",
+        first: "Admin",
+        email: email || "admin@vellessa.com",
+        level: "Administrador Geral",
+        phone: "(11) 99999-0000",
+        instagram: "@vellessa.admin",
+        role: "admin",
+      };
+      setProfile(demoAdmin);
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(demoAdmin));
+      localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+      toast.success("Acesso administrativo liberado!");
+      setAuthLoading(false);
+      return true;
+    } catch (err) {
+      console.error("Admin login error", err);
+      toast.error("Ocorreu um erro ao acessar o painel administrativo.");
       setAuthLoading(false);
       return false;
     }
@@ -766,6 +845,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         isAuthenticated,
         authLoading,
         login,
+        adminLogin,
         signUp,
         logout,
         resetPassword,

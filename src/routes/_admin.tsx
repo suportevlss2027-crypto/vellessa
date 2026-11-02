@@ -41,17 +41,21 @@ function AdminLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate({ to: "/" });
+    if (!isAuthenticated || !isAdmin) {
+      navigate({ to: "/admin/login" });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const isActive = (to: string) => path === to || (to !== "/admin" && path.startsWith(to));
 
   const handleLogout = () => {
     logout();
-    navigate({ to: "/" });
+    navigate({ to: "/admin/login" });
   };
+
+  if (!isAuthenticated || !isAdmin) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
