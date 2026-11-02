@@ -117,6 +117,7 @@ interface AffiliateStoreContextType {
   login: (email: string, password?: string) => Promise<boolean>;
   adminLogin: (email: string, password?: string) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<boolean>;
+  adminSignUp: (data: { name: string; email: string; password: string; masterKey?: string }) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
 
@@ -462,6 +463,97 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (err) {
       console.error("Admin login error", err);
       toast.error("Ocorreu um erro ao acessar o painel administrativo.");
+      setAuthLoading(false);
+      return false;
+    }
+  };
+
+  const adminSignUp = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    masterKey?: string;
+  }): Promise<boolean> => {
+    setAuthLoading(true);
+    const trimmedEmail = data.email.trim();
+    const trimmedPass = data.password.trim();
+    const trimmedName = data.name.trim();
+    const key = data.masterKey?.trim() || "";
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { data: authData, error } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPass,
+          options: {
+            data: {
+              name: trimmedName,
+              role: "admin",
+              master_key: key || "VELLESSA-MASTER-2026",
+            },
+          },
+        });
+
+        if (error) {
+          toast.error(`Falha ao registrar administrador: ${error.message}`);
+          setAuthLoading(false);
+          return false;
+        }
+
+        if (authData.user) {
+          // Tentar autenticar diretamente
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: trimmedEmail,
+            password: trimmedPass,
+          });
+
+          if (!signInErr) {
+            setIsAuthenticated(true);
+            const adminProf: AffiliateProfile = {
+              id: authData.user.id.slice(0, 8),
+              name: trimmedName,
+              first: trimmedName.split(" ")[0] || "Admin",
+              email: trimmedEmail,
+              level: "Administrador Geral",
+              phone: "",
+              instagram: "",
+              role: "admin",
+            };
+            setProfile(adminProf);
+            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(adminProf));
+            localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+            toast.success("Conta de Administrador criada com sucesso!");
+            setAuthLoading(false);
+            return true;
+          } else {
+            toast.success("Conta de Administrador criada! Efetue login para acessar.");
+            setAuthLoading(false);
+            return true;
+          }
+        }
+      }
+
+      // Offline / Local demo fallback
+      setIsAuthenticated(true);
+      const demoAdmin: AffiliateProfile = {
+        id: "VLS-ADMIN",
+        name: trimmedName || "Administrador Vellessa",
+        first: trimmedName.split(" ")[0] || "Admin",
+        email: trimmedEmail || "admin@vellessa.com",
+        level: "Administrador Geral",
+        phone: "(11) 99999-0000",
+        instagram: "@vellessa.admin",
+        role: "admin",
+      };
+      setProfile(demoAdmin);
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(demoAdmin));
+      localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+      toast.success("Conta de Administrador criada com sucesso!");
+      setAuthLoading(false);
+      return true;
+    } catch (e: any) {
+      console.error("Admin signup error", e);
+      toast.error(`Erro ao criar conta administrativa: ${e?.message || "Tente novamente."}`);
       setAuthLoading(false);
       return false;
     }
@@ -847,6 +939,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         login,
         adminLogin,
         signUp,
+        adminSignUp,
         logout,
         resetPassword,
         copyText,

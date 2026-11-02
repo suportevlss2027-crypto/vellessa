@@ -187,7 +187,19 @@ begin
   raw_name := coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1));
   first_n := split_part(raw_name, ' ', 1);
   generated_code := 'VLS-' || floor(10000 + random() * 90000)::text;
-  user_role := coalesce(new.raw_user_meta_data->>'role', 'affiliate');
+
+  -- Regra de Segurança: Só permite papel 'admin' se for o primeiro usuário da plataforma
+  -- OU se foi informada a chave mestre de segurança da gerência
+  if coalesce(new.raw_user_meta_data->>'role', '') = 'admin' then
+    if not exists (select 1 from public.profiles where role = 'admin')
+       or (coalesce(new.raw_user_meta_data->>'master_key', '') = 'VELLESSA-MASTER-2026') then
+      user_role := 'admin';
+    else
+      user_role := 'affiliate';
+    end if;
+  else
+    user_role := 'affiliate';
+  end if;
 
   -- Obter tenant padrão ou criar caso não exista
   select id into default_tenant_id from public.tenants where slug = 'vellessa' limit 1;
@@ -220,7 +232,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -239,7 +251,28 @@ begin
     where id = auth.uid() and role = 'admin'
   );
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
+
+-- ==============================================================================
+-- TRIGGER TO PREVENT NON-ADMINS FROM MODIFYING SENSITIVE PROFILE FIELDS
+-- ==============================================================================
+
+create or replace function public.protect_profile_roles()
+returns trigger as $$
+begin
+  if (new.role <> old.role or new.status <> old.status or new.commission_rate <> old.commission_rate) then
+    if not public.is_admin() then
+      raise exception 'Operação não autorizada: apenas administradores podem alterar cargos, comissões ou status de contas.';
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trigger_protect_profile_roles on public.profiles;
+create trigger trigger_protect_profile_roles
+  before update on public.profiles
+  for each row execute procedure public.protect_profile_roles();
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
