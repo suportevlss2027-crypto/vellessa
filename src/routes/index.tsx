@@ -89,13 +89,30 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Cinematográfica Livre & Orgânica (Zero Moldura) */}
-        <div className="relative z-10 my-auto flex flex-col items-center justify-center py-1 xl:py-2">
-          {/* Halo Dourado Atmosférico de Fundo */}
-          <div className="pointer-events-none absolute h-60 w-60 rounded-full bg-gold/15 blur-3xl" />
-          
-          {/* Vídeo Flutuando Livre com Máscara Radial Suave (Sem Borda, Sem Caixa) */}
-          <div className="relative max-w-[250px] xl:max-w-[275px] w-full aspect-square flex items-center justify-center transition duration-700 hover:scale-[1.02]">
+        {/* Centro: Palco Cinematográfico Apple Premium — Vídeo Expandido + Orbit Glass Cards */}
+        <div className="relative z-10 my-auto flex items-center gap-2 xl:gap-3 w-full py-1 xl:py-2">
+          {/* Halo Dourado Atmosférico Central */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="h-72 w-72 rounded-full bg-gold/12 blur-3xl" />
+          </div>
+
+          {/* ── Orbit Card Esquerdo: Lucratividade ── */}
+          <div className="shrink-0 w-[108px] xl:w-[124px] rounded-2xl border border-gold/20 bg-card/55 backdrop-blur-xl p-3 xl:p-3.5 shadow-xl shadow-black/30 flex flex-col gap-1.5 self-center">
+            <p className="text-[8px] xl:text-[9px] uppercase tracking-widest text-muted-foreground font-medium">Lucro máx.</p>
+            <p className="text-gold font-display text-xl xl:text-2xl font-bold leading-none tracking-tight">R$406</p>
+            <p className="text-[8px] xl:text-[9px] text-muted-foreground leading-tight">por venda Kit Master</p>
+            <div className="mt-0.5 flex items-center gap-1 rounded-full bg-gold/10 border border-gold/20 px-2 py-0.5">
+              <span className="text-[8px] text-gold font-semibold">↑ 60% comissão</span>
+            </div>
+            <div className="border-t border-border/30 pt-1.5">
+              <p className="text-[8px] text-muted-foreground">1 frasco: <span className="text-foreground/80 font-medium">R$59</span></p>
+            </div>
+          </div>
+
+          {/* ── Vídeo Central Expandido (Palco Principal) ── */}
+          <div className="relative flex-1 min-w-0 transition duration-700 hover:scale-[1.015]">
+            {/* Brilho radial atrás do vídeo */}
+            <div className="pointer-events-none absolute inset-[-12%] bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.18)_0%,transparent_68%)] rounded-full" />
             <video
               autoPlay
               loop
@@ -103,15 +120,33 @@ function AuthPage() {
               playsInline
               preload="metadata"
               poster="/videos/vellessa-serum-poster.jpg"
-              className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_62%,transparent_96%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_62%,transparent_96%)]"
+              className="h-full w-full object-cover aspect-[3/4] xl:aspect-[3/4] [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_90%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_90%)]"
             >
               <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
             </video>
           </div>
 
-          {/* Badge de Lucratividade Máxima e Comissões */}
-          <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold shadow-xs backdrop-blur-md">
-            <span>✦ Lucro de R$ 59,40 até R$ 406,20 por venda</span>
+          {/* ── Orbit Card Direito: Esteira de Kits ── */}
+          <div className="shrink-0 w-[108px] xl:w-[124px] rounded-2xl border border-gold/20 bg-card/55 backdrop-blur-xl p-3 xl:p-3.5 shadow-xl shadow-black/30 flex flex-col gap-1.5 self-center">
+            <p className="text-[8px] xl:text-[9px] uppercase tracking-widest text-muted-foreground font-medium">Esteira</p>
+            <p className="text-gold font-display text-xl xl:text-2xl font-bold leading-none tracking-tight">6 Kits</p>
+            <p className="text-[8px] xl:text-[9px] text-muted-foreground leading-tight">R$99 até R$677</p>
+            <div className="mt-0.5 flex flex-col gap-0.5">
+              {["R$99","R$197","R$397","R$677"].map((v) => (
+                <div key={v} className="flex items-center justify-between">
+                  <span className="text-[7px] xl:text-[8px] text-muted-foreground">{v}</span>
+                  <div className="h-1 flex-1 mx-1.5 rounded-full bg-border/40 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gold/60"
+                      style={{ width: `${Math.round((parseInt(v.replace("R$","")) / 677) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-border/30 pt-1.5">
+              <p className="text-[8px] text-muted-foreground">Kit Master = <span className="text-gold font-semibold">R$677</span></p>
+            </div>
           </div>
         </div>
 
