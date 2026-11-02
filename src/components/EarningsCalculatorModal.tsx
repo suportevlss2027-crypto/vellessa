@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { Sparkles, TrendingUp, ArrowRight, CheckCircle2, Coins, ShieldCheck } from "lucide-react";
+import { Sparkles, TrendingUp, ArrowRight, CheckCircle2, Coins, ShieldCheck, Flame } from "lucide-react";
 
 export interface KitOption {
   id: string;

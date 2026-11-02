@@ -20,17 +20,17 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+        <h1 className="font-display text-7xl font-bold text-gold">404</h1>
+        <h2 className="mt-4 text-xl font-bold text-foreground">Página não encontrada</h2>
+        <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
+          A página que você está procurando não existe ou foi movida.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-gold-gradient px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:brightness-105 shadow-gold"
           >
-            Go home
+            Ir para o início
           </Link>
         </div>
       </div>
@@ -48,27 +48,27 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+          Esta página não pôde ser carregada
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
+          Ocorreu um imprevisto temporário. Você pode tentar atualizar ou retornar ao portal principal.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-gold-gradient px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:brightness-105 shadow-gold cursor-pointer"
           >
-            Try again
+            Tentar novamente
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center rounded-xl border border-border/70 bg-card/70 px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-card"
           >
-            Go home
+            Página inicial
           </a>
         </div>
       </div>
