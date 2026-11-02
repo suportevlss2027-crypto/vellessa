@@ -89,89 +89,77 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Orgânica com Tipografia Flutuante Pura (Zero Caixas / Zero Molduras) */}
-        <div className="relative z-10 my-auto w-full py-4 xl:py-6">
-          {/* Halo Dourado Suave e Atmosférico de Fundo */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-80 w-80 rounded-full bg-gold/12 blur-3xl" />
+        {/* Centro: Vitrine Cinematográfica Escultural & Ampla (Zero Caixas / Pura Tipografia) */}
+        <div className="relative z-10 my-auto flex flex-col items-center justify-center py-2 xl:py-4 w-full">
+          {/* Halo Dourado Atmosférico de Fundo */}
+          <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
+
+          {/* Vídeo Cinematográfico Amplo (Aspect 3/4 com Enquadramento Generoso e Foco no Sérum) */}
+          <div className="relative w-full max-w-[300px] sm:max-w-[340px] xl:max-w-[380px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
+            {/* Brilho radial acolhedor atrás dos frascos */}
+            <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              poster="/videos/vellessa-serum-poster.jpg"
+              className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)]"
+            >
+              <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
+            </video>
           </div>
 
-          <div className="relative flex items-center justify-between gap-4 xl:gap-8 max-w-xl mx-auto w-full">
-            {/* ── Tipografia Flutuante Esquerda: Lucratividade (Apenas as Letras) ── */}
-            <div className="shrink-0 flex flex-col space-y-1.5 text-left">
-              <span className="text-[10px] xl:text-xs font-bold uppercase tracking-widest text-gold">
+          {/* Métricas Flutuantes de Alto Impacto (Apenas as Letras, Zero Caixas, Centralizadas com Margem de Segurança) */}
+          <div className="mt-4 flex items-center justify-center gap-6 sm:gap-8 xl:gap-12 text-center w-full max-w-lg mx-auto">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] xl:text-xs font-bold uppercase tracking-widest text-gold/80">
                 Lucro Máximo
               </span>
-              <span className="font-display text-3xl xl:text-4xl font-extrabold text-gold leading-none tracking-tight">
-                R$ 406<span className="text-xl xl:text-2xl font-bold">,20</span>
+              <span className="font-display text-2xl sm:text-3xl xl:text-4xl font-extrabold text-gold leading-tight mt-0.5">
+                R$ 406<span className="text-lg xl:text-xl font-bold">,20</span>
               </span>
-              <span className="text-xs text-foreground/90 font-medium leading-tight">
+              <span className="text-[11px] xl:text-xs text-foreground/80 font-medium">
                 por venda Kit Master
               </span>
-              <div className="pt-1">
-                <span className="text-[11px] font-bold text-gold tracking-wide">
-                  ✦ Até 60% comissão
-                </span>
-              </div>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                1 frasco = <strong className="text-foreground">R$ 59,40</strong>
+            </div>
+
+            <div className="h-10 w-px bg-border/50" />
+
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] xl:text-xs font-bold uppercase tracking-widest text-gold/80">
+                Comissão
+              </span>
+              <span className="font-display text-2xl sm:text-3xl xl:text-4xl font-extrabold text-foreground leading-tight mt-0.5">
+                Até 60%
+              </span>
+              <span className="text-[11px] xl:text-xs text-foreground/80 font-medium">
+                comissão direta
               </span>
             </div>
 
-            {/* ── Vídeo Central Escultural (Proporção 1:1 Nativa, Seguro contra Zoom) ── */}
-            <div className="relative shrink-0 w-full max-w-[260px] sm:max-w-[290px] xl:max-w-[340px] aspect-square mx-auto transition duration-700 hover:scale-[1.02]">
-              {/* Brilho radial acolhedor atrás do frasco */}
-              <div className="pointer-events-none absolute inset-[-10%] bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.20)_0%,transparent_70%)] rounded-full" />
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                poster="/videos/vellessa-serum-poster.jpg"
-                className="h-full w-full object-contain [mask-image:radial-gradient(ellipse_at_center,black_70%,transparent_98%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_70%,transparent_98%)]"
-              >
-                <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
-              </video>
-            </div>
+            <div className="h-10 w-px bg-border/50" />
 
-            {/* ── Tipografia Flutuante Direita: Esteira de Ofertas (Apenas as Letras) ── */}
-            <div className="shrink-0 flex flex-col space-y-1.5 text-right">
-              <span className="text-[10px] xl:text-xs font-bold uppercase tracking-widest text-gold">
-                Esteira Completa
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] xl:text-xs font-bold uppercase tracking-widest text-gold/80">
+                Esteira
               </span>
-              <span className="font-display text-3xl xl:text-4xl font-extrabold text-foreground leading-none tracking-tight">
+              <span className="font-display text-2xl sm:text-3xl xl:text-4xl font-extrabold text-foreground leading-tight mt-0.5">
                 6 Kits
               </span>
-              <span className="text-xs text-foreground/90 font-medium leading-tight">
-                De R$ 99 até R$ 677
-              </span>
-              <div className="pt-1">
-                <span className="text-[11px] font-bold text-gold tracking-wide">
-                  ✦ Alta Conversão
-                </span>
-              </div>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                Do frasco ao Kit Master
+              <span className="text-[11px] xl:text-xs text-foreground/80 font-medium">
+                R$ 99 até R$ 677
               </span>
             </div>
           </div>
         </div>
 
-        {/* Base: Esteira de Preços & Lucro de Afiliadas */}
-        <div className="relative z-10 grid grid-cols-3 gap-4 border-t border-border/40 pt-4 pb-2 text-xs xl:text-sm">
-          <div>
-            <p className="font-bold text-foreground">Esteira de Ofertas</p>
-            <p className="text-xs text-foreground/75 mt-0.5">Kits de R$ 99 a R$ 677</p>
-          </div>
-          <div>
-            <p className="font-bold text-foreground">Comissão Máxima</p>
-            <p className="text-xs text-gold font-semibold mt-0.5">Até 60% por venda</p>
-          </div>
-          <div>
-            <p className="font-bold text-foreground">Lucro por Pedido</p>
-            <p className="text-xs text-gold font-semibold mt-0.5">Até R$ 406,20 / pedido</p>
-          </div>
+        {/* Base: Linha Editorial de Diferenciais (Sem Repetição) */}
+        <div className="relative z-10 flex items-center justify-between border-t border-border/40 pt-4 pb-2 text-xs text-foreground/75 font-medium">
+          <span className="flex items-center gap-1.5"><span className="text-gold">✦</span> Criativos prontos de alta conversão</span>
+          <span className="flex items-center gap-1.5"><span className="text-gold">✦</span> Suporte dedicado às afiliadas</span>
+          <span className="flex items-center gap-1.5"><span className="text-gold">✦</span> Repasses rápidos e seguros</span>
         </div>
       </div>
 
