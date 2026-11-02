@@ -68,77 +68,80 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden lg:grid-cols-[1.1fr_1fr] bg-background">
-      {/* Vitrine Editorial de Luxo (Lado Esquerdo) */}
-      <div className="relative hidden lg:flex flex-col justify-between border-r border-border/40 bg-surface/30 p-8 xl:p-12 overflow-hidden">
+      {/* Vitrine Editorial de Luxo (Lado Esquerdo) — Zero-Scroll Garantido */}
+      <div className="relative hidden lg:flex flex-col justify-between border-r border-border/40 bg-surface/30 px-6 py-4 xl:px-10 xl:py-6 overflow-hidden">
         {/* Glow dourado suave de estúdio */}
-        <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
-        <div className="pointer-events-none absolute right-0 bottom-10 h-80 w-80 rounded-full bg-gold/15 blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-gold/10 blur-3xl" />
+        <div className="pointer-events-none absolute right-0 bottom-6 h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
 
         {/* Topo: Posicionamento de Marca */}
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1 text-xs font-semibold text-gold shadow-xs">
-            <Sparkles className="h-3.5 w-3.5" />
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-0.5 text-[11px] font-semibold text-gold shadow-xs">
+            <Sparkles className="h-3 w-3" />
             <span>Portal Oficial de Afiliadas & Gestão</span>
           </div>
-          <h2 className="mt-4 font-display text-4xl xl:text-5xl font-semibold leading-[1.1] tracking-tight">
+          <h2 className="mt-2 font-display text-2xl xl:text-4xl font-semibold leading-tight tracking-tight">
             A arte de transformar beleza em{" "}
             <span className="italic text-gold-gradient">resultados extraordinários.</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-md leading-relaxed">
+          <p className="mt-1.5 text-xs xl:text-sm text-muted-foreground max-w-md leading-relaxed">
             Tenha em mãos criativos prontos de alta conversão, suporte dedicado, links com comissões de até 60% e treinamentos práticos.
           </p>
         </div>
 
-        {/* Centro: Vitrine Emoldurada do Produto */}
-        <div className="relative z-10 my-auto flex items-center justify-center py-4">
-          <div className="relative overflow-hidden rounded-2xl border border-gold/25 bg-card/60 p-3 shadow-2xl shadow-gold/10 backdrop-blur-md max-w-[340px] w-full transition hover:border-gold/50">
-            <div className="overflow-hidden rounded-xl bg-muted aspect-[4/3] flex items-center justify-center">
+        {/* Centro: Vitrine Flutuante do Produto */}
+        <div className="relative z-10 my-auto flex flex-col items-center justify-center py-2 xl:py-3">
+          {/* Halo Dourado Suave */}
+          <div className="pointer-events-none absolute h-48 w-48 rounded-full bg-gold/20 blur-2xl" />
+          
+          <div className="relative overflow-hidden rounded-2xl border border-gold/30 bg-card/50 p-2 shadow-2xl shadow-gold/15 backdrop-blur-md max-w-[240px] xl:max-w-[270px] w-full transition duration-500 hover:-translate-y-1 hover:border-gold/60 hover:shadow-gold/25 group">
+            <div className="overflow-hidden rounded-xl bg-black/60 aspect-square flex items-center justify-center">
               <img
-                src={images.serum}
+                src={images.serumFloating || images.serum}
                 alt="Sérum Vellessa"
-                className="h-full w-full object-cover transition duration-700 hover:scale-105"
+                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
               />
             </div>
-            <div className="mt-3 flex items-center justify-between px-1">
+            <div className="mt-2 flex items-center justify-between px-1">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gold">Sérum Facial Vellessa</p>
-                <p className="text-[11px] text-muted-foreground">Rosa Mosqueta + Ácido Hialurônico</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">Sérum Facial Vellessa</p>
+                <p className="text-[10px] text-muted-foreground">Fórmula Exclusiva · 30ml</p>
               </div>
-              <span className="rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-[11px] font-bold text-gold">
+              <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold">
                 Até 60% comissão
               </span>
             </div>
           </div>
         </div>
 
-        {/* Base: 3 Pilares com Linha Divisória Refinada */}
-        <div className="relative z-10 grid grid-cols-3 gap-4 border-t border-border/50 pt-4 text-xs">
+        {/* Base: 3 Pilares com Folga Garantida */}
+        <div className="relative z-10 grid grid-cols-3 gap-3 border-t border-border/40 pt-2.5 pb-2 text-[10px] xl:text-[11px]">
           <div>
             <p className="font-semibold text-foreground">Aulas Práticas</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Do primeiro anúncio à escala</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Do anúncio à escala</p>
           </div>
           <div>
             <p className="font-semibold text-foreground">Criativos Oficiais</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Vídeos e copys validadas</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Vídeos e copys validadas</p>
           </div>
           <div>
             <p className="font-semibold text-foreground">Alta Retenção</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Produto com recompra real</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Recompra acelerada real</p>
           </div>
         </div>
       </div>
 
       {/* Formulário de Acesso (Lado Direito) — Zero Scroll */}
-      <div className="relative flex flex-col justify-between h-full px-6 py-6 sm:px-12 max-w-md mx-auto w-full">
+      <div className="relative flex flex-col justify-between h-full px-6 py-4 xl:py-6 sm:px-10 max-w-md mx-auto w-full">
         {/* Top Header */}
         <div className="flex items-center justify-between pt-1">
           <Logo />
         </div>
 
         {/* Form Center */}
-        <div className="my-auto w-full py-4">
+        <div className="my-auto w-full py-2">
           {/* Alternador Entrar / Criar Conta */}
-          <div className="mb-4 flex rounded-full border bg-card p-1">
+          <div className="mb-3.5 flex rounded-full border bg-card p-1">
             <button
               type="button"
               onClick={() => setMode("login")}
@@ -172,7 +175,7 @@ function AuthPage() {
               : "Preencha seus dados para receber seu link e começar a divulgar."}
           </p>
 
-          <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
+          <form className="mt-4 space-y-2.5" onSubmit={handleSubmit}>
             {mode === "signup" && (
               <Field
                 icon={<User className="h-4 w-4" />}
@@ -235,7 +238,7 @@ function AuthPage() {
             </button>
           </form>
 
-          <p className="mt-5 text-center text-xs text-muted-foreground">
+          <p className="mt-4 text-center text-xs text-muted-foreground">
             {mode === "login" ? "Ainda não tem cadastro? " : "Já tem uma conta? "}
             <button
               type="button"
@@ -247,8 +250,8 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Rodapé Fixo na Base */}
-        <p className="text-center text-[11px] text-muted-foreground pb-1">
+        {/* Rodapé Fixo na Base com Folga */}
+        <p className="text-center text-[11px] text-muted-foreground pb-2">
           © 2026 Vellessa. Todos os direitos reservados.
         </p>
       </div>

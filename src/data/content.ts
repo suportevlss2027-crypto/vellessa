@@ -1,9 +1,10 @@
 import serum from "@/assets/vellessa-serum.jpg";
+import serumFloating from "@/assets/vellessa-serum-floating.jpg";
 import cover1 from "@/assets/cover-1.jpg";
 import cover2 from "@/assets/cover-2.jpg";
 import cover3 from "@/assets/cover-3.jpg";
 
-export const images = { serum, cover1, cover2, cover3 };
+export const images = { serum, serumFloating, cover1, cover2, cover3 };
 
 export const affiliate = {
   name: "Mariana Costa",
