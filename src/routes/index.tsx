@@ -86,7 +86,7 @@ function AuthPage() {
             A arte de transformar beleza em{" "}
             <span className="italic text-gold-gradient">resultados extraordinários.</span>
           </h2>
-          <p className="mt-1.5 text-xs xl:text-sm text-foreground/80 font-normal leading-relaxed max-w-lg">
+          <p className="mt-1.5 text-xs text-foreground/80 font-normal leading-relaxed whitespace-nowrap">
             Acesse criativos validados de alta conversão, comissões de até 60% e suporte exclusivo.
           </p>
         </div>
@@ -100,7 +100,7 @@ function AuthPage() {
 
           <div className="relative flex items-center justify-center gap-5 xl:gap-8 max-w-lg mx-auto w-full">
             {/* Lado 1: Vídeo Cinematográfico do Sérum */}
-            <div className="relative shrink-0 w-[205px] sm:w-[225px] xl:w-[255px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
+            <div className="relative shrink-0 w-[230px] sm:w-[255px] xl:w-[290px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
               {/* Brilho radial acolhedor atrás dos frascos */}
               <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
               <video
@@ -116,46 +116,20 @@ function AuthPage() {
               </video>
             </div>
 
-            {/* Lado 2: Pilares Estratégicos ao Lado do Vídeo (Apenas as Letras) */}
-            <div className="shrink-0 flex flex-col justify-center space-y-3.5 xl:space-y-4 text-left border-l border-border/40 pl-5 xl:pl-6 max-w-[210px]">
-              {/* Pilar 1: Criativos Prontos */}
-              <div className="flex flex-col">
-                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
-                  ✦ Criativos Prontos
-                </span>
-                <span className="font-display text-xl xl:text-2xl font-bold text-foreground leading-tight mt-0.5">
-                  Alta Conversão
-                </span>
-                <span className="text-[10px] xl:text-[11px] text-foreground/75 font-medium leading-snug mt-0.5">
-                  Vídeos e materiais validados para divulgar
-                </span>
-              </div>
-
-              {/* Pilar 2: Comissões de até 60% */}
-              <div className="flex flex-col">
-                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
-                  ✦ Comissões Diretas
-                </span>
-                <span className="font-display text-xl xl:text-2xl font-bold text-gold leading-tight mt-0.5">
-                  Até 60%
-                </span>
-                <span className="text-[10px] xl:text-[11px] text-foreground/75 font-medium leading-snug mt-0.5">
-                  Repasses rápidos a cada venda confirmada
-                </span>
-              </div>
-
-              {/* Pilar 3: Suporte Dedicado */}
-              <div className="flex flex-col">
-                <span className="text-[10px] xl:text-[11px] font-bold uppercase tracking-widest text-gold flex items-center gap-1.5">
-                  ✦ Suporte Dedicado
-                </span>
-                <span className="font-display text-xl xl:text-2xl font-bold text-foreground leading-tight mt-0.5">
-                  Exclusivo
-                </span>
-                <span className="text-[10px] xl:text-[11px] text-foreground/75 font-medium leading-snug mt-0.5">
-                  Acompanhamento contínuo para seus resultados
-                </span>
-              </div>
+            {/* Lado 2: Pilares Estratégicos ao Lado do Vídeo — Inline Compacto */}
+            <div className="shrink-0 flex flex-col justify-center gap-2.5 text-left border-l border-border/40 pl-5 xl:pl-6">
+              {[
+                { label: "Criativos Prontos", value: "Alta Conversão" },
+                { label: "Comissões", value: "Até 60%" },
+                { label: "Suporte", value: "Exclusivo" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="text-gold text-[11px]">✦</span>
+                  <span className="text-[11px] xl:text-[12px] font-semibold text-foreground/90">{label}</span>
+                  <span className="text-foreground/30 text-[10px]">·</span>
+                  <span className="text-[11px] xl:text-[12px] font-bold text-gold">{value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -173,10 +147,13 @@ function AuthPage() {
           </button>
         </div>
 
-        {/* Base: Selo Editorial de Autenticidade */}
-        <div className="relative z-10 flex items-center justify-between border-t border-border/40 pt-3 pb-2 text-[10px] xl:text-[11px] text-muted-foreground font-medium">
+        {/* Base: Rodapé Unificado */}
+        <div className="relative z-10 flex items-center justify-center gap-1.5 border-t border-border/40 pt-2 pb-1 text-[10px] text-muted-foreground/70 font-medium">
           <span>Portal Oficial Vellessa Cosméticos</span>
-          <span>Tecnologia & Gestão Segura</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span>Tecnologia &amp; Gestão Segura</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span>© 2026 Vellessa</span>
         </div>
       </div>
 
