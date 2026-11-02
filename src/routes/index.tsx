@@ -89,51 +89,45 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Cinematográfica em Vídeo */}
-        <div className="relative z-10 my-auto flex flex-col items-center justify-center py-2 xl:py-3">
-          {/* Halo Dourado Suave */}
-          <div className="pointer-events-none absolute h-52 w-52 rounded-full bg-gold/20 blur-3xl" />
+        {/* Centro: Vitrine Cinematográfica Livre & Orgânica (Zero Moldura) */}
+        <div className="relative z-10 my-auto flex flex-col items-center justify-center py-1 xl:py-2">
+          {/* Halo Dourado Atmosférico de Fundo */}
+          <div className="pointer-events-none absolute h-60 w-60 rounded-full bg-gold/15 blur-3xl" />
           
-          <div className="relative overflow-hidden rounded-2xl border border-gold/35 bg-card/60 p-2 shadow-2xl shadow-gold/20 backdrop-blur-md max-w-[240px] xl:max-w-[270px] w-full transition duration-500 hover:-translate-y-1 hover:border-gold/60 hover:shadow-gold/30 group">
-            <div className="relative overflow-hidden rounded-xl bg-black aspect-square flex items-center justify-center">
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                poster="/videos/vellessa-serum-poster.jpg"
-                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-              >
-                <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
-              </video>
-              <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" />
-            </div>
-            <div className="mt-2 flex items-center justify-between px-1">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gold">Sérum Facial Vellessa</p>
-                <p className="text-[10px] text-muted-foreground">Fórmula Exclusiva · 30ml</p>
-              </div>
-              <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold">
-                Até 60% comissão
-              </span>
-            </div>
+          {/* Vídeo Flutuando Livre com Máscara Radial Suave (Sem Borda, Sem Caixa) */}
+          <div className="relative max-w-[250px] xl:max-w-[275px] w-full aspect-square flex items-center justify-center transition duration-700 hover:scale-[1.02]">
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              poster="/videos/vellessa-serum-poster.jpg"
+              className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_62%,transparent_96%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_62%,transparent_96%)]"
+            >
+              <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
+            </video>
+          </div>
+
+          {/* Badge de Lucratividade Máxima e Comissões */}
+          <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[11px] font-semibold text-gold shadow-xs backdrop-blur-md">
+            <span>✦ Lucro de R$ 59,40 até R$ 406,20 por venda</span>
           </div>
         </div>
 
-        {/* Base: 3 Pilares com Folga Garantida */}
+        {/* Base: Esteira de Preços & Lucro de Afiliadas (Folga Garantida) */}
         <div className="relative z-10 grid grid-cols-3 gap-3 border-t border-border/40 pt-2.5 pb-2 text-[10px] xl:text-[11px]">
           <div>
-            <p className="font-semibold text-foreground">Aulas Práticas</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Do anúncio à escala</p>
+            <p className="font-semibold text-foreground">Esteira de Ofertas</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Kits de R$ 99 a R$ 677</p>
           </div>
           <div>
-            <p className="font-semibold text-foreground">Criativos Oficiais</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Vídeos e copys validadas</p>
+            <p className="font-semibold text-foreground">Comissão Máxima</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Até 60% por venda</p>
           </div>
           <div>
-            <p className="font-semibold text-foreground">Alta Retenção</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Recompra acelerada real</p>
+            <p className="font-semibold text-foreground">Lucro por Pedido</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Até R$ 406,20 / pedido</p>
           </div>
         </div>
       </div>
