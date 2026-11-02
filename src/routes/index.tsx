@@ -91,69 +91,76 @@ function AuthPage() {
           </p>
         </div>
 
-        {/* Centro: Vitrine Cinematográfica Centralizada com 3 Luxury Cards (Zero-Scroll Absoluto) */}
-        <div className="relative z-10 my-auto flex flex-col items-center justify-center w-full py-1">
-          {/* Halo Dourado Atmosférico de Fundo Perfeitamente Centrado */}
+        {/* Centro: Vitrine Cinematográfica Balanceada (Zero-Scroll Absoluto) */}
+        <div className="relative z-10 my-auto w-full py-1">
+          {/* Halo Dourado Atmosférico de Fundo */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-80 w-80 rounded-full bg-gold/15 blur-3xl" />
+            <div className="h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
           </div>
 
-          {/* Vídeo Cinematográfico do Sérum — No Centro Absoluto */}
-          <div className="relative w-[225px] sm:w-[245px] xl:w-[270px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
-            {/* Brilho radial acolhedor atrás dos frascos */}
-            <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="metadata"
-              poster="/videos/vellessa-serum-poster.jpg"
-              className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)]"
-            >
-              <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
-            </video>
-          </div>
-
-          {/* 3 Glassmorphic Luxury Cards — Bonitos, Informativos e Harmoniosos */}
-          <div className="grid grid-cols-3 gap-2.5 xl:gap-3.5 w-full max-w-lg xl:max-w-xl mx-auto mt-3 xl:mt-3.5">
-            {/* Card 1: Criativos */}
-            <div className="group flex flex-col items-center text-center rounded-2xl border border-gold/20 bg-gradient-to-b from-card/70 to-card/30 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_20px_-4px_oklch(0.80_0.12_82/0.18)] hover:-translate-y-0.5">
-              <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold transition group-hover:scale-110">
-                <Sparkles className="h-3.5 w-3.5 text-gold" />
-              </div>
-              <span className="font-display text-xs xl:text-[13px] font-bold text-foreground leading-tight">
-                Criativos 4K
-              </span>
-              <span className="text-[10px] xl:text-[11px] text-muted-foreground font-medium mt-0.5 leading-tight">
-                Vídeos validados
-              </span>
+          <div className="relative flex items-center justify-center gap-4 xl:gap-6 max-w-xl mx-auto w-full">
+            {/* Lado 1: Vídeo Cinematográfico do Sérum */}
+            <div className="relative shrink-0 w-[195px] sm:w-[210px] xl:w-[230px] aspect-[3/4] flex items-center justify-center transition duration-700 hover:scale-[1.015]">
+              <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.22)_0%,transparent_70%)]" />
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                poster="/videos/vellessa-serum-poster.jpg"
+                className="h-full w-full object-cover [mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_65%,transparent_95%)]"
+              >
+                <source src="/videos/vellessa-serum-hero.mp4" type="video/mp4" />
+              </video>
             </div>
 
-            {/* Card 2: Comissões */}
-            <div className="group flex flex-col items-center text-center rounded-2xl border border-gold/20 bg-gradient-to-b from-card/70 to-card/30 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_20px_-4px_oklch(0.80_0.12_82/0.18)] hover:-translate-y-0.5">
-              <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold transition group-hover:scale-110">
-                <TrendingUp className="h-3.5 w-3.5 text-gold" />
+            {/* Lado 2: 3 Glassmorphic Luxury Cards — Bonitos, Informativos e Nobres */}
+            <div className="flex flex-col justify-center gap-2 xl:gap-2.5 w-[240px] xl:w-[270px] shrink-0 text-left">
+              {/* Card 1: Criativos */}
+              <div className="group rounded-xl border border-gold/20 bg-gradient-to-r from-card/75 to-card/35 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_16px_-4px_oklch(0.80_0.12_82/0.18)]">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
+                    <Sparkles className="h-3 w-3 text-gold" />
+                  </div>
+                  <span className="font-display text-xs xl:text-[13px] font-bold text-foreground">
+                    Criativos 4K Validados
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium leading-snug">
+                  Vídeos e materiais prontos para anúncios e redes sociais.
+                </p>
               </div>
-              <span className="font-display text-xs xl:text-[13px] font-bold text-gold leading-tight">
-                Até 60%
-              </span>
-              <span className="text-[10px] xl:text-[11px] text-muted-foreground font-medium mt-0.5 leading-tight">
-                Repasse direto
-              </span>
-            </div>
 
-            {/* Card 3: Suporte */}
-            <div className="group flex flex-col items-center text-center rounded-2xl border border-gold/20 bg-gradient-to-b from-card/70 to-card/30 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_20px_-4px_oklch(0.80_0.12_82/0.18)] hover:-translate-y-0.5">
-              <div className="mb-1 flex h-6 w-6 items-center justify-center rounded-lg border border-gold/30 bg-gold/10 text-gold transition group-hover:scale-110">
-                <Headphones className="h-3.5 w-3.5 text-gold" />
+              {/* Card 2: Comissões */}
+              <div className="group rounded-xl border border-gold/20 bg-gradient-to-r from-card/75 to-card/35 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_16px_-4px_oklch(0.80_0.12_82/0.18)]">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
+                    <TrendingUp className="h-3 w-3 text-gold" />
+                  </div>
+                  <span className="font-display text-xs xl:text-[13px] font-bold text-gold">
+                    Comissões de até 60%
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium leading-snug">
+                  Lucro de até R$ 406,20 por kit com repasses rápidos.
+                </p>
               </div>
-              <span className="font-display text-xs xl:text-[13px] font-bold text-foreground leading-tight">
-                Suporte VIP
-              </span>
-              <span className="text-[10px] xl:text-[11px] text-muted-foreground font-medium mt-0.5 leading-tight">
-                Individual 24/7
-              </span>
+
+              {/* Card 3: Suporte */}
+              <div className="group rounded-xl border border-gold/20 bg-gradient-to-r from-card/75 to-card/35 p-2 xl:p-2.5 backdrop-blur-md transition-all duration-300 hover:border-gold/50 hover:shadow-[0_4px_16px_-4px_oklch(0.80_0.12_82/0.18)]">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-gold/30 bg-gold/10 text-gold">
+                    <Headphones className="h-3 w-3 text-gold" />
+                  </div>
+                  <span className="font-display text-xs xl:text-[13px] font-bold text-foreground">
+                    Suporte VIP Individual
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] xl:text-[11px] text-muted-foreground font-medium leading-snug">
+                  Gerente dedicado e treinamentos práticos de escala.
+                </p>
+              </div>
             </div>
           </div>
         </div>
