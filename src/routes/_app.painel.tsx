@@ -54,9 +54,9 @@ function Dashboard() {
             <span>Vendas Cash on Delivery · Ao Vivo</span>
           </div>
 
-          {/* Cascata de Notificações Idênticas à Referência (Logzz / COD) */}
+          {/* Cascata de Notificações com Comissões Reais de 60% dos Kits Vellessa */}
           <div className="flex flex-col gap-2.5 w-full max-w-[370px]">
-            {/* Card 1: Pedido Agendado R$ 60,95 */}
+            {/* Card 1: Pedido Agendado Kit 1 Frasco (60% de R$ 197,90 = R$ 118,74) */}
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/35 bg-emerald-950/80 p-3.5 backdrop-blur-xl shadow-lg transition-transform hover:-translate-x-1">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs">
                 <span className="font-display text-xs font-black tracking-tighter text-emerald-800">
@@ -69,12 +69,12 @@ function Dashboard() {
                   <span className="text-[10px] font-medium text-emerald-300/80">há 2m</span>
                 </div>
                 <p className="mt-0.5 text-xs text-white/80">
-                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 60,95</span>
+                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 118,74</span>
                 </p>
               </div>
             </div>
 
-            {/* Card 2: Pedido Agendado R$ 52,00 */}
+            {/* Card 2: Pedido Agendado Kit 3 Frascos Campeão (60% de R$ 297,90 = R$ 178,74) */}
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/75 p-3.5 backdrop-blur-xl shadow-md translate-x-2 transition-transform hover:translate-x-1">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs">
                 <span className="font-display text-xs font-black tracking-tighter text-emerald-800">
@@ -87,12 +87,12 @@ function Dashboard() {
                   <span className="text-[10px] font-medium text-emerald-300/80">há 2m</span>
                 </div>
                 <p className="mt-0.5 text-xs text-white/80">
-                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 52,00</span>
+                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 178,74</span>
                 </p>
               </div>
             </div>
 
-            {/* Card 3: Pedido Agendado R$ 46,53 */}
+            {/* Card 3: Pedido Agendado Kit 3 Frascos (60% = R$ 178,74) */}
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-950/70 p-3.5 backdrop-blur-xl shadow-sm translate-x-4 transition-transform hover:translate-x-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs">
                 <span className="font-display text-xs font-black tracking-tighter text-emerald-800">
@@ -105,12 +105,12 @@ function Dashboard() {
                   <span className="text-[10px] font-medium text-emerald-300/80">há 3m</span>
                 </div>
                 <p className="mt-0.5 text-xs text-white/80">
-                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 46,53</span>
+                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 178,74</span>
                 </p>
               </div>
             </div>
 
-            {/* Card 4: Pedido Completo R$ 74,90 (Destaque Dourado de Sucesso) */}
+            {/* Card 4: Pedido Completo e Pago Kit 6 Frascos (60% de R$ 397,90 = R$ 238,74) */}
             <div className="flex items-center gap-3 rounded-2xl border border-gold/40 bg-gradient-to-r from-emerald-950/90 to-card/90 p-3.5 backdrop-blur-xl shadow-gold translate-x-1 transition-transform hover:translate-x-0">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gold-gradient shadow-xs">
                 <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
@@ -121,7 +121,7 @@ function Dashboard() {
                   <span className="text-[10px] font-bold text-gold">Agora</span>
                 </div>
                 <p className="mt-0.5 text-xs text-white/90">
-                  Comissão liberada de <span className="font-extrabold text-gold">R$ 74,90</span>
+                  Comissão liberada de <span className="font-extrabold text-gold">R$ 238,74</span>
                 </p>
               </div>
             </div>
@@ -180,7 +180,7 @@ function Dashboard() {
             </span>
             <div className="flex-1 min-w-0 text-left">
               <p className="text-[11px] font-bold text-white">Pedido Agendado na Operação!</p>
-              <p className="text-[10px] text-white/80">Comissão de <span className="font-extrabold text-emerald-300">R$ 60,95</span> há 2m</p>
+              <p className="text-[10px] text-white/80">Comissão de <span className="font-extrabold text-emerald-300">R$ 178,74</span> há 2m</p>
             </div>
           </div>
         </div>
