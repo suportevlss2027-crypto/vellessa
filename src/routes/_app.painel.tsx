@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, BookOpen, CheckCircle, Image, Link2, Pin, Play, Sparkles, TrendingUp, Users } from "lucide-react";
+import { ArrowUpRight, BookOpen, CheckCircle, CheckCircle2, DollarSign, Image, Link2, Pin, Play, Smartphone, Sparkles, TrendingUp, Users, Zap } from "lucide-react";
 import { ProgressBar } from "@/components/AppShell";
 import { images, materials, totalLessons } from "@/data/content";
 import { useAffiliateStore } from "@/lib/affiliate-store";
@@ -37,20 +37,99 @@ function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Banner Principal — Alta Joalheria & Estúdio de Luxo (Sem Caixa Branca) */}
-      <section className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-r from-card/95 via-card/80 to-card/50 p-8 md:p-12 backdrop-blur-xl shadow-soft">
-        {/* Glow Dourado de Fundo do Produto */}
-        <div className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-gold/25 blur-3xl" />
+      {/* Hero Banner Principal — Alta Conversão & Motivação com Notificações de Vendas Reais */}
+      <section className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-r from-card/95 via-card/85 to-card/60 p-8 md:p-12 backdrop-blur-xl shadow-soft">
+        {/* Glow Dourado e Esmeralda de Fundo (Psicologia de Dinheiro & Sucesso) */}
+        <div className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute right-40 -top-10 h-72 w-72 rounded-full bg-gold/15 blur-3xl" />
 
-        {/* Imagem do Sérum Dourado em Fundo Escuro com Gotas e Partículas (Sem Caixa Branca) */}
-        <img
-          src={images.serumFloating}
-          alt="Sérum Vellessa"
-          className="pointer-events-none absolute -right-4 -bottom-6 hidden h-[120%] w-[45%] max-w-[460px] object-cover object-center md:block [mask-image:linear-gradient(to_left,black_60%,transparent_95%)] transition-transform duration-700 hover:scale-105"
-        />
+        {/* Vitrine Visual de Vendas: Mockup do Smartphone do Vendedor com Notificações em Tempo Real */}
+        <div className="pointer-events-none absolute -right-6 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-end justify-center w-[46%] max-w-[490px] pr-8 select-none">
+          {/* Header Superior da Operação */}
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-950/70 px-3.5 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur-md shadow-xs animate-in fade-in duration-500">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Vendas Cash on Delivery · Ao Vivo</span>
+          </div>
+
+          {/* Cascata de Notificações Idênticas à Referência (Logzz / COD) */}
+          <div className="flex flex-col gap-2.5 w-full max-w-[370px]">
+            {/* Card 1: Pedido Agendado R$ 60,95 */}
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/35 bg-emerald-950/80 p-3.5 backdrop-blur-xl shadow-lg transition-transform hover:-translate-x-1">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs">
+                <span className="font-display text-xs font-black tracking-tighter text-emerald-800">
+                  LQZZ
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-white tracking-tight">Pedido Agendado!</p>
+                  <span className="text-[10px] font-medium text-emerald-300/80">há 2m</span>
+                </div>
+                <p className="mt-0.5 text-xs text-white/80">
+                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 60,95</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: Pedido Agendado R$ 52,00 */}
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-950/75 p-3.5 backdrop-blur-xl shadow-md translate-x-2 transition-transform hover:translate-x-1">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs">
+                <span className="font-display text-xs font-black tracking-tighter text-emerald-800">
+                  LQZZ
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-white tracking-tight">Pedido Agendado!</p>
+                  <span className="text-[10px] font-medium text-emerald-300/80">há 2m</span>
+                </div>
+                <p className="mt-0.5 text-xs text-white/80">
+                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 52,00</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Pedido Agendado R$ 46,53 */}
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-950/70 p-3.5 backdrop-blur-xl shadow-sm translate-x-4 transition-transform hover:translate-x-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white shadow-xs">
+                <span className="font-display text-xs font-black tracking-tighter text-emerald-800">
+                  LQZZ
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-white tracking-tight">Pedido Agendado!</p>
+                  <span className="text-[10px] font-medium text-emerald-300/80">há 3m</span>
+                </div>
+                <p className="mt-0.5 text-xs text-white/80">
+                  Sua comissão é de <span className="font-extrabold text-emerald-300">R$ 46,53</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: Pedido Completo R$ 74,90 (Destaque Dourado de Sucesso) */}
+            <div className="flex items-center gap-3 rounded-2xl border border-gold/40 bg-gradient-to-r from-emerald-950/90 to-card/90 p-3.5 backdrop-blur-xl shadow-gold translate-x-1 transition-transform hover:translate-x-0">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gold-gradient shadow-xs">
+                <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-gold tracking-tight">Pedido Completo e Pago!</p>
+                  <span className="text-[10px] font-bold text-gold">Agora</span>
+                </div>
+                <p className="mt-0.5 text-xs text-white/90">
+                  Comissão liberada de <span className="font-extrabold text-gold">R$ 74,90</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Overlay suave para garantir leitura perfeita do texto */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-transparent" />
 
         <div className="relative z-10 max-w-xl">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-0.5 text-[11px] font-bold text-gold shadow-xs">
@@ -92,6 +171,18 @@ function Dashboard() {
               )}
             </Link>
           )}
+
+          {/* Badge Mobile de Vendas em Tempo Real */}
+          <div className="mt-6 flex lg:hidden items-center gap-2.5 rounded-2xl border border-emerald-500/35 bg-emerald-950/70 p-2.5 backdrop-blur-md shadow-xs max-w-sm">
+            <span className="relative flex h-2 w-2 shrink-0 ml-1">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-[11px] font-bold text-white">Pedido Agendado na Operação!</p>
+              <p className="text-[10px] text-white/80">Comissão de <span className="font-extrabold text-emerald-300">R$ 60,95</span> há 2m</p>
+            </div>
+          </div>
         </div>
       </section>
 
