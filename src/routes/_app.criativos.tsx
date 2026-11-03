@@ -62,13 +62,13 @@ function Criativos() {
         title="Criativos para anúncio"
         description="Peças publicitárias de alta conversão aprovadas pela marca, prontas para baixar e anunciar no Meta Ads, TikTok e Instagram."
       >
-        <div className="flex gap-1 overflow-x-auto rounded-full border bg-card p-1">
+        <div className="flex gap-1 overflow-x-auto rounded-full border border-border/40 bg-card/60 p-1 backdrop-blur-sm">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                "whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition",
+                "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition",
                 filter === f
                   ? "bg-gold-gradient text-primary-foreground shadow-gold"
                   : "text-muted-foreground hover:text-foreground"
@@ -80,36 +80,36 @@ function Criativos() {
         </div>
       </PageHeader>
 
-      <div className="columns-1 gap-5 sm:columns-2 lg:columns-3 [&>*]:mb-5">
+      <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4">
         {list.map((c) =>
           c.type === "Copy" ? (
-            <div key={c.id} className="break-inside-avoid rounded-3xl border bg-hero-gradient p-6 gold-hairline">
+            <div key={c.id} className="break-inside-avoid rounded-2xl border border-white/10 bg-card/60 p-5 backdrop-blur-sm">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Copy Persuasiva</span>
-                <span className="text-xs text-muted-foreground">{c.format}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">Copy Persuasiva</span>
+                <span className="text-[10px] text-muted-foreground font-mono">{c.format}</span>
               </div>
-              <h3 className="mt-2 text-2xl font-semibold">{c.title.replace("Copy — ", "")}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{c.text}</p>
-              <div className="mt-5 flex gap-2">
+              <h3 className="mt-1.5 font-display text-lg font-bold text-foreground">{c.title.replace("Copy — ", "")}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-foreground/80">{c.text}</p>
+              <div className="mt-4 flex gap-2">
                 <button
                   onClick={() => copyText(c.text!, "Texto da copy copiado com sucesso!")}
-                  className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-sm font-medium transition hover:border-gold hover:text-gold border"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:border-gold hover:text-gold border border-border/60"
                 >
-                  <Copy className="h-4 w-4" /> Copiar texto
+                  <Copy className="h-3.5 w-3.5" /> Copiar texto
                 </button>
                 <button
                   onClick={() => handleDownload(c)}
-                  className="inline-flex items-center gap-2 rounded-full border bg-card/60 px-3 py-2 text-sm font-medium hover:border-gold hover:text-gold transition"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/60 px-2.5 py-1.5 text-xs font-semibold hover:border-gold hover:text-gold transition"
                   title="Salvar como arquivo de texto"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
           ) : (
             <div
               key={c.id}
-              className="group block w-full break-inside-avoid overflow-hidden rounded-3xl border bg-card text-left transition hover:border-gold hover:shadow-soft"
+              className="group block w-full break-inside-avoid overflow-hidden rounded-2xl border border-white/10 bg-card/60 text-left transition duration-300 hover:border-gold/40 shadow-xs"
             >
               <button
                 onClick={() => setOpen(c)}

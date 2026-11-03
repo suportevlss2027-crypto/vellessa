@@ -43,11 +43,11 @@ function Comunidade() {
         description="Avisos oficiais da gerência de afiliados e troca de experiências, conquistas e dúvidas entre afiliadas."
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Avisos da equipe</h2>
-            <span className="text-xs font-semibold uppercase tracking-wider text-gold">Oficial</span>
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between border-b border-border/30 pb-2">
+            <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-foreground">Avisos da equipe</h2>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gold">Oficial</span>
           </div>
 
           {announcements.map((a) => (
@@ -55,58 +55,58 @@ function Comunidade() {
               key={a.id}
               className={
                 a.pinned
-                  ? "rounded-3xl bg-hero-gradient p-6 gold-hairline shadow-soft"
-                  : "rounded-3xl border bg-card p-6 shadow-xs"
+                  ? "rounded-2xl border border-gold/30 bg-hero-gradient p-4.5 shadow-soft"
+                  : "rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs backdrop-blur-sm"
               }
             >
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                 {a.pinned && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-0.5 font-semibold text-gold border border-gold/30">
-                    <Pin className="h-3 w-3" /> Fixado
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 text-[9px] font-bold text-gold border border-gold/30">
+                    <Pin className="h-2.5 w-2.5" /> Fixado
                   </span>
                 )}
                 <span>
                   {a.author} · {a.time}
                 </span>
               </div>
-              <h3 className="mt-3 text-xl font-semibold text-foreground">{a.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
+              <h3 className="mt-2 font-display text-base sm:text-lg font-bold text-foreground">{a.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-foreground/80">{a.body}</p>
             </article>
           ))}
         </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Mural de Afiliadas</h2>
-            <span className="text-xs text-muted-foreground">Compartilhe sua jornada</span>
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between border-b border-border/30 pb-2">
+            <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-foreground">Mural de Afiliadas</h2>
+            <span className="text-xs text-muted-foreground font-medium">Compartilhe sua jornada</span>
           </div>
 
-          <form onSubmit={handlePublish} className="flex items-center gap-3 rounded-3xl border bg-card p-2.5 pl-4 shadow-xs">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
+          <form onSubmit={handlePublish} className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-card/60 p-2 pl-3.5 shadow-xs backdrop-blur-sm">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
               {initials}
             </span>
             <input
               value={newPostText}
               onChange={(e) => setNewPostText(e.target.value)}
               placeholder="Compartilhe uma conquista, dica ou dúvida com a comunidade…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-xs sm:text-sm outline-none placeholder:text-muted-foreground"
             />
             <button
               type="submit"
               disabled={!newPostText.trim()}
               aria-label="Publicar mensagem"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gold-gradient text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-40 disabled:hover:brightness-100"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gold-gradient text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-40"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-3.5 w-3.5" />
             </button>
           </form>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {posts.map((p) => (
-              <article key={p.id} className="rounded-3xl border bg-card p-6 shadow-xs transition hover:border-gold/50">
+              <article key={p.id} className="rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs transition hover:border-gold/30 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-full bg-accent text-sm font-semibold text-gold">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-xs font-semibold text-gold">
                       {p.initials}
                     </span>
                     <div>
