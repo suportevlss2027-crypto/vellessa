@@ -29,28 +29,28 @@ function Dashboard() {
   const isCompletedAll = completedCount === totalLessonsCount;
 
   const shortcuts = [
-    { to: "/aulas", label: "Aulas", desc: `${totalLessonsCount} aulas`, icon: BookOpen },
-    { to: "/criativos", label: "Criativos", desc: "Prontos para anunciar", icon: Image },
-    { to: "/materiais", label: "Links e materiais", desc: "Seus links e PDFs", icon: Link2 },
-    { to: "/comunidade", label: "Comunidade", desc: "Avisos e conversas", icon: Users },
+    { to: "/aulas", label: "Aulas", count: `${totalLessonsCount} aulas`, desc: "Trilhas e estratégias", icon: BookOpen },
+    { to: "/criativos", label: "Criativos", count: "24 peças", desc: "Prontos para anunciar", icon: Image },
+    { to: "/materiais", label: "Links e materiais", count: "3 links", desc: "Seus links e PDFs", icon: Link2 },
+    { to: "/comunidade", label: "Comunidade", count: "Ativa", desc: "Avisos e conversas", icon: Users },
   ] as const;
 
   return (
     <div className="space-y-8">
-      {/* Hero Banner Principal — Alta Joalheria & Estúdio de Luxo */}
-      <section className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-r from-card/95 via-card/75 to-card/40 p-8 md:p-12 backdrop-blur-xl shadow-soft">
+      {/* Hero Banner Principal — Alta Joalheria & Estúdio de Luxo (Sem Caixa Branca) */}
+      <section className="relative overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-r from-card/95 via-card/80 to-card/50 p-8 md:p-12 backdrop-blur-xl shadow-soft">
         {/* Glow Dourado de Fundo do Produto */}
-        <div className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-gold/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-gold/25 blur-3xl" />
 
-        {/* Imagem do Sérum em Alta Resolução e Cores Vivas com Máscara Gradiente */}
+        {/* Imagem do Sérum Dourado em Fundo Escuro com Gotas e Partículas (Sem Caixa Branca) */}
         <img
-          src={images.serum}
+          src={images.serumFloating}
           alt="Sérum Vellessa"
-          className="pointer-events-none absolute -right-4 -bottom-4 hidden h-[115%] w-[42%] max-w-[440px] object-cover object-center md:block [mask-image:linear-gradient(to_left,black_75%,transparent_98%)] transition-transform duration-700 hover:scale-105"
+          className="pointer-events-none absolute -right-4 -bottom-6 hidden h-[120%] w-[45%] max-w-[460px] object-cover object-center md:block [mask-image:linear-gradient(to_left,black_60%,transparent_95%)] transition-transform duration-700 hover:scale-105"
         />
 
-        {/* Overlay extra suave para garantir legibilidade absoluta do texto */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/80 via-background/40 to-transparent" />
+        {/* Overlay suave para garantir leitura perfeita do texto */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
 
         <div className="relative z-10 max-w-xl">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-0.5 text-[11px] font-bold text-gold shadow-xs">
@@ -95,22 +95,31 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* 4 Atalhos Rápidos de Ação — Glassmorphic Luxury Chips */}
+      {/* 4 Atalhos Rápidos de Ação — Proporção Equilibrada */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
-        {shortcuts.map(({ to, label, desc, icon: Icon }) => (
+        {shortcuts.map(({ to, label, count, desc, icon: Icon }) => (
           <Link
             key={to}
             to={to}
-            className="group relative overflow-hidden rounded-2xl border border-gold/20 bg-card/60 p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-[0_8px_30px_-6px_oklch(0.80_0.12_82/0.2)] hover:bg-card/85"
+            className="group relative overflow-hidden rounded-2xl border border-gold/20 bg-card/60 p-4.5 xl:p-5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-gold/50 hover:shadow-[0_8px_30px_-6px_oklch(0.80_0.12_82/0.2)] hover:bg-card/85"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-gold/30 bg-gold/15 text-gold shadow-xs transition group-hover:scale-110 group-hover:bg-gold/25">
+            <div className="flex items-center justify-between">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-gold/30 bg-gold/15 text-gold shadow-xs transition group-hover:scale-110 group-hover:bg-gold/25">
                 <Icon className="h-5 w-5 text-gold" />
               </div>
-              <ArrowUpRight className="h-4 w-4 text-muted-foreground/60 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-gold" />
+              <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold">
+                {count}
+              </span>
             </div>
-            <p className="mt-4 font-sans text-base font-bold text-foreground tracking-tight">{label}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground font-medium">{desc}</p>
+            <div className="mt-4 flex items-center justify-between">
+              <div>
+                <p className="font-sans text-sm sm:text-base font-bold text-foreground tracking-tight group-hover:text-gold transition">
+                  {label}
+                </p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mt-0.5">{desc}</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground/50 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-gold" />
+            </div>
           </Link>
         ))}
       </section>
@@ -192,12 +201,13 @@ function Dashboard() {
             <ul className="mt-2 divide-y divide-border/40">
               {announcements.slice(0, 3).map((a) => (
                 <li key={a.id} className="py-3.5 group">
-                  <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider uppercase text-gold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-gold">
                     {a.pinned && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2 py-0.2 text-[9px] text-gold">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 text-[9px] text-gold">
                         <Pin className="h-2.5 w-2.5 text-gold" /> Fixado
                       </span>
                     )}
+                    {a.pinned && <span className="text-foreground/30 text-[10px]">·</span>}
                     <span className="text-muted-foreground/80">{a.time}</span>
                   </div>
                   <p className="mt-1 font-sans text-sm font-bold text-foreground leading-snug group-hover:text-gold transition">
@@ -227,16 +237,20 @@ function Dashboard() {
             <Link
               key={m.title}
               to="/materiais"
-              className="group flex items-center gap-4 rounded-2xl border border-gold/20 bg-card/60 p-4 backdrop-blur-md hover:border-gold/50 hover:bg-card/85 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-6px_oklch(0.80_0.12_82/0.2)] transition-all duration-300"
+              className="group flex items-center gap-3.5 rounded-2xl border border-gold/20 bg-card/60 p-4 backdrop-blur-md hover:border-gold/50 hover:bg-card/85 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-6px_oklch(0.80_0.12_82/0.2)] transition-all duration-300"
             >
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gold-gradient text-xs font-bold text-primary-foreground shadow-gold transition group-hover:scale-105">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold-gradient text-xs font-bold text-primary-foreground shadow-gold transition group-hover:scale-105">
                 {m.kind}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-sans text-sm font-bold text-foreground group-hover:text-gold transition">
                   {m.title}
                 </p>
-                <p className="text-xs text-muted-foreground font-medium">{m.size}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] text-muted-foreground font-medium">{m.size}</span>
+                  <span className="text-foreground/20 text-[10px]">·</span>
+                  <span className="text-[11px] font-bold text-gold">Baixar agora</span>
+                </div>
               </div>
               <ArrowUpRight className="h-4 w-4 text-muted-foreground/40 transition group-hover:text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
