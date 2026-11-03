@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, ArrowUpRight, Calculator, Headphones, Lock, Mail, Sparkles, TrendingUp, User } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/AppShell";
