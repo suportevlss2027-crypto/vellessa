@@ -31,7 +31,7 @@ function Dashboard() {
   const shortcuts = [
     { to: "/aulas", label: "Aulas", count: `${totalLessonsCount} aulas`, desc: "Trilhas e estratégias", icon: BookOpen },
     { to: "/criativos", label: "Criativos", count: "24 peças", desc: "Prontos para anunciar", icon: Image },
-    { to: "/materiais", label: "Links e materiais", count: "3 links", desc: "Seus links e PDFs", icon: Link2 },
+    { to: "/materiais", label: "Links e materiais", count: "Logzz & Apoio", desc: "Acesso Logzz e PDFs", icon: Link2 },
     { to: "/comunidade", label: "Comunidade", count: "Ativa", desc: "Avisos e conversas", icon: Users },
   ] as const;
 
@@ -51,7 +51,7 @@ function Dashboard() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span>Vendas Cash on Delivery · Ao Vivo</span>
+            <span>Operação Logzz · Vendas COD em Tempo Real</span>
           </div>
 
           {/* Cascata de Notificações com Comissões Reais de 60% dos Kits Vellessa */}
@@ -179,7 +179,7 @@ function Dashboard() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-[11px] font-bold text-white">Pedido Agendado na Operação!</p>
+              <p className="text-[11px] font-bold text-white">Pedido Agendado na Logzz!</p>
               <p className="text-[10px] text-white/80">Comissão de <span className="font-extrabold text-emerald-300">R$ 178,74</span> há 2m</p>
             </div>
           </div>
@@ -275,7 +275,7 @@ function Dashboard() {
           <div className="mt-8 grid grid-cols-3 gap-3 border-t border-border/40 pt-6">
             <StatCard label="Aulas concluídas" value={`${completedCount}/${totalLessonsCount}`} />
             <StatCard label="Criativos prontos" value="24" />
-            <StatCard label="Comissão máxima" value="Até 60%" icon gold />
+            <StatCard label="Comissão na Logzz" value="Até 60%" icon gold />
           </div>
         </section>
 

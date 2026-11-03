@@ -115,9 +115,9 @@ export const creatives: Creative[] = [
 ];
 
 export const links = [
-  { label: "Seu link de afiliada", url: "https://vellessa.com/?ref=VLS-20481", note: "Página principal com seu código" },
-  { label: "Oferta Kit 3 frascos", url: "https://vellessa.com/kit3?ref=VLS-20481", note: "Maior ticket — melhor comissão" },
-  { label: "Página de vídeo (VSL)", url: "https://vellessa.com/vsl?ref=VLS-20481", note: "Ideal para tráfego frio" },
+  { label: "Página Principal Oficial (Demonstração)", url: "https://vellessa.com", note: "Página de vendas oficial para conhecer a estrutura do produto" },
+  { label: "Oferta Kit 3 Frascos (Demonstração)", url: "https://vellessa.com/kit3", note: "Oferta campeã de conversão com até 60% de comissão" },
+  { label: "Página de Vídeo / VSL (Demonstração)", url: "https://vellessa.com/vsl", note: "Funil em vídeo validado para tráfego frio" },
 ];
 
 export const materials = [
@@ -130,7 +130,7 @@ export const materials = [
 ];
 
 export const announcements = [
-  { id: "a1", pinned: true, author: "Equipe Vellessa", time: "Hoje", title: "Nova comissão de 60% no Kit 3 frascos", body: "A partir desta semana, todas as vendas do Kit 3 frascos pagam 60% de comissão. Os novos links já estão em Materiais." },
+  { id: "a1", pinned: true, author: "Equipe Vellessa", time: "Hoje", title: "Nova comissão de 60% no Kit 3 frascos", body: "A partir desta semana, todas as vendas do Kit 3 frascos pagam 60% de comissão diretamente na Logzz. Pegue seu link com pixel no painel da Logzz!" },
   { id: "a2", pinned: true, author: "Equipe Vellessa", time: "Ontem", title: "Criativos de Black Friday liberados", body: "Preparamos 24 peças exclusivas para a campanha. Acesse a aba Criativos e filtre por Stories." },
   { id: "a3", author: "Equipe Vellessa", time: "3 dias", title: "Live de estratégia — quinta, 20h", body: "Vamos analisar campanhas reais de afiliadas que faturaram mais de R$ 50 mil no mês." },
 ];

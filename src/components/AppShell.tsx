@@ -100,10 +100,10 @@ export function AppShell() {
               Comissão de <span className="text-gold">até 60%</span>
             </p>
             <p className="mt-1 text-xs text-muted-foreground leading-snug">
-              Ativo no Kit 3 frascos esta semana
+              Ativo no Kit 3 frascos na Logzz
             </p>
             <Link to="/materiais" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-gold hover:underline transition">
-              <span>Pegar meu link</span>
+              <span>Ver materiais e Logzz</span>
               <span>→</span>
             </Link>
           </div>

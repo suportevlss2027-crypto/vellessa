@@ -62,19 +62,19 @@ function Perfil() {
           <p className="text-sm font-semibold text-gold">{profile.level}</p>
 
           <div className="mt-4 flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 font-mono text-xs text-muted-foreground">
-            <span>ID {profile.id}</span>
+            <span>Matrícula de Membro: {profile.id}</span>
             <button
               type="button"
-              onClick={() => copyText(profile.id, "ID de Afiliada copiado!")}
-              title="Copiar ID"
-              aria-label="Copiar ID"
+              onClick={() => copyText(profile.id, "ID de Matrícula copiado!")}
+              title="Copiar ID de Matrícula"
+              aria-label="Copiar ID de Matrícula"
               className="text-muted-foreground hover:text-gold transition"
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Comissão padrão: <span className="font-semibold text-gold">50% a 60%</span>
+            Comissão padrão na Logzz: <span className="font-semibold text-gold">50% a 60%</span>
           </p>
         </div>
 

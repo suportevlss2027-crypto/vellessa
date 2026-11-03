@@ -60,13 +60,13 @@ function AdminMateriaisPage() {
 
   return (
     <div className="space-y-8">
-      {/* SEÇÃO 1: LINKS DE AFILIADOS */}
+      {/* SEÇÃO 1: LINKS OFICIAIS & LOGZZ */}
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b pb-4">
           <div>
-            <h2 className="text-2xl font-semibold">Links Rastreados de Checkout</h2>
+            <h2 className="text-2xl font-semibold">Links Oficiais & Afiliação Logzz</h2>
             <p className="text-xs text-muted-foreground">
-              Configure as páginas de venda oficiais. O código único de cada afiliado será inserido automaticamente.
+              Configure as páginas de demonstração oficiais e os links de acesso à Logzz disponibilizados para as afiliadas.
             </p>
           </div>
           <button
@@ -147,13 +147,13 @@ function AdminMateriaisPage() {
             onSubmit={handleCreateLink}
             className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
           >
-            <h3 className="text-xl font-semibold">Novo Link de Afiliada</h3>
+            <h3 className="text-xl font-semibold">Novo Link de Apoio ou Logzz</h3>
             <label className="block">
               <span className="text-xs font-medium">Nome / Rótulo</span>
               <input
                 value={linkLabel}
                 onChange={(e) => setLinkLabel(e.target.value)}
-                placeholder="Ex: Oferta Kit 3 Frascos"
+                placeholder="Ex: Oferta Kit 3 Frascos (Demonstração)"
                 className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                 required
               />
@@ -163,7 +163,7 @@ function AdminMateriaisPage() {
               <input
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://vellessa.com/kit3?ref=VLS-20481"
+                placeholder="https://vellessa.com/kit3 ou https://app.logzz.com.br"
                 className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                 required
               />
