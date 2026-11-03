@@ -1,7 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Bell, BookOpen, ChevronsLeft, Home, Image, Link2, LogOut, Search, Shield, Sparkles, Users,
+  Bell, BookOpen, ChevronsLeft, Crown, Home, Image, Link2, LogOut, Search, Shield, Sparkles, Users,
 } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { profile, unreadAnnouncementsCount, logout } = useAffiliateStore();
+  const { profile, unreadAnnouncementsCount, logout, isAdmin, isTitular } = useAffiliateStore();
   const navigate = useNavigate();
 
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -108,7 +108,7 @@ export function AppShell() {
             </Link>
           </div>
         )}
-        {profile.role === "admin" && (
+        {isAdmin && (
           <Link
             to="/admin"
             className={cn(
@@ -116,8 +116,12 @@ export function AppShell() {
               collapsed && "justify-center"
             )}
           >
-            <Shield className="h-4 w-4 shrink-0" />
-            {!collapsed && "Painel Admin (CMS)"}
+            {isTitular ? (
+              <Crown className="h-4 w-4 shrink-0 text-gold" />
+            ) : (
+              <Shield className="h-4 w-4 shrink-0" />
+            )}
+            {!collapsed && (isTitular ? "Painel do Titular" : "Painel Admin (CMS)")}
           </Link>
         )}
         <div className="flex flex-col gap-1 pt-2 border-t border-border/40">
@@ -154,13 +158,17 @@ export function AppShell() {
             </button>
           </div>
           <div className="ml-auto flex items-center gap-2.5">
-            {profile.role === "admin" && (
+            {isAdmin && (
               <Link
                 to="/admin"
                 className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3.5 py-1.5 text-xs font-semibold text-gold hover:bg-gold/20 transition shadow-xs"
               >
-                <Shield className="h-3.5 w-3.5" />
-                Painel Admin
+                {isTitular ? (
+                  <Crown className="h-3.5 w-3.5 text-gold" />
+                ) : (
+                  <Shield className="h-3.5 w-3.5" />
+                )}
+                {isTitular ? "Painel Titular" : "Painel Admin"}
               </Link>
             )}
             <button

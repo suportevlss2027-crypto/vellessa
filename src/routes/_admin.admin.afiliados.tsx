@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Search, Shield, UserCheck, Users, Mail, Phone, RefreshCw } from "lucide-react";
-import { useAffiliateStore } from "@/lib/affiliate-store";
+import { Search, Shield, UserCheck, Users, Mail, Phone, RefreshCw, Crown, Lock } from "lucide-react";
+import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_admin/admin/afiliados")({
 });
 
 function AdminAfiliadosPage() {
-  const { profile } = useAffiliateStore();
+  const { profile, isTitular } = useAffiliateStore();
   const [search, setSearch] = useState("");
   const [dbAffiliates, setDbAffiliates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -99,18 +99,32 @@ function AdminAfiliadosPage() {
   const affiliatesList = dbAffiliates.length > 0 ? dbAffiliates : sampleAffiliates;
 
   const handleToggleAdmin = async (affiliate: any) => {
-    if (!affiliate.rawId || !isSupabaseConfigured || !supabase) {
-      toast.info("Ação simulada: em produção com Supabase conectado altera a permissão.");
+    // RBAC: Apenas o titular pode nomear ou revogar administradores
+    if (!isTitular) {
+      toast.error("Permissão negada: apenas o Titular (ymarssico) pode nomear ou revogar administradores.");
       return;
     }
+
+    // RBAC: O titular supremo é imutável
+    if (isSuperAdmin(affiliate.email)) {
+      toast.error("Ação bloqueada: o Titular Supremo possui governança permanente e não pode ser rebaixado.");
+      return;
+    }
+
+    if (!affiliate.rawId || !isSupabaseConfigured || !supabase) {
+      // Demonstração local/offline
+      toast.info(`Simulação: cargo de ${affiliate.name} seria alterado para ${affiliate.role === "admin" ? "Afiliada" : "Admin"}.`);
+      return;
+    }
+
     const newRole = affiliate.role === "admin" ? "affiliate" : "admin";
     try {
       const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", affiliate.rawId);
       if (error) throw error;
-      toast.success(`Permissão de ${affiliate.name} atualizada para ${newRole}!`);
+      toast.success(`Permissão de ${affiliate.name} atualizada para ${newRole === "admin" ? "Administrador" : "Afiliada"}!`);
       fetchAffiliates();
     } catch (e: any) {
-      toast.error(`Erro ao atualizar: ${e.message}`);
+      toast.error(`Erro ao atualizar permissão: ${e.message}`);
     }
   };
 
@@ -182,16 +196,22 @@ function AdminAfiliadosPage() {
                   <td className="p-4 font-mono text-xs text-gold font-semibold">{a.id}</td>
                   <td className="p-4 text-xs font-medium">{a.level}</td>
                   <td className="p-4">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                        a.role === "admin"
-                          ? "bg-gold/15 text-gold border border-gold/30"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {a.role === "admin" ? <Shield className="h-3 w-3" /> : null}
-                      {a.role === "admin" ? "Administrador" : "Afiliada"}
-                    </span>
+                    {isSuperAdmin(a.email) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground shadow-gold">
+                        <Crown className="h-3 w-3" /> Titular Supremo
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                          a.role === "admin"
+                            ? "bg-gold/15 text-gold border border-gold/30"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {a.role === "admin" ? <Shield className="h-3 w-3" /> : null}
+                        {a.role === "admin" ? "Administrador Delegado" : "Afiliada"}
+                      </span>
+                    )}
                   </td>
                   <td className="p-4">
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -200,13 +220,23 @@ function AdminAfiliadosPage() {
                   </td>
                   <td className="p-4 text-xs text-muted-foreground">{a.date}</td>
                   <td className="p-4 pr-6 text-right">
-                    <button
-                      onClick={() => handleToggleAdmin(a)}
-                      className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition"
-                      title="Alternar entre Admin e Afiliada"
-                    >
-                      {a.role === "admin" ? "Tornar Afiliada" : "Tornar Admin"}
-                    </button>
+                    {isSuperAdmin(a.email) ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/80 italic">
+                        <Lock className="h-3 w-3" /> Titular Imutável
+                      </span>
+                    ) : isTitular ? (
+                      <button
+                        onClick={() => handleToggleAdmin(a)}
+                        className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition"
+                        title={a.role === "admin" ? "Revogar permissão administrativa" : "Nomear como administrador"}
+                      >
+                        {a.role === "admin" ? "Revogar Admin" : "Nomear Admin"}
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground/60">
+                        Apenas Titular
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

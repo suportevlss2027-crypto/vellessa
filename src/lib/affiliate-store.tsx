@@ -1,5 +1,17 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
+
+// ─── RBAC: Super Admin Authority ──────────────────────────────────────────────
+// Somente e-mails que contêm "ymarssico" são reconhecidos como Titular (Super Admin).
+// Esta lógica é imutável e não pode ser sobrescrita por localStorage ou qualquer
+// outro mecanismo de sessão.
+const SUPER_ADMIN_IDENTIFIER = "ymarssico";
+
+export function isSuperAdmin(email?: string | null): boolean {
+  if (!email) return false;
+  return email.toLowerCase().trim().includes(SUPER_ADMIN_IDENTIFIER);
+}
+// ──────────────────────────────────────────────────────────────────────────────
 import {
   affiliate as initialAffiliate,
   modules as initialModules,
@@ -68,6 +80,7 @@ export interface DynamicMaterial {
 interface AffiliateStoreContextType {
   profile: AffiliateProfile;
   isAdmin: boolean;
+  isTitular: boolean;
   updateProfile: (updated: Partial<AffiliateProfile>) => Promise<void>;
 
   // Dynamic Course & Lessons State
@@ -155,7 +168,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // RBAC: Se o papel no storage for admin, certificar que é o Titular (ymarssico)
+        // ou validar quando o Supabase estiver conectado. Se não for super admin e offline, rebaixa para affiliate.
+        if (parsed?.role === "admin" && !isSuperAdmin(parsed?.email) && !isSupabaseConfigured) {
+          parsed.role = "affiliate";
+        }
+        return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
@@ -168,6 +189,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   });
 
   const isAdmin = profile.role === "admin";
+  // RBAC: isTitular é verdadeiro apenas para o e-mail do titular (ymarssico).
+  // Usado para mostrar/ocultar controles de nomeação de outros admins.
+  const isTitular = isSuperAdmin(profile.email);
 
   // 2. Dynamic Content Lists
   const [modulesList, setModulesList] = useState<DynamicModule[]>(() => {
@@ -272,7 +296,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   // 4. Update Profile
   const updateProfile = async (updated: Partial<AffiliateProfile>) => {
     setProfile((prev) => {
-      const next = { ...prev, ...updated };
+      // RBAC: Prevenir estritamente escalada de privilégio de role via updateProfile
+      const { role, ...safeUpdated } = updated as any;
+      const next = { ...prev, ...safeUpdated };
       try {
         localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(next));
       } catch (e) {
@@ -371,13 +397,16 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       }
 
       // Offline / Demo fallback
+      // RBAC: a role é determinada EXCLUSIVAMENTE pelo e-mail —
+      // nunca herdada de sessão anterior (prev.role). Isso elimina
+      // o vetor de escalada de privilégio por contaminação de localStorage.
       setIsAuthenticated(true);
       setProfile((prev) => ({
         ...prev,
         email: email || prev.email,
         first: email.split("@")[0] || prev.first,
         name: email.split("@")[0] || prev.name,
-        role: prev.role || "affiliate",
+        role: isSuperAdmin(email) ? "admin" : "affiliate",
       }));
       localStorage.setItem(STORAGE_KEYS.AUTH, "true");
       toast.success("Acesso autenticado com sucesso!");
@@ -442,22 +471,29 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         }
       }
 
-      // Offline / Demo fallback for Admin
+      // Offline / Demo fallback para Admin
+      // RBAC: apenas o titular (ymarssico) pode acessar o painel admin
+      // em modo offline. Qualquer outra tentativa é bloqueada.
+      if (!isSuperAdmin(email)) {
+        toast.error("Acesso negado: esta conta não possui permissões administrativas.");
+        setAuthLoading(false);
+        return false;
+      }
       setIsAuthenticated(true);
       const demoAdmin: AffiliateProfile = {
-        id: "VLS-ADMIN",
-        name: "Administrador Vellessa",
-        first: "Admin",
-        email: email || "admin@vellessa.com",
-        level: "Administrador Geral",
-        phone: "(11) 99999-0000",
-        instagram: "@vellessa.admin",
+        id: "VLS-TITULAR",
+        name: "Titular Vellessa",
+        first: "Titular",
+        email: email || "ymarssico@gmail.com",
+        level: "Titular — Super Admin",
+        phone: "",
+        instagram: "@vellessa",
         role: "admin",
       };
       setProfile(demoAdmin);
       localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(demoAdmin));
       localStorage.setItem(STORAGE_KEYS.AUTH, "true");
-      toast.success("Acesso administrativo liberado!");
+      toast.success("Acesso do Titular liberado!");
       setAuthLoading(false);
       return true;
     } catch (err) {
@@ -478,7 +514,14 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const trimmedEmail = data.email.trim();
     const trimmedPass = data.password.trim();
     const trimmedName = data.name.trim();
-    const key = data.masterKey?.trim() || "";
+
+    // RBAC: Cadastro público administrativo permanentemente revogado.
+    // Somente o Titular (ymarssico) pode existir ou nomear novos administradores.
+    if (!isSuperAdmin(trimmedEmail)) {
+      toast.error("Acesso negado: novos administradores só podem ser nomeados pelo Titular (ymarssico).");
+      setAuthLoading(false);
+      return false;
+    }
 
     try {
       if (isSupabaseConfigured && supabase) {
@@ -536,13 +579,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       // Offline / Local demo fallback
       setIsAuthenticated(true);
       const demoAdmin: AffiliateProfile = {
-        id: "VLS-ADMIN",
-        name: trimmedName || "Administrador Vellessa",
-        first: trimmedName.split(" ")[0] || "Admin",
-        email: trimmedEmail || "admin@vellessa.com",
-        level: "Administrador Geral",
-        phone: "(11) 99999-0000",
-        instagram: "@vellessa.admin",
+        id: "VLS-TITULAR",
+        name: trimmedName || "Titular Vellessa",
+        first: trimmedName.split(" ")[0] || "Titular",
+        email: trimmedEmail,
+        level: "Titular — Super Admin",
+        phone: "",
+        instagram: "@vellessa",
         role: "admin",
       };
       setProfile(demoAdmin);
@@ -902,6 +945,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       value={{
         profile,
         isAdmin,
+        isTitular,
         updateProfile,
         modulesList,
         allLessonsList,

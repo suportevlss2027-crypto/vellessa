@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tan
 import { useState, useEffect } from "react";
 import {
   BookOpen,
+  Crown,
   FolderPlus,
   Home,
   Image,
@@ -15,6 +16,7 @@ import {
   ShieldAlert,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 
@@ -31,14 +33,19 @@ const adminNav = [
 ] as const;
 
 function AdminLayout() {
-  const { profile, logout, isAdmin, isAuthenticated } = useAffiliateStore();
+  const { profile, logout, isAdmin, isTitular, isAuthenticated } = useAffiliateStore();
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
+    if (!isAuthenticated) {
       navigate({ to: "/admin/login" });
+      return;
+    }
+    if (!isAdmin) {
+      toast.error("Acesso negado: sua conta não possui privilégios de administrador.");
+      navigate({ to: "/painel" });
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
@@ -147,9 +154,14 @@ function AdminLayout() {
 
             <div className="flex items-center gap-2.5 rounded-full border bg-card py-1 pl-1 pr-3">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
-                AD
+                {isTitular ? <Crown className="h-4 w-4" /> : "AD"}
               </span>
-              <span className="text-sm font-medium">{profile.name} (Admin)</span>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-semibold leading-tight">{profile.name}</span>
+                <span className="text-[10px] text-gold font-medium leading-tight">
+                  {isTitular ? "Titular Supremo" : "Administrador"}
+                </span>
+              </div>
             </div>
           </div>
         </header>
