@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, Copy, Download, ExternalLink, Play, X } from "lucide-react";
+import { Copy, Download, FileText, Image as ImageIcon, Play, Sparkles, Video, X } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { creatives, type Creative } from "@/data/content";
 import { useAffiliateStore } from "@/lib/affiliate-store";
@@ -43,7 +43,21 @@ function Criativos() {
   const { copyText, downloadAsset, creativesList } = useAffiliateStore();
 
   const currentCreatives = creativesList && creativesList.length > 0 ? creativesList : creatives;
-  const list = filter === "Todos" ? currentCreatives : currentCreatives.filter((c) => c.type === filter);
+
+  const visualItems = currentCreatives.filter((c) => c.type !== "Copy");
+  const copyItems = currentCreatives.filter((c) => c.type === "Copy");
+
+  const filteredVisualItems =
+    filter === "Todos"
+      ? visualItems
+      : filter === "Copy"
+      ? []
+      : visualItems.filter((c) => c.type === filter);
+
+  const filteredCopyItems =
+    filter === "Todos" || filter === "Copy"
+      ? copyItems
+      : [];
 
   const handleDownload = (c: Creative) => {
     if (c.image) {
@@ -56,21 +70,21 @@ function Criativos() {
   };
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Biblioteca Oficial"
-        title="Criativos para anúncio"
-        description="Peças publicitárias de alta conversão aprovadas pela marca, prontas para baixar e anunciar no Meta Ads, TikTok e Instagram."
+        title="Criativos para Anúncios"
+        description="Peças publicitárias de alta conversão aprovadas pela marca, organizadas por formato para download imediato."
       >
-        <div className="flex gap-1 overflow-x-auto rounded-full border border-border/40 bg-card/60 p-1 backdrop-blur-sm">
+        <div className="flex gap-1 overflow-x-auto rounded-full border border-border/40 bg-card/60 p-1 backdrop-blur-sm shadow-xs">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition",
+                "whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-all duration-200",
                 filter === f
-                  ? "bg-gold-gradient text-primary-foreground shadow-gold"
+                  ? "bg-gold-gradient text-primary-foreground font-semibold shadow-gold"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -80,150 +94,218 @@ function Criativos() {
         </div>
       </PageHeader>
 
-      <div className="columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4">
-        {list.map((c) =>
-          c.type === "Copy" ? (
-            <div key={c.id} className="break-inside-avoid rounded-2xl border border-white/10 bg-card/60 p-5 backdrop-blur-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">Copy Persuasiva</span>
-                <span className="text-[10px] text-muted-foreground font-mono">{c.format}</span>
-              </div>
-              <h3 className="mt-1.5 font-display text-lg font-bold text-foreground">{c.title.replace("Copy — ", "")}</h3>
-              <p className="mt-2 text-xs leading-relaxed text-foreground/80">{c.text}</p>
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={() => copyText(c.text!, "Texto da copy copiado com sucesso!")}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:border-gold hover:text-gold border border-border/60"
-                >
-                  <Copy className="h-3.5 w-3.5" /> Copiar texto
-                </button>
-                <button
-                  onClick={() => handleDownload(c)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/60 px-2.5 py-1.5 text-xs font-semibold hover:border-gold hover:text-gold transition"
-                  title="Salvar como arquivo de texto"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
-              </div>
+      {/* SEÇÃO 1: GALERIA DE CRIATIVOS VISUAIS (GRID PERFEITO E SIMÉTRICO) */}
+      {filteredVisualItems.length > 0 && (
+        <section className="space-y-3">
+          {filter === "Todos" && (
+            <div className="flex items-center justify-between border-b border-border/30 pb-2">
+              <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-gold" />
+                <span>Mídias Gráficas & Vídeos</span>
+              </h2>
+              <span className="text-[11px] font-mono text-muted-foreground">{filteredVisualItems.length} peças</span>
             </div>
-          ) : (
-            <div
-              key={c.id}
-              className="group block w-full break-inside-avoid overflow-hidden rounded-2xl border border-white/10 bg-card/60 text-left transition duration-300 hover:border-gold/40 shadow-xs"
-            >
-              <button
-                onClick={() => setOpen(c)}
-                className="w-full block text-left"
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredVisualItems.map((c) => (
+              <div
+                key={c.id}
+                className="group flex flex-col justify-between overflow-hidden rounded-xl border border-white/10 bg-card/60 transition-all duration-300 hover:border-gold/40 hover:-translate-y-0.5 shadow-xs backdrop-blur-sm"
               >
-                <div className={cn("relative overflow-hidden bg-muted", c.type === "Feed" ? "aspect-square" : "aspect-[9/14]")}>
+                {/* Janela Visual Padronizada (Aspect 4:5 Consistente) */}
+                <button
+                  type="button"
+                  onClick={() => setOpen(c)}
+                  className="relative aspect-[4/5] w-full overflow-hidden bg-muted/80 text-left block cursor-pointer"
+                >
                   <img
                     src={c.image}
                     alt={c.title}
                     loading="lazy"
                     className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                   />
-                  <span className="absolute left-3 top-3 rounded-full bg-card/85 px-3 py-1 text-xs font-semibold backdrop-blur">
-                    {c.type}
-                  </span>
-                  {c.type === "Reels" && (
-                    <span className="absolute inset-0 grid place-items-center">
-                      <span className="grid h-14 w-14 place-items-center rounded-full bg-card/85 text-gold backdrop-blur transition group-hover:scale-110">
-                        <Play className="h-5 w-5 fill-current" />
-                      </span>
-                    </span>
-                  )}
-                </div>
-              </button>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-80" />
 
-              <div className="flex items-center justify-between p-4 border-t bg-card/40">
-                <div onClick={() => setOpen(c)} className="cursor-pointer">
-                  <p className="font-medium text-foreground">{c.title}</p>
-                  <p className="text-xs text-muted-foreground">{c.format}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => copyText(getCreativeCopy(c), "Copy do criativo copiada!")}
-                    title="Copiar texto sugerido"
-                    aria-label="Copiar texto sugerido"
-                    className="grid h-9 w-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-gold transition"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDownload(c)}
-                    title="Baixar imagem/vídeo"
-                    aria-label="Baixar imagem/vídeo"
-                    className="grid h-9 w-9 place-items-center rounded-full hover:bg-muted text-muted-foreground hover:text-gold transition"
-                  >
-                    <Download className="h-4 w-4" />
-                  </button>
+                  {/* Badge de Formato no Topo */}
+                  <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5">
+                    <span className="rounded-full border border-white/10 bg-black/70 px-2 py-0.5 text-[9px] font-mono font-bold text-gold backdrop-blur-md">
+                      {c.type}
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-black/60 px-2 py-0.5 text-[9px] font-mono text-white/80 backdrop-blur-md">
+                      {c.format}
+                    </span>
+                  </div>
+
+                  {/* Ícone de Play para Reels/Vídeos */}
+                  {c.type === "Reels" && (
+                    <div className="absolute inset-0 grid place-items-center">
+                      <span className="grid h-11 w-11 place-items-center rounded-full border border-gold/40 bg-black/60 text-gold shadow-gold backdrop-blur-md transition group-hover:scale-110">
+                        <Play className="h-4 w-4 fill-current ml-0.5" />
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Título sobreposto suavemente na base da imagem */}
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5">
+                    <p className="font-display text-sm font-bold text-white tracking-tight drop-shadow-sm truncate">
+                      {c.title}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Rodapé Alinhado com Altura e Ações Uniformes */}
+                <div className="flex items-center justify-between p-3 border-t border-border/30 bg-card/40">
+                  <span className="text-[10px] font-mono text-muted-foreground">{c.format}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => copyText(getCreativeCopy(c), "Copy do criativo copiada!")}
+                      title="Copiar texto sugerido deste criativo"
+                      aria-label="Copiar texto"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 bg-card/60 text-muted-foreground hover:border-gold hover:text-gold transition"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDownload(c)}
+                      title="Baixar imagem/vídeo em alta resolução"
+                      aria-label="Baixar peça"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/10 px-2.5 text-[11px] font-semibold text-gold hover:bg-gold/20 transition shadow-xs"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>Baixar</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ),
-        )}
-      </div>
+            ))}
+          </div>
+        </section>
+      )}
 
+      {/* SEÇÃO 2: BANCO DE COPYS VALIDADAS (DEDICADA & SEM POLUIR AS MÍDIAS) */}
+      {filteredCopyItems.length > 0 && (
+        <section className={cn("space-y-3", filter === "Todos" && "pt-6")}>
+          <div className="flex items-center justify-between border-b border-border/30 pb-2">
+            <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4 text-gold" />
+              <span>Banco de Copys de Alta Conversão</span>
+            </h2>
+            <span className="text-[11px] font-mono text-muted-foreground">{filteredCopyItems.length} copys</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredCopyItems.map((c) => (
+              <div
+                key={c.id}
+                className="flex flex-col justify-between rounded-xl border border-white/10 bg-card/60 p-4.5 backdrop-blur-sm shadow-xs transition hover:border-gold/30"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                    <span className="font-bold uppercase tracking-wider text-gold">Copy Persuasiva</span>
+                    <span>Texto formatado</span>
+                  </div>
+                  <h3 className="mt-1.5 font-display text-base font-bold text-foreground">
+                    {c.title.replace("Copy — ", "")}
+                  </h3>
+                  <div className="mt-2.5 rounded-lg border border-border/30 bg-muted/40 p-3 text-xs leading-relaxed text-foreground/85">
+                    {c.text}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-2 pt-2 border-t border-border/30">
+                  <span className="text-[10px] text-muted-foreground">Pronto para Meta Ads e WhatsApp</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleDownload(c)}
+                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-border/40 bg-card/60 px-2.5 text-[11px] font-medium text-foreground hover:border-gold hover:text-gold transition"
+                      title="Salvar como arquivo .txt"
+                    >
+                      <Download className="h-3 w-3" />
+                      <span>Salvar .txt</span>
+                    </button>
+                    <button
+                      onClick={() => copyText(c.text!, "Texto da copy copiado com sucesso!")}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-gold-gradient px-3 text-[11px] font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span>Copiar Texto</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* MODAL DE PREVIEW EM ALTA RESOLUÇÃO */}
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-overlay/80 p-4 backdrop-blur-sm animate-in fade-in"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in"
           onClick={() => setOpen(null)}
         >
           <div
-            className="relative grid max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-3xl border bg-card shadow-soft md:grid-cols-[1.2fr_1fr] animate-in zoom-in-95"
+            className="relative grid max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl md:grid-cols-[1.1fr_1fr] animate-in zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative bg-black flex items-center justify-center max-h-[60vh] md:max-h-[90vh] overflow-hidden">
+            {/* Visual da Imagem sem Distorção */}
+            <div className="relative bg-black/95 flex items-center justify-center max-h-[50vh] md:max-h-[85vh] overflow-hidden p-2">
               <img
                 src={open.image}
                 alt={open.title}
-                className="h-full w-full object-contain md:object-cover"
+                className="max-h-full max-w-full object-contain"
               />
-              <span className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+              <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-0.5 text-[10px] font-mono font-bold text-gold backdrop-blur-md border border-white/10">
                 {open.type} · {open.format}
               </span>
             </div>
 
-            <div className="flex flex-col p-6 sm:p-8 overflow-y-auto">
-              <button
-                onClick={() => setOpen(null)}
-                aria-label="Fechar"
-                className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-card/90 border hover:bg-muted transition text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
+            {/* Painel Lateral com Detalhes e Ações */}
+            <div className="flex flex-col justify-between p-5 sm:p-6 overflow-y-auto">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+                    Material Oficial de Alta Resolução
+                  </span>
+                  <button
+                    onClick={() => setOpen(null)}
+                    aria-label="Fechar"
+                    className="grid h-8 w-8 place-items-center rounded-full bg-card border border-border/50 hover:bg-muted transition text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">
-                Material de Alta Resolução
-              </span>
-              <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-foreground">{open.title}</h2>
-              <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
-                Recomendação: utilize a copy validada abaixo para postagens no feed ou tráfego pago.
-              </p>
+                <h2 className="mt-2 font-display text-xl font-bold text-foreground">{open.title}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Formato nativo {open.format}. Ideal para anúncios de topo de funil e stories engajados.
+                </p>
 
-              <div className="mt-4 rounded-2xl bg-muted/60 border p-4 text-xs sm:text-sm leading-relaxed text-foreground">
-                <p className="font-semibold text-gold text-xs uppercase mb-1">Copy Recomendada:</p>
-                {getCreativeCopy(open)}
+                <div className="mt-4 rounded-xl bg-muted/40 border border-border/40 p-3.5 text-xs leading-relaxed text-foreground">
+                  <p className="font-semibold text-gold text-[10px] uppercase mb-1">Copy Recomendada para Anúncio:</p>
+                  {getCreativeCopy(open)}
+                </div>
               </div>
 
-              <div className="mt-6 flex flex-col sm:flex-row gap-2 pt-2">
+              <div className="mt-5 flex gap-2 pt-3 border-t border-border/30">
                 <button
-                  onClick={() => handleDownload(open)}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gold-gradient py-3 text-sm font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+                  onClick={() => copyText(getCreativeCopy(open), "Copy sugerida copiada!")}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-card py-2.5 text-xs font-semibold hover:border-gold hover:text-gold transition"
                 >
-                  <Download className="h-4 w-4" /> Baixar Peça
+                  <Copy className="h-3.5 w-3.5" /> Copiar Copy
                 </button>
                 <button
-                  onClick={() => copyText(getCreativeCopy(open), "Copy sugerida copiada com sucesso!")}
-                  className="flex items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-medium hover:border-gold hover:text-gold transition"
+                  onClick={() => handleDownload(open)}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-gradient py-2.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
                 >
-                  <Copy className="h-4 w-4" /> Copiar Copy
+                  <Download className="h-3.5 w-3.5" /> Baixar Peça
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

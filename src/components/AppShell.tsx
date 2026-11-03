@@ -71,7 +71,7 @@ export function AppShell() {
         <div className={cn("flex items-center px-1", collapsed ? "justify-center" : "justify-between")}>
           <Link to="/painel"><Logo compact={collapsed} /></Link>
         </div>
-        <nav className="mt-6 flex flex-1 flex-col gap-1">
+        <nav className="mt-5 flex flex-col gap-1">
           {nav.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
@@ -90,15 +90,33 @@ export function AppShell() {
               {!collapsed && label}
             </Link>
           ))}
+
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={cn(
+                "mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 transition",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              {isTitular ? (
+                <Crown className="h-4 w-4 shrink-0 text-gold" />
+              ) : (
+                <Shield className="h-4 w-4 shrink-0 text-gold" />
+              )}
+              {!collapsed && (isTitular ? "Painel Titular" : "Painel Admin")}
+            </Link>
+          )}
         </nav>
+
         {!collapsed && (
-          <div className="relative mb-3 overflow-hidden rounded-xl border border-white/10 bg-card/40 p-3 backdrop-blur-sm">
+          <div className="relative mt-4 overflow-hidden rounded-xl border border-white/10 bg-card/40 p-3 backdrop-blur-sm">
             <div className="flex items-center justify-between text-[10px] font-semibold text-foreground/80">
               <span className="flex items-center gap-1 text-gold"><Sparkles className="h-2.5 w-2.5" /> Logzz COD</span>
               <span className="font-mono text-gold font-bold">Até 60%</span>
             </div>
             <p className="mt-1 text-[10px] text-muted-foreground leading-tight">
-              Comissão máxima no Kit 3
+              Comissão máxima ativa no Kit 3
             </p>
             <Link to="/materiais" className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-gold hover:underline transition">
               <span>Materiais e Logzz</span>
@@ -106,22 +124,8 @@ export function AppShell() {
             </Link>
           </div>
         )}
-        {isAdmin && (
-          <Link
-            to="/admin"
-            className={cn(
-              "mb-2 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gold hover:bg-gold/10 transition",
-              collapsed && "justify-center px-0"
-            )}
-          >
-            {isTitular ? (
-              <Crown className="h-3.5 w-3.5 shrink-0 text-gold" />
-            ) : (
-              <Shield className="h-3.5 w-3.5 shrink-0" />
-            )}
-            {!collapsed && (isTitular ? "Painel Titular" : "Painel Admin")}
-          </Link>
-        )}
+
+        <div className="flex-1 min-h-4" />
         <div className="flex flex-col gap-0.5 pt-2 border-t border-border/40">
           <button
             onClick={() => setCollapsed((c) => !c)}
