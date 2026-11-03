@@ -36,10 +36,13 @@ function Perfil() {
   }, [profile]);
 
   const initials = profile.name
-    .split(" ")
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("") || "MC";
+    ? profile.name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() ?? "")
+        .join("")
+    : (profile.first ? profile.first[0]?.toUpperCase() : "AF");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

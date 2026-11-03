@@ -54,50 +54,7 @@ function AdminAfiliadosPage() {
     fetchAffiliates();
   }, []);
 
-  const sampleAffiliates = [
-    {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      level: profile.level,
-      status: "Ativo",
-      phone: profile.phone || "(11) 98765-4321",
-      role: profile.role,
-      date: "Hoje",
-    },
-    {
-      id: "VLS-18492",
-      name: "Juliana Rocha",
-      email: "juliana.rocha@email.com",
-      level: "Afiliada Prata",
-      status: "Ativo",
-      phone: "(21) 99876-1234",
-      role: "affiliate",
-      date: "Ontem",
-    },
-    {
-      id: "VLS-33910",
-      name: "Camila Silveira",
-      email: "camila.s@email.com",
-      level: "Afiliada Ouro",
-      status: "Ativo",
-      phone: "(31) 98712-4567",
-      role: "affiliate",
-      date: "3 dias atrás",
-    },
-    {
-      id: "VLS-59124",
-      name: "Fernanda Lima",
-      email: "fernanda.lima@email.com",
-      level: "Afiliada Diamante",
-      status: "Ativo",
-      phone: "(41) 99123-8899",
-      role: "affiliate",
-      date: "5 dias atrás",
-    },
-  ];
-
-  const affiliatesList = dbAffiliates.length > 0 ? dbAffiliates : sampleAffiliates;
+  const affiliatesList = dbAffiliates;
 
   const handleToggleAdmin = async (affiliate: any) => {
     // RBAC: Apenas o titular pode nomear ou revogar administradores
@@ -181,7 +138,14 @@ function AdminAfiliadosPage() {
               </tr>
             </thead>
             <tbody className="divide-y text-foreground">
-              {filtered.map((a) => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-xs text-muted-foreground">
+                    Nenhum afiliado cadastrado encontrado.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((a) => (
                 <tr key={a.id} className="hover:bg-muted/30 transition">
                   <td className="p-4 pl-6">
                     <div className="flex items-center gap-3">

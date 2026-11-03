@@ -13,13 +13,6 @@ export function isSuperAdmin(email?: string | null): boolean {
 }
 // ──────────────────────────────────────────────────────────────────────────────
 import {
-  affiliate as initialAffiliate,
-  modules as initialModules,
-  creatives as initialCreatives,
-  materials as initialMaterials,
-  links as initialLinks,
-  announcements as initialAnnouncements,
-  posts as initialPosts,
   type Lesson,
   type Module,
   type Creative,
@@ -152,27 +145,70 @@ const STORAGE_KEYS = {
   LINKS: "vellessa_dynamic_links",
 };
 
+const DEFAULT_EMPTY_PROFILE: AffiliateProfile = {
+  id: "",
+  name: "",
+  first: "Afiliada",
+  level: "Afiliada Oficial",
+  email: "",
+  phone: "",
+  instagram: "",
+  role: "affiliate",
+};
+
+// Limpeza de contingência QA: remove resquícios de dados fictícios locais (Mariana Costa, posts de teste, etc.)
+if (typeof window !== "undefined") {
+  try {
+    const CLEAN_KEY = "vellessa_qa_clean_v2";
+    if (localStorage.getItem(CLEAN_KEY) !== "true") {
+      const savedProf = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      if (savedProf && (savedProf.includes("Mariana Costa") || savedProf.includes("mariana@email.com"))) {
+        localStorage.removeItem(STORAGE_KEYS.PROFILE);
+      }
+      const savedPosts = localStorage.getItem(STORAGE_KEYS.POSTS);
+      if (savedPosts && (savedPosts.includes("Juliana R.") || savedPosts.includes("Ritual dourado"))) {
+        localStorage.removeItem(STORAGE_KEYS.POSTS);
+      }
+      const savedModules = localStorage.getItem(STORAGE_KEYS.MODULES);
+      if (savedModules && savedModules.includes("boas-vindas")) {
+        localStorage.removeItem(STORAGE_KEYS.MODULES);
+      }
+      const savedCreatives = localStorage.getItem(STORAGE_KEYS.CREATIVES);
+      if (savedCreatives && savedCreatives.includes("Ritual dourado")) {
+        localStorage.removeItem(STORAGE_KEYS.CREATIVES);
+      }
+      const savedMaterials = localStorage.getItem(STORAGE_KEYS.MATERIALS);
+      if (savedMaterials && savedMaterials.includes("Guia completo do afiliado")) {
+        localStorage.removeItem(STORAGE_KEYS.MATERIALS);
+      }
+      const savedAnnouncements = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      if (savedAnnouncements && savedAnnouncements.includes("Nova comissão de 60%")) {
+        localStorage.removeItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      }
+      localStorage.setItem(CLEAN_KEY, "true");
+    }
+  } catch (e) {
+    // Ignore storage errors
+  }
+}
+
 const AffiliateStoreContext = createContext<AffiliateStoreContextType | null>(null);
 
 export function AffiliateStoreProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(false);
 
-  // 1. Profile State
+  // 1. Profile State (100% limpo, sem nomes fictícios)
   const [profile, setProfile] = useState<AffiliateProfile>(() => {
     if (typeof window === "undefined") {
-      return {
-        ...initialAffiliate,
-        phone: "(11) 98765-4321",
-        instagram: "@mari.beauty",
-        role: "affiliate",
-      };
+      return DEFAULT_EMPTY_PROFILE;
     }
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // RBAC: Se o papel no storage for admin, certificar que é o Titular (ymarssico)
-        // ou validar quando o Supabase estiver conectado. Se não for super admin e offline, rebaixa para affiliate.
+        if (parsed?.name === "Mariana Costa" || parsed?.email === "mariana@email.com") {
+          return DEFAULT_EMPTY_PROFILE;
+        }
         if (parsed?.role === "admin" && !isSuperAdmin(parsed?.email) && !isSupabaseConfigured) {
           parsed.role = "affiliate";
         }
@@ -181,62 +217,67 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (e) {
       console.error(e);
     }
-    return {
-      ...initialAffiliate,
-      phone: "(11) 98765-4321",
-      instagram: "@mari.beauty",
-      role: "affiliate",
-    };
+    return DEFAULT_EMPTY_PROFILE;
   });
 
   const isAdmin = profile.role === "admin";
-  // RBAC: isTitular é verdadeiro apenas para o e-mail do titular (ymarssico).
-  // Usado para mostrar/ocultar controles de nomeação de outros admins.
   const isTitular = isSuperAdmin(profile.email);
 
-  // 2. Dynamic Content Lists
+  // 2. Dynamic Content Lists (Iniciam vazias — alimentadas apenas via Admin CMS / Supabase)
   const [modulesList, setModulesList] = useState<DynamicModule[]>(() => {
-    if (typeof window === "undefined") return initialModules;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.MODULES);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
-    return initialModules;
+    return [];
   });
 
   const [creativesList, setCreativesList] = useState<Creative[]>(() => {
-    if (typeof window === "undefined") return initialCreatives;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CREATIVES);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
-    return initialCreatives;
+    return [];
   });
 
   const [materialsList, setMaterialsList] = useState<DynamicMaterial[]>(() => {
-    if (typeof window === "undefined") return initialMaterials;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.MATERIALS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
-    return initialMaterials;
+    return [];
   });
 
   const [linksList, setLinksList] = useState<DynamicLink[]>(() => {
-    if (typeof window === "undefined") return initialLinks;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.LINKS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
-    return initialLinks;
+    return [];
   });
 
   // Calculate dynamic lessons
@@ -675,7 +716,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       id: `mod-${Date.now()}`,
       title: data.title,
       subtitle: data.subtitle,
-      cover: data.cover || initialModules[0]?.cover || "",
+      cover: data.cover || "",
       lessons: [],
     };
     const updated = [...modulesList, newMod];
@@ -740,7 +781,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       title: data.title,
       type: data.type,
       format: data.format,
-      image: data.image || initialCreatives[0]?.image,
+      image: data.image || "",
       text: data.text,
     };
     const updated = [newC, ...creativesList];
@@ -798,27 +839,27 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   const seedInitialDataToDatabase = async () => {
-    setModulesList(initialModules);
-    setCreativesList(initialCreatives);
-    setMaterialsList(initialMaterials);
-    setLinksList(initialLinks);
-    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(initialModules));
-    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(initialCreatives));
-    localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(initialMaterials));
-    localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(initialLinks));
-    toast.success("Dados padrão da Vellessa recarregados com sucesso!");
+    setModulesList([]);
+    setCreativesList([]);
+    setMaterialsList([]);
+    setLinksList([]);
+    localStorage.removeItem(STORAGE_KEYS.MODULES);
+    localStorage.removeItem(STORAGE_KEYS.CREATIVES);
+    localStorage.removeItem(STORAGE_KEYS.MATERIALS);
+    localStorage.removeItem(STORAGE_KEYS.LINKS);
+    toast.success("Base de dados limpa com sucesso!");
   };
 
   // 7. Community Posts
   const [posts, setPosts] = useState<CommunityPost[]>(() => {
-    if (typeof window === "undefined") return initialPosts;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.POSTS);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
     }
-    return initialPosts;
+    return [];
   });
 
   const addPost = (body: string) => {
@@ -826,14 +867,19 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       toast.error("Digite uma mensagem antes de publicar.");
       return;
     }
+    const initials = profile.name
+      ? profile.name
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((p) => p[0]?.toUpperCase() ?? "")
+          .join("")
+      : (profile.first ? profile.first[0].toUpperCase() : "AF");
+
     const newPost: CommunityPost = {
       id: `p-${Date.now()}`,
-      author: profile.name,
-      initials: profile.name
-        .split(" ")
-        .slice(0, 2)
-        .map((p) => p[0]?.toUpperCase() ?? "")
-        .join("") || "MC",
+      author: profile.name || "Afiliada",
+      initials,
       time: "agora",
       body: body.trim(),
       likes: 0,
@@ -864,17 +910,17 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
   // 8. Announcements
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(() => {
-    if (typeof window === "undefined") return initialAnnouncements;
+    if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
       if (saved) {
         const parsed = JSON.parse(saved) as AnnouncementItem[];
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // fall through
     }
-    return initialAnnouncements;
+    return [];
   });
   const [readAnnouncementIds, setReadAnnouncementIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];

@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Copy, Download, FileText, Image as ImageIcon, Play, Sparkles, Video, X } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
-import { creatives, type Creative } from "@/data/content";
+import { type Creative } from "@/data/content";
+import { EmptyState } from "@/components/EmptyState";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 
@@ -21,20 +22,7 @@ export const Route = createFileRoute("/_app/criativos")({
 const filters = ["Todos", "Feed", "Stories", "Reels", "Copy"] as const;
 
 function getCreativeCopy(creative: Creative): string {
-  if (creative.text) return creative.text;
-  if (creative.title.includes("Ritual")) {
-    return "Sua pele merece um ritual de luxo diário. ✨ O Sérum Vellessa combina ácido hialurônico, rosa mosqueta e extrato de romã para hidratação profunda e toque aveludado imediato. Adquira pelo link oficial com desconto exclusivo!";
-  }
-  if (creative.title.includes("Radiante") || creative.title.includes("Pele")) {
-    return "Mais de 12 mil mulheres já comprovaram a luminosidade e firmeza da pele com o Sérum Vellessa. Sem oleosidade, com toque acetinado e resultados visíveis nas primeiras semanas. Experimente com garantia de 30 dias!";
-  }
-  if (creative.title.includes("Kit") || creative.title.includes("Trio")) {
-    return "OFERTA EXCLUSIVA: Leve o Kit 3 Frascos do Sérum Vellessa com desconto especial e tratamento completo para 90 dias. Resultados potencializados e o melhor custo-benefício. Garanta o seu pelo link oficial!";
-  }
-  if (creative.type === "Reels") {
-    return "Olha o resultado dessa aplicação em apenas 15 segundos! Pele com viço natural, toque seco e zero filtro. O segredo da pele luminosa está neste frasco dourado. Toque no link para conferir!";
-  }
-  return "Transforme sua rotina de cuidados com a elegância e potência do Sérum Vellessa. Alta concentração de ativos nobres para uma pele renovada e viçosa todos os dias. Link com desconto exclusivo!";
+  return creative.text || "Copie este texto ou utilize os materiais oficiais para a sua campanha.";
 }
 
 function Criativos() {
@@ -42,7 +30,7 @@ function Criativos() {
   const [open, setOpen] = useState<Creative | null>(null);
   const { copyText, downloadAsset, creativesList } = useAffiliateStore();
 
-  const currentCreatives = creativesList && creativesList.length > 0 ? creativesList : creatives;
+  const currentCreatives = creativesList || [];
 
   const visualItems = currentCreatives.filter((c) => c.type !== "Copy");
   const copyItems = currentCreatives.filter((c) => c.type === "Copy");
@@ -93,6 +81,19 @@ function Criativos() {
           ))}
         </div>
       </PageHeader>
+
+      {/* ESTADO VAZIO CASO NÃO HAJA CRIATIVOS CADASTRADOS */}
+      {filteredVisualItems.length === 0 && filteredCopyItems.length === 0 && (
+        <EmptyState
+          icon={ImageIcon}
+          title={filter === "Todos" ? "Nenhum criativo disponível" : `Nenhum criativo no filtro "${filter}"`}
+          description={
+            filter === "Todos"
+              ? "O administrador publicará novas peças, criativos e copys em breve."
+              : "Selecione outro formato ou visualize todos os materiais cadastrados."
+          }
+        />
+      )}
 
       {/* SEÇÃO 1: GALERIA DE CRIATIVOS VISUAIS (GRID PERFEITO E SIMÉTRICO) */}
       {filteredVisualItems.length > 0 && (

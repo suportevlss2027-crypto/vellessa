@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, Image, Link2, PlusCircle, RefreshCw, Sparkles, TrendingUp, Users } from "lucide-react";
+import { BookOpen, Image, Link2, PlusCircle, Sparkles, TrendingUp, Users } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 
 export const Route = createFileRoute("/_admin/admin/")({
@@ -16,7 +16,6 @@ function AdminDashboard() {
     creativesList,
     materialsList,
     linksList,
-    seedInitialDataToDatabase,
   } = useAffiliateStore();
 
   return (
@@ -38,13 +37,6 @@ function AdminDashboard() {
             >
               <PlusCircle className="h-4 w-4" /> Cadastrar Nova Aula
             </Link>
-            <button
-              onClick={seedInitialDataToDatabase}
-              className="inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2.5 text-xs font-semibold hover:border-gold hover:text-gold transition"
-              title="Restaura todo o conteúdo inicial de exemplo caso o banco esteja vazio"
-            >
-              <RefreshCw className="h-3.5 w-3.5" /> Restaurar Conteúdo Padrão
-            </button>
           </div>
         </div>
       </div>

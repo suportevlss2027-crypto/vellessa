@@ -23,10 +23,13 @@ function Comunidade() {
   const [newPostText, setNewPostText] = useState("");
 
   const initials = profile.name
-    .split(" ")
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("") || "MC";
+    ? profile.name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() ?? "")
+        .join("")
+    : (profile.first ? profile.first[0]?.toUpperCase() : "AF");
 
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,29 +53,35 @@ function Comunidade() {
             <span className="text-[10px] font-bold uppercase tracking-wider text-gold">Oficial</span>
           </div>
 
-          {announcements.map((a) => (
-            <article
-              key={a.id}
-              className={
-                a.pinned
-                  ? "rounded-2xl border border-gold/30 bg-hero-gradient p-4.5 shadow-soft"
-                  : "rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs backdrop-blur-sm"
-              }
-            >
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                {a.pinned && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 text-[9px] font-bold text-gold border border-gold/30">
-                    <Pin className="h-2.5 w-2.5" /> Fixado
+          {announcements.length === 0 ? (
+            <div className="rounded-2xl border border-white/5 bg-card/40 p-6 text-center text-xs text-muted-foreground backdrop-blur-sm">
+              Nenhum aviso publicado pela equipe no momento.
+            </div>
+          ) : (
+            announcements.map((a) => (
+              <article
+                key={a.id}
+                className={
+                  a.pinned
+                    ? "rounded-2xl border border-gold/30 bg-hero-gradient p-4.5 shadow-soft"
+                    : "rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs backdrop-blur-sm"
+                }
+              >
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  {a.pinned && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 text-[9px] font-bold text-gold border border-gold/30">
+                      <Pin className="h-2.5 w-2.5" /> Fixado
+                    </span>
+                  )}
+                  <span>
+                    {a.author} · {a.time}
                   </span>
-                )}
-                <span>
-                  {a.author} · {a.time}
-                </span>
-              </div>
-              <h3 className="mt-2 font-display text-base sm:text-lg font-bold text-foreground">{a.title}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-foreground/80">{a.body}</p>
-            </article>
-          ))}
+                </div>
+                <h3 className="mt-2 font-display text-base sm:text-lg font-bold text-foreground">{a.title}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-foreground/80">{a.body}</p>
+              </article>
+            ))
+          )}
         </section>
 
         <section className="space-y-3.5">
@@ -102,7 +111,12 @@ function Comunidade() {
           </form>
 
           <div className="space-y-3">
-            {posts.map((p) => (
+            {posts.length === 0 ? (
+              <div className="rounded-2xl border border-white/5 bg-card/40 p-6 text-center text-xs text-muted-foreground backdrop-blur-sm">
+                Nenhuma publicação no mural ainda. Seja a primeira a compartilhar uma mensagem!
+              </div>
+            ) : (
+              posts.map((p) => (
               <article key={p.id} className="rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs transition hover:border-gold/30 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { BookOpen, FileText, Image, Link2, Search, Users, Video, X } from "lucide-react";
-import { allLessons, creatives, links, materials } from "@/data/content";
+import { useAffiliateStore } from "@/lib/affiliate-store";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -11,6 +11,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { allLessonsList, creativesList, linksList, materialsList } = useAffiliateStore();
 
   // Handle Ctrl+K / Cmd+K
   useEffect(() => {
@@ -32,20 +33,20 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   const normalized = query.toLowerCase().trim();
 
-  const filteredLessons = allLessons.filter(
-    (l) => l.title.toLowerCase().includes(normalized) || l.module.title.toLowerCase().includes(normalized)
+  const filteredLessons = allLessonsList.filter(
+    (l) => l.title.toLowerCase().includes(normalized) || l.module?.title?.toLowerCase().includes(normalized)
   );
 
-  const filteredCreatives = creatives.filter(
+  const filteredCreatives = creativesList.filter(
     (c) => c.title.toLowerCase().includes(normalized) || c.type.toLowerCase().includes(normalized)
   );
 
-  const filteredLinks = links.filter(
-    (l) => l.label.toLowerCase().includes(normalized) || l.note.toLowerCase().includes(normalized)
+  const filteredLinks = linksList.filter(
+    (l) => l.label.toLowerCase().includes(normalized) || l.note?.toLowerCase().includes(normalized)
   );
 
-  const filteredMaterials = materials.filter(
-    (m) => m.title.toLowerCase().includes(normalized) || m.kind.toLowerCase().includes(normalized)
+  const filteredMaterials = materialsList.filter(
+    (m) => m.title.toLowerCase().includes(normalized) || m.kind?.toLowerCase().includes(normalized)
   );
 
   const hasResults =

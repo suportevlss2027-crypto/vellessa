@@ -12,35 +12,33 @@ describe("AffiliateStore Unit Tests", () => {
     localStorage.clear();
   });
 
-  it("initializes with default profile and calculates lesson progress", () => {
+  it("initializes with clean default profile and empty content", () => {
     const { result } = renderHook(() => useAffiliateStore(), { wrapper });
 
-    expect(result.current.profile.name).toBe("Mariana Costa");
-    expect(result.current.profile.level).toBe("Afiliada Ouro");
-    expect(result.current.totalLessonsCount).toBeGreaterThan(0);
-    expect(result.current.progressPercentage).toBeGreaterThanOrEqual(0);
+    expect(result.current.profile.name).toBe("");
+    expect(result.current.profile.first).toBe("Afiliada");
+    expect(result.current.profile.level).toBe("Afiliada Oficial");
+    expect(result.current.totalLessonsCount).toBe(0);
+    expect(result.current.progressPercentage).toBe(0);
   });
 
-  it("toggles lesson completion and recalculates percentage", () => {
+  it("toggles lesson completion and updates state", () => {
     const { result } = renderHook(() => useAffiliateStore(), { wrapper });
 
-    const initialPercentage = result.current.progressPercentage;
-    const testLessonId = "l10"; // Normally undone initially
-
-    const wasDone = result.current.isLessonDone(testLessonId);
+    const testLessonId = "test-lesson-1";
+    expect(result.current.isLessonDone(testLessonId)).toBe(false);
 
     act(() => {
       result.current.toggleLessonDone(testLessonId);
     });
 
-    expect(result.current.isLessonDone(testLessonId)).toBe(!wasDone);
+    expect(result.current.isLessonDone(testLessonId)).toBe(true);
 
     act(() => {
       result.current.toggleLessonDone(testLessonId);
     });
 
-    expect(result.current.isLessonDone(testLessonId)).toBe(wasDone);
-    expect(result.current.progressPercentage).toBe(initialPercentage);
+    expect(result.current.isLessonDone(testLessonId)).toBe(false);
   });
 
   it("updates affiliate profile and saves changes", () => {
@@ -48,27 +46,28 @@ describe("AffiliateStore Unit Tests", () => {
 
     act(() => {
       result.current.updateProfile({
-        name: "Juliana Mendes",
-        email: "juliana@teste.com",
-        first: "Juliana",
+        name: "Renata Martins",
+        email: "renata@teste.com",
+        first: "Renata",
       });
     });
 
-    expect(result.current.profile.name).toBe("Juliana Mendes");
-    expect(result.current.profile.email).toBe("juliana@teste.com");
-    expect(result.current.profile.first).toBe("Juliana");
+    expect(result.current.profile.name).toBe("Renata Martins");
+    expect(result.current.profile.email).toBe("renata@teste.com");
+    expect(result.current.profile.first).toBe("Renata");
   });
 
   it("adds community posts and toggles likes", () => {
     const { result } = renderHook(() => useAffiliateStore(), { wrapper });
 
     const initialCount = result.current.posts.length;
+    expect(initialCount).toBe(0);
 
     act(() => {
       result.current.addPost("Minha primeira venda realizada com sucesso!");
     });
 
-    expect(result.current.posts.length).toBe(initialCount + 1);
+    expect(result.current.posts.length).toBe(1);
     const newPost = result.current.posts[0]!;
     expect(newPost.body).toBe("Minha primeira venda realizada com sucesso!");
     expect(newPost.likes).toBe(0);
