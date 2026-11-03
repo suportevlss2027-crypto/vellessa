@@ -146,65 +146,66 @@ function AdminAfiliadosPage() {
                 </tr>
               ) : (
                 filtered.map((a) => (
-                <tr key={a.id} className="hover:bg-muted/30 transition">
-                  <td className="p-4 pl-6">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-9 w-9 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
-                        {a.name.slice(0, 2).toUpperCase()}
+                  <tr key={a.id} className="hover:bg-muted/30 transition">
+                    <td className="p-4 pl-6">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
+                          {a.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{a.name}</p>
+                          <p className="text-xs text-muted-foreground">{a.email}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">{a.name}</p>
-                        <p className="text-xs text-muted-foreground">{a.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 font-mono text-xs text-gold font-semibold">{a.id}</td>
-                  <td className="p-4 text-xs font-medium">{a.level}</td>
-                  <td className="p-4">
-                    {isSuperAdmin(a.email) ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground shadow-gold">
-                        <Crown className="h-3 w-3" /> Titular Supremo
+                    </td>
+                    <td className="p-4 font-mono text-xs text-gold font-semibold">{a.id}</td>
+                    <td className="p-4 text-xs font-medium">{a.level}</td>
+                    <td className="p-4">
+                      {isSuperAdmin(a.email) ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground shadow-gold">
+                          <Crown className="h-3 w-3" /> Titular Supremo
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                            a.role === "admin"
+                              ? "bg-gold/15 text-gold border border-gold/30"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {a.role === "admin" ? <Shield className="h-3 w-3" /> : null}
+                          {a.role === "admin" ? "Administrador Delegado" : "Afiliada"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <UserCheck className="h-3 w-3" /> {a.status}
                       </span>
-                    ) : (
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                          a.role === "admin"
-                            ? "bg-gold/15 text-gold border border-gold/30"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {a.role === "admin" ? <Shield className="h-3 w-3" /> : null}
-                        {a.role === "admin" ? "Administrador Delegado" : "Afiliada"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      <UserCheck className="h-3 w-3" /> {a.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-xs text-muted-foreground">{a.date}</td>
-                  <td className="p-4 pr-6 text-right">
-                    {isSuperAdmin(a.email) ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/80 italic">
-                        <Lock className="h-3 w-3" /> Titular Imutável
-                      </span>
-                    ) : isTitular ? (
-                      <button
-                        onClick={() => handleToggleAdmin(a)}
-                        className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition"
-                        title={a.role === "admin" ? "Revogar permissão administrativa" : "Nomear como administrador"}
-                      >
-                        {a.role === "admin" ? "Revogar Admin" : "Nomear Admin"}
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground/60">
-                        Apenas Titular
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="p-4 text-xs text-muted-foreground">{a.date}</td>
+                    <td className="p-4 pr-6 text-right">
+                      {isSuperAdmin(a.email) ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/80 italic">
+                          <Lock className="h-3 w-3" /> Titular Imutável
+                        </span>
+                      ) : isTitular ? (
+                        <button
+                          onClick={() => handleToggleAdmin(a)}
+                          className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition"
+                          title={a.role === "admin" ? "Revogar permissão administrativa" : "Nomear como administrador"}
+                        >
+                          {a.role === "admin" ? "Revogar Admin" : "Nomear Admin"}
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/60">
+                          Apenas Titular
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

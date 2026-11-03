@@ -117,47 +117,48 @@ function Comunidade() {
               </div>
             ) : (
               posts.map((p) => (
-              <article key={p.id} className="rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs transition hover:border-gold/30 backdrop-blur-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-xs font-semibold text-gold">
-                      {p.initials}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-foreground">{p.author}</p>
-                      <p className="text-xs text-muted-foreground">há {p.time}</p>
+                <article key={p.id} className="rounded-2xl border border-white/10 bg-card/60 p-4.5 shadow-xs transition hover:border-gold/30 backdrop-blur-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-xs font-semibold text-gold">
+                        {p.initials}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-foreground">{p.author}</p>
+                        <p className="text-xs text-muted-foreground">há {p.time}</p>
+                      </div>
                     </div>
-                  </div>
-                  {p.userLiked && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold">
-                      <Sparkles className="h-3 w-3" /> Você curtiu
-                    </span>
-                  )}
-                </div>
-
-                <p className="mt-4 leading-relaxed text-foreground">{p.body}</p>
-
-                <div className="mt-4 flex gap-5 border-t pt-4 text-sm text-muted-foreground">
-                  <button
-                    onClick={() => toggleLikePost(p.id)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 transition hover:text-gold",
-                      p.userLiked && "text-gold font-semibold"
+                    {p.userLiked && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold">
+                        <Sparkles className="h-3 w-3" /> Você curtiu
+                      </span>
                     )}
-                  >
-                    <Heart className={cn("h-4 w-4 transition", p.userLiked && "fill-current text-gold scale-110")} />
-                    {p.likes}
-                  </button>
-                  <button
-                    onClick={() => toast.info("Comentários temporariamente em moderação de comunidade.")}
-                    className="inline-flex items-center gap-1.5 transition hover:text-gold"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    {p.replies}
-                  </button>
-                </div>
-              </article>
-            ))}
+                  </div>
+
+                  <p className="mt-4 leading-relaxed text-foreground">{p.body}</p>
+
+                  <div className="mt-4 flex gap-5 border-t pt-4 text-sm text-muted-foreground">
+                    <button
+                      onClick={() => toggleLikePost(p.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 transition hover:text-gold",
+                        p.userLiked && "text-gold font-semibold"
+                      )}
+                    >
+                      <Heart className={cn("h-4 w-4 transition", p.userLiked && "fill-current text-gold scale-110")} />
+                      {p.likes}
+                    </button>
+                    <button
+                      onClick={() => toast.info("Comentários temporariamente em moderação de comunidade.")}
+                      className="inline-flex items-center gap-1.5 transition hover:text-gold"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {p.replies}
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
       </div>
