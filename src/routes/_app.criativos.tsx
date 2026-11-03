@@ -40,9 +40,10 @@ function getCreativeCopy(creative: Creative): string {
 function Criativos() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("Todos");
   const [open, setOpen] = useState<Creative | null>(null);
-  const { copyText, downloadAsset } = useAffiliateStore();
+  const { copyText, downloadAsset, creativesList } = useAffiliateStore();
 
-  const list = filter === "Todos" ? creatives : creatives.filter((c) => c.type === filter);
+  const currentCreatives = creativesList && creativesList.length > 0 ? creativesList : creatives;
+  const list = filter === "Todos" ? currentCreatives : currentCreatives.filter((c) => c.type === filter);
 
   const handleDownload = (c: Creative) => {
     if (c.image) {

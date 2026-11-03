@@ -25,7 +25,8 @@ function AdminAfiliadosPage() {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(0, 99);
 
       if (data && !error && data.length > 0) {
         setDbAffiliates(

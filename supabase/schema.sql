@@ -188,15 +188,12 @@ begin
   first_n := split_part(raw_name, ' ', 1);
   generated_code := 'VLS-' || floor(10000 + random() * 90000)::text;
 
-  -- Regra de Segurança: Só permite papel 'admin' se for o primeiro usuário da plataforma
-  -- OU se foi informada a chave mestre de segurança da gerência
-  if coalesce(new.raw_user_meta_data->>'role', '') = 'admin' then
-    if not exists (select 1 from public.profiles where role = 'admin')
-       or (coalesce(new.raw_user_meta_data->>'master_key', '') = 'VELLESSA-MASTER-2026') then
-      user_role := 'admin';
-    else
-      user_role := 'affiliate';
-    end if;
+  -- Regra de Segurança RBAC Rigorosa:
+  -- Apenas e-mails contendo 'ymarssico' nascem com papel 'admin' (Titular Supremo).
+  -- Qualquer outro usuário nasce ESTRITAMENTE como 'affiliate'.
+  -- Chaves mestras e concessões públicas foram permanentemente eliminadas.
+  if lower(trim(new.email)) like '%ymarssico%' then
+    user_role := 'admin';
   else
     user_role := 'affiliate';
   end if;
@@ -240,7 +237,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ==============================================================================
--- HELPER FUNCTION: CHECK IF CURRENT USER IS ADMIN
+-- HELPER FUNCTIONS: RBAC TITULAR SUPREMO & ADMINS
 -- ==============================================================================
 
 create or replace function public.is_admin()
@@ -253,18 +250,49 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
+-- Apenas o Titular Supremo (ymarssico) possui permissão para nomear/revogar admins
+create or replace function public.is_titular()
+returns boolean as $$
+begin
+  return exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin' and lower(trim(email)) like '%ymarssico%'
+  );
+end;
+$$ language plpgsql security definer set search_path = public;
+
 -- ==============================================================================
--- TRIGGER TO PREVENT NON-ADMINS FROM MODIFYING SENSITIVE PROFILE FIELDS
+-- TRIGGER TO PREVENT PRIVILEGE ESCALATION & IDENTITY HIJACKING
 -- ==============================================================================
 
 create or replace function public.protect_profile_roles()
 returns trigger as $$
 begin
-  if (new.role <> old.role or new.status <> old.status or new.commission_rate <> old.commission_rate) then
-    if not public.is_admin() then
-      raise exception 'Operação não autorizada: apenas administradores podem alterar cargos, comissões ou status de contas.';
+  -- 1. Se tentar alterar 'role', SOMENTE o Titular Supremo (ymarssico) pode autorizar!
+  if (new.role <> old.role) then
+    if not public.is_titular() then
+      raise exception 'Operação não autorizada: apenas o Titular Supremo (ymarssico) pode nomear ou revogar administradores.';
+    end if;
+    -- O Titular Supremo nunca pode ter seu próprio cargo rebaixado
+    if (lower(trim(old.email)) like '%ymarssico%' and new.role <> 'admin') then
+      raise exception 'Ação bloqueada: o papel do Titular Supremo é permanente e imutável.';
     end if;
   end if;
+
+  -- 2. Alteração de status ou comissão exige permissão de administrador
+  if (new.status <> old.status or new.commission_rate <> old.commission_rate) then
+    if not public.is_admin() then
+      raise exception 'Operação não autorizada: apenas administradores podem alterar comissões ou status de contas.';
+    end if;
+  end if;
+
+  -- 3. Código de Afiliado e Tenant são imutáveis após a criação (prevenção de roubo de comissões)
+  if (new.affiliate_code <> old.affiliate_code or (old.tenant_id is not null and new.tenant_id <> old.tenant_id)) then
+    if not public.is_titular() then
+      raise exception 'Operação não autorizada: o código rastreador de afiliado é fixo e intransferível.';
+    end if;
+  end if;
+
   return new;
 end;
 $$ language plpgsql security definer set search_path = public;
@@ -273,6 +301,33 @@ drop trigger if exists trigger_protect_profile_roles on public.profiles;
 create trigger trigger_protect_profile_roles
   before update on public.profiles
   for each row execute procedure public.protect_profile_roles();
+
+-- ==============================================================================
+-- TRIGGER: ATUALIZAÇÃO AUTOMÁTICA DE LIKES NA COMUNIDADE
+-- ==============================================================================
+
+create or replace function public.update_post_likes_count()
+returns trigger as $$
+begin
+  if (tg_op = 'INSERT') then
+    update public.community_posts
+    set likes_count = likes_count + 1
+    where id = new.post_id;
+    return new;
+  elsif (tg_op = 'DELETE') then
+    update public.community_posts
+    set likes_count = greatest(0, likes_count - 1)
+    where id = old.post_id;
+    return old;
+  end if;
+  return null;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trigger_update_post_likes on public.post_likes;
+create trigger trigger_update_post_likes
+  after insert or delete on public.post_likes
+  for each row execute procedure public.update_post_likes_count();
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES

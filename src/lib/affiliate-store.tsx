@@ -144,6 +144,7 @@ const STORAGE_KEYS = {
   COMPLETED_LESSONS: "vellessa_completed_lessons",
   POSTS: "vellessa_community_posts",
   READ_ANNOUNCEMENTS: "vellessa_read_announcements",
+  ANNOUNCEMENTS: "vellessa_dynamic_announcements",
   AUTH: "vellessa_auth_state",
   MODULES: "vellessa_dynamic_modules",
   CREATIVES: "vellessa_dynamic_creatives",
@@ -862,7 +863,19 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   // 8. Announcements
-  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(initialAnnouncements);
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>(() => {
+    if (typeof window === "undefined") return initialAnnouncements;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      if (saved) {
+        const parsed = JSON.parse(saved) as AnnouncementItem[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // fall through
+    }
+    return initialAnnouncements;
+  });
   const [readAnnouncementIds, setReadAnnouncementIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -892,7 +905,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       time: "Agora",
       pinned,
     };
-    setAnnouncements((prev) => [newA, ...prev]);
+    setAnnouncements((prev) => {
+      const next = [newA, ...prev];
+      localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(next));
+      return next;
+    });
     toast.success("Aviso oficial publicado para todas as afiliadas!");
   };
 

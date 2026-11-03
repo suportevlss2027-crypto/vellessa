@@ -23,12 +23,19 @@ export const Route = createFileRoute("/")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { login, signUp, resetPassword, authLoading } = useAffiliateStore();
+  const { login, signUp, resetPassword, authLoading, isAuthenticated } = useAffiliateStore();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+
+  // QA-11: redireciona usuário já autenticado direto para /painel
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: "/painel" });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
