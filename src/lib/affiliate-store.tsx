@@ -68,6 +68,15 @@ export interface DynamicLink {
   note: string;
 }
 
+export interface MaterialFolder {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  createdAt?: string;
+}
+
 export interface MaterialFileItem {
   id: string;
   name: string;
@@ -78,6 +87,7 @@ export interface MaterialFileItem {
   file_url?: string;
   mimeType?: string;
   rawFile?: Blob | File;
+  thumbnailUrl?: string;
 }
 
 export interface DynamicMaterial {
@@ -90,6 +100,7 @@ export interface DynamicMaterial {
   rawFileName?: string;
   mimeType?: string;
   files?: MaterialFileItem[];
+  folderId?: string;
 }
 
 export interface AffiliateMonitoringData {
@@ -158,10 +169,16 @@ interface AffiliateStoreContextType {
   affiliatesMonitoring: Record<string, AffiliateMonitoringData>;
   recordAffiliateActivity: (data: { affiliateId: string; name?: string; email?: string; completedLessonId?: string; lessonTitle?: string }) => void;
 
-  // Dynamic Creatives, Materials, Links
+  // Dynamic Creatives, Materials, Links, Folders
   creativesList: Creative[];
   materialsList: DynamicMaterial[];
   linksList: DynamicLink[];
+  foldersList: MaterialFolder[];
+
+  // Folders Actions
+  createFolder: (data: { name: string; description?: string; color?: string; icon?: string }) => Promise<void>;
+  updateFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
 
   // Admin CMS Actions
   createModule: (data: { title: string; subtitle: string; cover?: string }) => Promise<void>;
@@ -183,6 +200,7 @@ interface AffiliateStoreContextType {
     mimeType?: string;
     rawFile?: Blob | File;
     files?: MaterialFileItem[];
+    folderId?: string;
   }) => Promise<void>;
   updateMaterial: (
     id: string,
@@ -196,6 +214,7 @@ interface AffiliateStoreContextType {
       mimeType?: string;
       rawFile?: Blob | File;
       files?: MaterialFileItem[];
+      folderId?: string;
     }
   ) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
@@ -252,6 +271,7 @@ const STORAGE_KEYS = {
   CREATIVES: "vellessa_dynamic_creatives",
   MATERIALS: "vellessa_dynamic_materials",
   LINKS: "vellessa_dynamic_links",
+  FOLDERS: "vellessa_dynamic_folders",
   AFFILIATES_MONITORING: "vellessa_affiliates_monitoring",
   CAMPAIGNS: "vellessa_affiliate_campaigns",
   FEATURE_SETTINGS: "vellessa_feature_settings",
@@ -387,6 +407,20 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.LINKS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  const [foldersList, setFoldersList] = useState<MaterialFolder[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FOLDERS);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) return parsed;
@@ -1145,6 +1179,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       rawFileName: data.rawFileName,
       mimeType: data.mimeType,
       files: sanitizedFiles,
+      folderId: data.folderId,
     };
     const updated = [...materialsList, newM];
     setMaterialsList(updated);
@@ -1199,6 +1234,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         ...rest,
         kind: rest.kind ? rest.kind.toUpperCase() : m.kind,
         files: sanitizedFiles !== undefined ? sanitizedFiles : m.files,
+        folderId: "folderId" in rest ? rest.folderId : m.folderId,
       };
     });
     setMaterialsList(updated);
@@ -1219,6 +1255,52 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     setMaterialsList(updated);
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
     toast.success("Material removido.");
+  };
+
+  // ── FOLDERS CRUD ───────────────────────────────────────────────────────────
+  const createFolder = async (data: { name: string; description?: string; color?: string; icon?: string }) => {
+    const newFolder: MaterialFolder = {
+      id: `folder-${Date.now()}`,
+      name: data.name.trim(),
+      description: data.description?.trim(),
+      color: data.color || "gold",
+      icon: data.icon || "Folder",
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...foldersList, newFolder];
+    setFoldersList(updated);
+    localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(updated));
+    toast.success(`Pasta "${newFolder.name}" criada!`);
+  };
+
+  const updateFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => {
+    const updated = foldersList.map((f) => {
+      if (f.id !== id) return f;
+      return {
+        ...f,
+        name: data.name?.trim() ?? f.name,
+        description: data.description?.trim() ?? f.description,
+        color: data.color ?? f.color,
+        icon: data.icon ?? f.icon,
+      };
+    });
+    setFoldersList(updated);
+    localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(updated));
+    toast.success("Pasta atualizada!");
+  };
+
+  const deleteFolder = async (id: string) => {
+    // Disassociate materials from this folder
+    const updatedMaterials = materialsList.map((m) =>
+      m.folderId === id ? { ...m, folderId: undefined } : m
+    );
+    setMaterialsList(updatedMaterials);
+    localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updatedMaterials));
+
+    const updated = foldersList.filter((f) => f.id !== id);
+    setFoldersList(updated);
+    localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(updated));
+    toast.success("Pasta removida. Os materiais foram movidos para Geral.");
   };
 
   const createAffiliateLink = async (data: { label: string; url: string; note: string }) => {
@@ -1569,6 +1651,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         creativesList,
         materialsList,
         linksList,
+        foldersList,
+        createFolder,
+        updateFolder,
+        deleteFolder,
         createModule,
         updateModule,
         deleteModule,

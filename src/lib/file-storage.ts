@@ -94,3 +94,139 @@ export function formatBytes(bytes: number): string {
   const val = parseFloat((bytes / Math.pow(k, i)).toFixed(1));
   return `${val.toString().replace(".", ",")} ${sizes[i]}`;
 }
+
+/**
+ * Gera uma miniatura leve (dataURL) para imagens usando Canvas API.
+ */
+export async function generateImageThumbnail(file: File | Blob, maxWidth = 320, maxHeight = 320): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve("");
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve("");
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      try {
+        const dataUrl = canvas.toDataURL("image/webp", 0.8);
+        resolve(dataUrl);
+      } catch {
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve("");
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Gera uma miniatura leve do primeiro frame de um vídeo HTML5.
+ */
+export async function generateVideoThumbnail(file: File | Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(null);
+      return;
+    }
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+
+    let hasResolved = false;
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.remove();
+    };
+
+    const timeout = setTimeout(() => {
+      if (!hasResolved) {
+        hasResolved = true;
+        cleanup();
+        resolve(null);
+      }
+    }, 4000);
+
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(1.0, video.duration > 0 ? video.duration / 4 : 0.5);
+    };
+
+    video.onseeked = () => {
+      if (hasResolved) return;
+      hasResolved = true;
+      clearTimeout(timeout);
+      try {
+        const canvas = document.createElement("canvas");
+        const maxW = 320;
+        const maxH = 320;
+        let w = video.videoWidth || 320;
+        let h = video.videoHeight || 180;
+        if (w > h) {
+          if (w > maxW) {
+            h = Math.round((h * maxW) / w);
+            w = maxW;
+          }
+        } else {
+          if (h > maxH) {
+            w = Math.round((w * maxH) / h);
+            h = maxH;
+          }
+        }
+        canvas.width = Math.max(1, w);
+        canvas.height = Math.max(1, h);
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          cleanup();
+          resolve(dataUrl);
+          return;
+        }
+      } catch (e) {
+        console.warn("Falha ao gerar frame de vídeo:", e);
+      }
+      cleanup();
+      resolve(null);
+    };
+
+    video.onerror = () => {
+      if (!hasResolved) {
+        hasResolved = true;
+        clearTimeout(timeout);
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    video.src = url;
+  });
+}
