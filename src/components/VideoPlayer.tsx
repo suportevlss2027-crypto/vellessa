@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Maximize2, Minimize2, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { detectVideoDuration, formatSecondsToDuration } from "@/lib/video-duration";
 
 interface VideoPlayerProps {
   cover: string;
   title: string;
-  duration: string;
+  duration?: string;
   videoUrl?: string;
   onAutoComplete?: () => void;
+  onDurationDetected?: (duration: string) => void;
 }
 
 function getEmbedUrl(url?: string): string | null {
@@ -38,19 +40,50 @@ function getEmbedUrl(url?: string): string | null {
   return null;
 }
 
-export function VideoPlayer({ cover, title, duration, videoUrl, onAutoComplete }: VideoPlayerProps) {
+export function VideoPlayer({
+  cover,
+  title,
+  duration,
+  videoUrl,
+  onAutoComplete,
+  onDurationDetected,
+}: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [speed, setSpeed] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentDuration, setCurrentDuration] = useState(duration || "");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (duration) {
+      setCurrentDuration(duration);
+    }
+  }, [duration]);
+
+  useEffect(() => {
+    if (videoUrl && (!currentDuration || currentDuration === "10:00" || currentDuration === "--:--")) {
+      detectVideoDuration(videoUrl).then((res) => {
+        if (res.duration) {
+          setCurrentDuration(res.duration);
+          if (onDurationDetected) {
+            onDurationDetected(res.duration);
+          }
+        }
+      });
+    }
+  }, [videoUrl, currentDuration, onDurationDetected]);
 
   // Parse duration string "MM:SS" into seconds
   const totalSeconds = (() => {
-    const parts = duration.split(":").map(Number);
+    const raw = currentDuration || "05:00";
+    const parts = raw.split(":").map(Number);
     if (parts.length === 2 && !isNaN(parts[0]!) && !isNaN(parts[1]!)) {
       return parts[0]! * 60 + parts[1]!;
+    }
+    if (parts.length === 3 && !isNaN(parts[0]!) && !isNaN(parts[1]!) && !isNaN(parts[2]!)) {
+      return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!;
     }
     return 300; // 5 min fallback
   })();
@@ -234,7 +267,7 @@ export function VideoPlayer({ cover, title, duration, videoUrl, onAutoComplete }
                 </button>
 
                 <span className="text-xs font-mono text-white/80">
-                  {formatSeconds(currentTime)} / {duration}
+                  {formatSeconds(currentTime)} / {currentDuration || duration || "--:--"}
                 </span>
               </div>
 

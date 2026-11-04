@@ -19,7 +19,15 @@ export const Route = createFileRoute("/_app/aulas/$id")({
 
 function LessonPage() {
   const { id } = Route.useParams();
-  const { isLessonDone, toggleLessonDone, markLessonDone, downloadAsset, allLessonsList, modulesList } = useAffiliateStore();
+  const {
+    isLessonDone,
+    toggleLessonDone,
+    markLessonDone,
+    downloadAsset,
+    allLessonsList,
+    modulesList,
+    updateLesson,
+  } = useAffiliateStore();
 
   const idx = allLessonsList.findIndex((l) => l.id === id);
   const lesson = allLessonsList[idx] ?? allLessonsList[0];
@@ -63,6 +71,11 @@ function LessonPage() {
           duration={lesson.duration}
           videoUrl={lesson.video_url}
           onAutoComplete={() => markLessonDone(lesson.id)}
+          onDurationDetected={(detectedDur) => {
+            if (detectedDur && detectedDur !== lesson.duration && lesson.module?.id) {
+              updateLesson(lesson.module.id, lesson.id, { duration: detectedDur });
+            }
+          }}
         />
 
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

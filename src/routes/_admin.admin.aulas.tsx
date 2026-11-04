@@ -13,11 +13,15 @@ import {
   Eye,
   X,
   Sparkles,
+  Loader2,
+  CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { useAffiliateStore, type DynamicModule } from "@/lib/affiliate-store";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { type Lesson } from "@/data/content";
+import { detectVideoDuration } from "@/lib/video-duration";
 
 export const Route = createFileRoute("/_admin/admin/aulas")({
   head: () => ({
@@ -73,16 +77,20 @@ function AdminAulasPage() {
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [selectedModuleId, setSelectedModuleId] = useState<string>("");
   const [lessonTitle, setLessonTitle] = useState("");
-  const [lessonDuration, setLessonDuration] = useState("10:00");
+  const [lessonDuration, setLessonDuration] = useState("");
   const [lessonVideoUrl, setLessonVideoUrl] = useState("");
   const [lessonDescription, setLessonDescription] = useState("");
+  const [isDetectingNew, setIsDetectingNew] = useState(false);
+  const [showManualNew, setShowManualNew] = useState(false);
 
   // Modal / Form state for Editing Lesson
   const [editingLesson, setEditingLesson] = useState<{ moduleId: string; lesson: Lesson } | null>(null);
   const [editLessonTitle, setEditLessonTitle] = useState("");
-  const [editLessonDuration, setEditLessonDuration] = useState("10:00");
+  const [editLessonDuration, setEditLessonDuration] = useState("");
   const [editLessonVideoUrl, setEditLessonVideoUrl] = useState("");
   const [editLessonDescription, setEditLessonDescription] = useState("");
+  const [isDetectingEdit, setIsDetectingEdit] = useState(false);
+  const [showManualEdit, setShowManualEdit] = useState(false);
 
   // Modal state for Previewing Video in Admin
   const [previewLesson, setPreviewLesson] = useState<{
@@ -125,6 +133,48 @@ function AdminAulasPage() {
     setEditingModule(null);
   };
 
+  // Video Duration Auto-Detection Handlers
+  const handleNewVideoUrlChange = (url: string) => {
+    setLessonVideoUrl(url);
+    if (!url.trim()) return;
+    setIsDetectingNew(true);
+    detectVideoDuration(url)
+      .then((res) => {
+        setIsDetectingNew(false);
+        if (res.duration) {
+          setLessonDuration(res.duration);
+        }
+      })
+      .catch(() => setIsDetectingNew(false));
+  };
+
+  const handleEditVideoUrlChange = (url: string) => {
+    setEditLessonVideoUrl(url);
+    if (!url.trim()) return;
+    setIsDetectingEdit(true);
+    detectVideoDuration(url)
+      .then((res) => {
+        setIsDetectingEdit(false);
+        if (res.duration) {
+          setEditLessonDuration(res.duration);
+        }
+      })
+      .catch(() => setIsDetectingEdit(false));
+  };
+
+  const recheckEditDuration = () => {
+    if (!editLessonVideoUrl.trim()) return;
+    setIsDetectingEdit(true);
+    detectVideoDuration(editLessonVideoUrl)
+      .then((res) => {
+        setIsDetectingEdit(false);
+        if (res.duration) {
+          setEditLessonDuration(res.duration);
+        }
+      })
+      .catch(() => setIsDetectingEdit(false));
+  };
+
   // Handlers for Lesson
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,23 +182,27 @@ function AdminAulasPage() {
     await createLesson({
       moduleId: selectedModuleId,
       title: lessonTitle.trim(),
-      duration: lessonDuration.trim(),
+      duration: lessonDuration.trim() || "10:00",
       videoUrl: lessonVideoUrl.trim(),
       description: lessonDescription.trim(),
     });
     setLessonTitle("");
-    setLessonDuration("10:00");
+    setLessonDuration("");
     setLessonVideoUrl("");
     setLessonDescription("");
+    setIsDetectingNew(false);
+    setShowManualNew(false);
     setShowLessonModal(false);
   };
 
   const handleOpenEditLesson = (moduleId: string, lesson: Lesson) => {
     setEditingLesson({ moduleId, lesson });
     setEditLessonTitle(lesson.title);
-    setEditLessonDuration(lesson.duration || "10:00");
+    setEditLessonDuration(lesson.duration || "");
     setEditLessonVideoUrl(lesson.video_url || "");
     setEditLessonDescription(lesson.description || "");
+    setIsDetectingEdit(false);
+    setShowManualEdit(false);
   };
 
   const handleUpdateLesson = async (e: React.FormEvent) => {
@@ -156,7 +210,7 @@ function AdminAulasPage() {
     if (!editingLesson || !editLessonTitle.trim()) return;
     await updateLesson(editingLesson.moduleId, editingLesson.lesson.id, {
       title: editLessonTitle.trim(),
-      duration: editLessonDuration.trim(),
+      duration: editLessonDuration.trim() || "10:00",
       videoUrl: editLessonVideoUrl.trim(),
       description: editLessonDescription.trim(),
     });
@@ -507,26 +561,54 @@ function AdminAulasPage() {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Link do Vídeo - Largura Total com Detecção Automática */}
+            <div className="space-y-2">
               <label className="block">
-                <span className="text-xs font-semibold text-foreground">Duração Estimada</span>
+                <span className="text-xs font-semibold text-foreground">Link do Vídeo (YouTube, Panda ou MP4)</span>
                 <input
-                  value={lessonDuration}
-                  onChange={(e) => setLessonDuration(e.target.value)}
-                  placeholder="Ex: 12:40"
-                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono"
+                  value={lessonVideoUrl}
+                  onChange={(e) => handleNewVideoUrlChange(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
                 />
               </label>
 
-              <label className="block">
-                <span className="text-xs font-semibold text-foreground">Link do Vídeo</span>
-                <input
-                  value={lessonVideoUrl}
-                  onChange={(e) => setLessonVideoUrl(e.target.value)}
-                  placeholder="YouTube, Panda, Vimeo ou MP4"
-                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-                />
-              </label>
+              {/* Status Dinâmico de Duração */}
+              {isDetectingNew ? (
+                <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+                  <span>Calculando duração exata do vídeo no YouTube...</span>
+                </div>
+              ) : lessonDuration ? (
+                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
+                  <div className="flex items-center gap-2 text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>Duração calculada automaticamente: <strong className="font-mono text-emerald-200">{lessonDuration}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualNew(!showManualNew)}
+                    className="text-[11px] text-muted-foreground hover:text-gold transition underline shrink-0 ml-2"
+                  >
+                    {showManualNew ? "Ocultar" : "Ajustar"}
+                  </button>
+                </div>
+              ) : null}
+
+              {/* Ajuste manual opcional (fallback) */}
+              {showManualNew && (
+                <div className="pt-1 animate-in fade-in">
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-muted-foreground">Minutagem Manual (MM:SS)</span>
+                    <input
+                      value={lessonDuration}
+                      onChange={(e) => setLessonDuration(e.target.value)}
+                      placeholder="Ex: 14:20"
+                      className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-[11px] text-emerald-300 space-y-1">
@@ -534,7 +616,7 @@ function AdminAulasPage() {
                 <Sparkles className="h-3 w-3" /> Dica de Vídeo:
               </p>
               <p className="text-emerald-300/80 leading-relaxed">
-                Recomendamos hospedar a aula como <strong>Não Listado no YouTube</strong> (custo zero e não trava no celular) ou <strong>Panda Video</strong>. Basta colar o link acima!
+                Recomendamos hospedar a aula como <strong>Não Listado no YouTube</strong>. O sistema calcula a duração real automaticamente ao colar o link!
               </p>
             </div>
 
@@ -597,25 +679,65 @@ function AdminAulasPage() {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="text-xs font-semibold text-foreground">Duração Estimada</span>
-                <input
-                  value={editLessonDuration}
-                  onChange={(e) => setEditLessonDuration(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono"
-                />
-              </label>
-
+            {/* Link do Vídeo - Largura Total com Detecção Automática */}
+            <div className="space-y-2">
               <label className="block">
                 <span className="text-xs font-semibold text-foreground">Link do Vídeo</span>
                 <input
                   value={editLessonVideoUrl}
-                  onChange={(e) => setEditLessonVideoUrl(e.target.value)}
-                  placeholder="YouTube, Panda, Vimeo ou MP4"
-                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                  onChange={(e) => handleEditVideoUrlChange(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
                 />
               </label>
+
+              {/* Status de Duração Automática */}
+              {isDetectingEdit ? (
+                <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+                  <span>Calculando duração no YouTube...</span>
+                </div>
+              ) : editLessonDuration ? (
+                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
+                  <div className="flex items-center gap-2 text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>Duração: <strong className="font-mono text-emerald-200">{editLessonDuration}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <button
+                      type="button"
+                      onClick={recheckEditDuration}
+                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-gold transition"
+                      title="Recalcular duração pelo YouTube"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Recalcular
+                    </button>
+                    <span className="text-muted-foreground/40">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowManualEdit(!showManualEdit)}
+                      className="text-[11px] text-muted-foreground hover:text-gold transition underline"
+                    >
+                      {showManualEdit ? "Ocultar" : "Ajustar"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Ajuste manual opcional */}
+              {showManualEdit && (
+                <div className="pt-1 animate-in fade-in">
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-muted-foreground">Minutagem Manual (MM:SS)</span>
+                    <input
+                      value={editLessonDuration}
+                      onChange={(e) => setEditLessonDuration(e.target.value)}
+                      placeholder="Ex: 14:20"
+                      className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                    />
+                  </label>
+                </div>
+              )}
             </div>
 
             <label className="block">
