@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import {
+  CheckCircle2,
   Download,
   ExternalLink,
   FileText,
@@ -9,6 +10,7 @@ import {
   Link2,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   UploadCloud,
   X,
@@ -48,11 +50,21 @@ function AdminMateriaisPage() {
   const [editLinkUrl, setEditLinkUrl] = useState("");
   const [editLinkNote, setEditLinkNote] = useState("");
 
+  // Estimativas inteligentes por tipo de arquivo (para links externos ou antes do upload)
+  const ESTIMATED_SIZES: Record<string, string> = {
+    PDF: "2,5 MB",
+    PNG: "1,8 MB",
+    ZIP: "15,0 MB",
+    VIDEO: "45,0 MB",
+    XLS: "650 KB",
+    DOC: "1,2 MB",
+  };
+
   // ── MODAL NOVO MATERIAL ────────────────────────────────────────────────────
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [matTitle, setMatTitle] = useState("");
   const [matKind, setMatKind] = useState("PDF");
-  const [matSize, setMatSize] = useState("2,5 MB");
+  const [matSize, setMatSize] = useState("");
   const [matFileUrl, setMatFileUrl] = useState("");
   const [matSourceType, setMatSourceType] = useState<"upload" | "link">("upload");
   const [matRawFile, setMatRawFile] = useState<File | null>(null);
@@ -63,12 +75,64 @@ function AdminMateriaisPage() {
   const [editMatId, setEditMatId] = useState<string | null>(null);
   const [editMatTitle, setEditMatTitle] = useState("");
   const [editMatKind, setEditMatKind] = useState("PDF");
-  const [editMatSize, setEditMatSize] = useState("2,5 MB");
+  const [editMatSize, setEditMatSize] = useState("");
   const [editMatFileUrl, setEditMatFileUrl] = useState("");
   const [editMatSourceType, setEditMatSourceType] = useState<"upload" | "link">("upload");
   const [editMatRawFile, setEditMatRawFile] = useState<File | null>(null);
   const [editMatRawFileName, setEditMatRawFileName] = useState("");
   const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Recalcula dinamicamente ao trocar o tipo de arquivo
+  const handleKindChange = (newKind: string, isEdit = false) => {
+    if (isEdit) {
+      setEditMatKind(newKind);
+      // Se não há arquivo bruto selecionado, recalcula a estimativa para o novo formato
+      if (!editMatRawFile) {
+        setEditMatSize(ESTIMATED_SIZES[newKind] || "2,5 MB");
+      }
+    } else {
+      setMatKind(newKind);
+      if (!matRawFile) {
+        if (matSourceType === "link") {
+          setMatSize(ESTIMATED_SIZES[newKind] || "2,5 MB");
+        } else {
+          // No upload de arquivo, fica vazio aguardando o anexo do arquivo real
+          setMatSize("");
+        }
+      }
+    }
+  };
+
+  // Ajusta o tamanho ao alternar entre upload e link externo
+  const handleSourceTypeChange = (newType: "upload" | "link", isEdit = false) => {
+    if (isEdit) {
+      setEditMatSourceType(newType);
+      if (newType === "link" && !editMatSize) {
+        setEditMatSize(ESTIMATED_SIZES[editMatKind] || "2,5 MB");
+      } else if (newType === "upload" && !editMatRawFile && !editMatRawFileName) {
+        setEditMatSize("");
+      }
+    } else {
+      setMatSourceType(newType);
+      if (newType === "link" && !matSize) {
+        setMatSize(ESTIMATED_SIZES[matKind] || "2,5 MB");
+      } else if (newType === "upload" && !matRawFile) {
+        setMatSize("");
+      }
+    }
+  };
+
+  const openNewMaterialModal = () => {
+    setMatTitle("");
+    setMatKind("PDF");
+    setMatSize("");
+    setMatFileUrl("");
+    setMatRawFile(null);
+    setMatRawFileName("");
+    setMatSourceType("upload");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setShowMaterialModal(true);
+  };
 
   const handleSelectRawFile = (file: File, isEdit = false) => {
     const rawExt = file.name.split(".").pop()?.toUpperCase() || "DOC";
@@ -78,6 +142,7 @@ function AdminMateriaisPage() {
     else if (rawExt === "XLSX") mappedKind = "XLS";
     else if (rawExt === "MP4") mappedKind = "VIDEO";
 
+    // Calcula exatamente os bytes e formata em KB / MB de acordo com cada arquivo
     const formattedSize = formatBytes(file.size);
     const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
 
@@ -166,10 +231,12 @@ function AdminMateriaisPage() {
       return;
     }
 
+    const calculatedSize = matSize.trim() || (matRawFile ? formatBytes(matRawFile.size) : (ESTIMATED_SIZES[matKind] || "1,0 MB"));
+
     await createMaterial({
       title: matTitle.trim(),
       kind: matKind.trim(),
-      size: matSize.trim() || "1,0 MB",
+      size: calculatedSize,
       file_url: matSourceType === "link" ? matFileUrl.trim() : undefined,
       sourceType: matSourceType,
       rawFileName: matRawFileName || matRawFile?.name,
@@ -179,7 +246,7 @@ function AdminMateriaisPage() {
 
     setMatTitle("");
     setMatKind("PDF");
-    setMatSize("2,5 MB");
+    setMatSize("");
     setMatFileUrl("");
     setMatRawFile(null);
     setMatRawFileName("");
@@ -201,10 +268,11 @@ function AdminMateriaisPage() {
   const handleEditMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editMatId) return;
+    const calculatedSize = editMatSize.trim() || (editMatRawFile ? formatBytes(editMatRawFile.size) : (ESTIMATED_SIZES[editMatKind] || "1,0 MB"));
     await updateMaterial(editMatId, {
       title: editMatTitle.trim(),
       kind: editMatKind.trim(),
-      size: editMatSize.trim() || "1,0 MB",
+      size: calculatedSize,
       file_url: editMatSourceType === "link" ? editMatFileUrl.trim() : undefined,
       sourceType: editMatSourceType,
       rawFileName: editMatRawFileName || editMatRawFile?.name,
@@ -343,7 +411,7 @@ function AdminMateriaisPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowMaterialModal(true)}
+            onClick={openNewMaterialModal}
             className="inline-flex items-center gap-1.5 rounded-xl border bg-card px-4 py-2 text-xs font-semibold hover:border-gold hover:text-gold transition self-start sm:self-auto"
           >
             <Plus className="h-4 w-4" /> Novo Material
@@ -355,7 +423,7 @@ function AdminMateriaisPage() {
             <FolderArchive className="h-8 w-8 text-muted-foreground/40 mb-3" />
             <p className="text-xs font-medium text-muted-foreground">Nenhum material cadastrado ainda.</p>
             <button
-              onClick={() => setShowMaterialModal(true)}
+              onClick={openNewMaterialModal}
               className="mt-3 inline-flex items-center gap-1.5 rounded-xl border bg-card px-4 py-2 text-xs font-semibold hover:border-gold hover:text-gold transition"
             >
               <Plus className="h-3.5 w-3.5" /> Cadastrar Primeiro Material
@@ -596,7 +664,7 @@ function AdminMateriaisPage() {
                   <span className="text-xs font-medium">Tipo de Arquivo</span>
                   <select
                     value={matKind}
-                    onChange={(e) => setMatKind(e.target.value)}
+                    onChange={(e) => handleKindChange(e.target.value, false)}
                     className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                   >
                     <option value="PDF">PDF</option>
@@ -608,12 +676,35 @@ function AdminMateriaisPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-xs font-medium">Tamanho Estimado</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium">Tamanho Estimado</span>
+                    {matSourceType === "upload" && matRawFile ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Calculado
+                      </span>
+                    ) : matSourceType === "upload" ? (
+                      <span className="text-[10px] font-medium text-gold bg-gold/10 px-2 py-0.5 rounded-full border border-gold/20 flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" /> Auto ao anexar
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        Estimado ({matKind})
+                      </span>
+                    )}
+                  </div>
                   <input
                     value={matSize}
                     onChange={(e) => setMatSize(e.target.value)}
-                    placeholder="Ex: 5,4 MB"
-                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                    placeholder={
+                      matSourceType === "upload"
+                        ? "Calculado ao selecionar..."
+                        : `Ex: ${ESTIMATED_SIZES[matKind] || "2,5 MB"}`
+                    }
+                    className={`mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none transition-all focus:border-gold ${
+                      matSourceType === "upload" && matRawFile
+                        ? "border-emerald-500/40 font-semibold text-foreground bg-emerald-500/5"
+                        : ""
+                    }`}
                   />
                 </label>
               </div>
@@ -624,14 +715,14 @@ function AdminMateriaisPage() {
                 <div className="flex rounded-xl bg-muted/40 p-1 text-xs font-medium text-muted-foreground border border-border/50">
                   <button
                     type="button"
-                    onClick={() => setMatSourceType("upload")}
+                    onClick={() => handleSourceTypeChange("upload", false)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${matSourceType === "upload" ? "bg-gold/15 text-gold font-bold border border-gold/30 shadow-sm" : "hover:text-foreground"}`}
                   >
                     <UploadCloud className="h-3.5 w-3.5" /> Upload de Arquivo
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMatSourceType("link")}
+                    onClick={() => handleSourceTypeChange("link", false)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${matSourceType === "link" ? "bg-gold/15 text-gold font-bold border border-gold/30 shadow-sm" : "hover:text-foreground"}`}
                   >
                     <Link2 className="h-3.5 w-3.5" /> Link Externo
@@ -672,7 +763,12 @@ function AdminMateriaisPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setMatRawFile(null); setMatRawFileName(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                      onClick={() => {
+                        setMatRawFile(null);
+                        setMatRawFileName("");
+                        setMatSize("");
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
                       className="p-1.5 text-muted-foreground hover:text-red-400 transition shrink-0 rounded-lg hover:bg-red-500/10"
                       title="Remover arquivo"
                     >
@@ -753,7 +849,7 @@ function AdminMateriaisPage() {
                   <span className="text-xs font-medium">Tipo de Arquivo</span>
                   <select
                     value={editMatKind}
-                    onChange={(e) => setEditMatKind(e.target.value)}
+                    onChange={(e) => handleKindChange(e.target.value, true)}
                     className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                   >
                     <option value="PDF">PDF</option>
@@ -765,11 +861,35 @@ function AdminMateriaisPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-xs font-medium">Tamanho Estimado</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium">Tamanho Estimado</span>
+                    {editMatSourceType === "upload" && (editMatRawFile || editMatRawFileName) ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Calculado
+                      </span>
+                    ) : editMatSourceType === "upload" ? (
+                      <span className="text-[10px] font-medium text-gold bg-gold/10 px-2 py-0.5 rounded-full border border-gold/20 flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" /> Auto ao anexar
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        Estimado ({editMatKind})
+                      </span>
+                    )}
+                  </div>
                   <input
                     value={editMatSize}
                     onChange={(e) => setEditMatSize(e.target.value)}
-                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                    placeholder={
+                      editMatSourceType === "upload"
+                        ? "Calculado ao selecionar..."
+                        : `Ex: ${ESTIMATED_SIZES[editMatKind] || "2,5 MB"}`
+                    }
+                    className={`mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none transition-all focus:border-gold ${
+                      editMatSourceType === "upload" && (editMatRawFile || editMatRawFileName)
+                        ? "border-emerald-500/40 font-semibold text-foreground bg-emerald-500/5"
+                        : ""
+                    }`}
                   />
                 </label>
               </div>
@@ -780,14 +900,14 @@ function AdminMateriaisPage() {
                 <div className="flex rounded-xl bg-muted/40 p-1 text-xs font-medium text-muted-foreground border border-border/50">
                   <button
                     type="button"
-                    onClick={() => setEditMatSourceType("upload")}
+                    onClick={() => handleSourceTypeChange("upload", true)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${editMatSourceType === "upload" ? "bg-gold/15 text-gold font-bold border border-gold/30 shadow-sm" : "hover:text-foreground"}`}
                   >
                     <UploadCloud className="h-3.5 w-3.5" /> Upload de Arquivo
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditMatSourceType("link")}
+                    onClick={() => handleSourceTypeChange("link", true)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-all ${editMatSourceType === "link" ? "bg-gold/15 text-gold font-bold border border-gold/30 shadow-sm" : "hover:text-foreground"}`}
                   >
                     <Link2 className="h-3.5 w-3.5" /> Link Externo
@@ -837,7 +957,12 @@ function AdminMateriaisPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setEditMatRawFile(null); setEditMatRawFileName(""); if (editFileInputRef.current) editFileInputRef.current.value = ""; }}
+                      onClick={() => {
+                        setEditMatRawFile(null);
+                        setEditMatRawFileName("");
+                        setEditMatSize("");
+                        if (editFileInputRef.current) editFileInputRef.current.value = "";
+                      }}
                       className="p-1.5 text-muted-foreground hover:text-red-400 transition shrink-0 rounded-lg hover:bg-red-500/10"
                       title="Remover arquivo"
                     >
