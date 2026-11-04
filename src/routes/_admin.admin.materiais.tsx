@@ -629,30 +629,6 @@ function AdminMateriaisPage() {
           </form>
         </div>
       )}
-              />
-              <span className="text-[11px] text-muted-foreground mt-1 block">
-                Opcional. Link direto ou Google Drive/Dropbox para o arquivo.
-              </span>
-            </label>
-
-            <div className="flex justify-end gap-2 pt-3">
-              <button
-                type="button"
-                onClick={() => setEditMatId(null)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
-              >
-                Salvar Alterações
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
