@@ -363,8 +363,8 @@ function GestaoTrafegoPage() {
                     : "0.00";
                 const cpa =
                   (c.salesCount || 0) > 0
-                    ? ((c.totalAdSpend || 0) / c.salesCount).toFixed(2)
-                    : "—";
+                    ? ((c.totalAdSpend || 0) / c.salesCount).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : null;
 
                 const creativeThumb =
                   c.creativeSource === "official"
@@ -419,7 +419,7 @@ function GestaoTrafegoPage() {
                                 : "⚪ Pausada"}
                             </span>
                             <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold border border-gold/20">
-                              {c.kitName} (R$ {c.commissionPerSale},00)
+                              {c.kitName} (R$ {c.commissionPerSale.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                             </span>
                           </div>
 
@@ -529,7 +529,7 @@ function GestaoTrafegoPage() {
                         <p className="text-base sm:text-lg font-display font-extrabold text-gold">
                           {roas}x{" "}
                           <span className="text-xs font-normal text-muted-foreground">
-                            (CPA: R$ {cpa})
+                            {cpa ? `(CPA: R$ ${cpa})` : "(CPA: —)"}
                           </span>
                         </p>
                       </div>

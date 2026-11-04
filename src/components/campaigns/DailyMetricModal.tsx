@@ -113,7 +113,7 @@ export function DailyMetricModal({ campaign, onClose }: DailyMetricModalProps) {
                 className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-sm font-bold text-emerald-400 outline-none focus:border-gold transition"
               />
               <p className="text-[10px] text-muted-foreground font-mono">
-                Comissão desta campanha: R$ {campaign.commissionPerSale},00 por venda
+                Comissão desta campanha: R$ {campaign.commissionPerSale.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por venda
               </p>
             </div>
 

@@ -22,10 +22,11 @@ interface CampaignModalProps {
 }
 
 const DEFAULT_KITS = [
-  { name: "Kit 1 Frasco (Iniciante)", commission: 80 },
-  { name: "Kit 3 Frascos (Campeão de Vendas)", commission: 140 },
-  { name: "Kit 5 Frascos (Máxima Conversão)", commission: 220 },
-  { name: "Oferta Personalizada", commission: 140 },
+  { name: "Kit 1 Frasco (Iniciante)", commission: 88.2, price: 147 },
+  { name: "Kit 3 Frascos (Campeão de Vendas)", commission: 148.2, price: 247 },
+  { name: "Kit 6 Frascos (Mais Lucrativo)", commission: 208.2, price: 347 },
+  { name: "Kit 12 Frascos (Super Margem)", commission: 406.2, price: 677 },
+  { name: "Oferta Personalizada", commission: 148.2, price: 0 },
 ];
 
 export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
@@ -55,7 +56,7 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
     campaign?.kitName || DEFAULT_KITS[1].name
   );
   const [commissionPerSale, setCommissionPerSale] = useState<number>(
-    campaign?.commissionPerSale || 140
+    campaign?.commissionPerSale || 148.2
   );
   const [targetAudience, setTargetAudience] = useState(
     campaign?.targetAudience || ""
@@ -332,7 +333,7 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
                   >
                     {DEFAULT_KITS.map((k) => (
                       <option key={k.name} value={k.name}>
-                        {k.name} (R$ {k.commission},00)
+                        {k.name} (R$ {k.commission.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                       </option>
                     ))}
                   </select>
@@ -345,6 +346,7 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
                   <input
                     type="number"
                     min="1"
+                    step="0.01"
                     value={commissionPerSale}
                     onChange={(e) => setCommissionPerSale(Number(e.target.value))}
                     className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs text-gold font-bold outline-none focus:border-gold transition"

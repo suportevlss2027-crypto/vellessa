@@ -20,14 +20,15 @@ interface CampaignCalculatorProps {
 }
 
 const DEFAULT_KITS = [
-  { name: "Kit 1 Frasco", tag: "Iniciante", commission: 80, price: 147 },
-  { name: "Kit 3 Frascos", tag: "Campeão de Vendas", commission: 140, price: 247, popular: true },
-  { name: "Kit 5 Frascos", tag: "Máxima Margem", commission: 220, price: 347 },
+  { name: "Kit 1 Frasco", tag: "Iniciante", commission: 88.2, price: 147 },
+  { name: "Kit 3 Frascos", tag: "Campeão", commission: 148.2, price: 247, popular: true },
+  { name: "Kit 6 Frascos", tag: "Mais Lucrativo", commission: 208.2, price: 347 },
+  { name: "Kit 12 Frascos", tag: "Super Margem", commission: 406.2, price: 677 },
 ];
 
 export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorProps) {
   const [selectedKitIdx, setSelectedKitIdx] = useState<number>(1);
-  const [customCommission, setCustomCommission] = useState<string>("140");
+  const [customCommission, setCustomCommission] = useState<string>("148.20");
   const [isCustomKit, setIsCustomKit] = useState<boolean>(false);
   const [dailyBudget, setDailyBudget] = useState<number>(50);
   const [conversionRate, setConversionRate] = useState<number>(1.8);
@@ -37,9 +38,9 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
   const commission = useMemo(() => {
     if (isCustomKit) {
       const parsed = parseFloat(customCommission.replace(",", "."));
-      return isNaN(parsed) || parsed <= 0 ? 140 : parsed;
+      return isNaN(parsed) || parsed <= 0 ? 148.2 : parsed;
     }
-    return selectedKit?.commission || 140;
+    return selectedKit?.commission || 148.2;
   }, [isCustomKit, customCommission, selectedKit]);
 
   // Cálculos de Performance & Direct Response
@@ -152,7 +153,7 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
           </div>
 
           {!isCustomKit ? (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-4">
               {DEFAULT_KITS.map((kit, idx) => {
                 const isSelected = selectedKitIdx === idx;
                 return (
@@ -160,7 +161,7 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                     key={kit.name}
                     type="button"
                     onClick={() => setSelectedKitIdx(idx)}
-                    className={`relative flex flex-col justify-between rounded-2xl p-4 text-left transition-all duration-200 min-h-[120px] border ${
+                    className={`relative flex flex-col justify-between rounded-2xl p-3.5 text-left transition-all duration-200 min-h-[125px] border ${
                       isSelected
                         ? "border-gold bg-gold/10 ring-1 ring-gold/40 shadow-xs"
                         : "border-white/10 bg-muted/20 hover:border-gold/30 hover:bg-muted/30"
@@ -168,11 +169,11 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                   >
                     <div className="space-y-1">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground truncate">
                           {kit.tag}
                         </span>
                         {kit.popular && (
-                          <span className="rounded-md bg-gold-gradient px-1.5 py-0.2 text-[8px] font-extrabold text-primary-foreground uppercase shadow-xs">
+                          <span className="rounded-md bg-gold-gradient px-1.5 py-0.2 text-[8px] font-extrabold text-primary-foreground uppercase shadow-xs shrink-0">
                             Top
                           </span>
                         )}
@@ -182,9 +183,9 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                     </div>
 
                     <div className="mt-3 pt-2 border-t border-white/5">
-                      <span className="text-[9px] font-medium text-muted-foreground uppercase">Comissão</span>
+                      <span className="text-[9px] font-medium text-muted-foreground uppercase">Comissão (60%)</span>
                       <p className="text-base font-display font-extrabold text-gold">
-                        R$ {kit.commission},00
+                        R$ {kit.commission.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
                   </button>
@@ -201,10 +202,11 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                 <span className="text-sm font-bold text-gold">R$</span>
                 <input
                   type="number"
+                  step="0.01"
                   value={customCommission}
                   onChange={(e) => setCustomCommission(e.target.value)}
                   className="w-24 rounded-xl border border-white/10 bg-card px-3 py-1.5 text-sm font-bold text-foreground outline-none focus:border-gold font-mono"
-                  placeholder="140"
+                  placeholder="148.20"
                 />
               </div>
             </div>
@@ -315,7 +317,7 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                   CPA Máximo (Break-Even)
                 </span>
                 <p className="text-2xl font-display font-extrabold text-foreground">
-                  R$ {calculations.breakEvenCpa},00
+                  R$ {calculations.breakEvenCpa.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-[10px] text-muted-foreground leading-tight">
                   Se o custo por venda no Meta estiver abaixo deste valor, você está no lucro.
@@ -328,7 +330,7 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                   CPC Máximo Viável
                 </span>
                 <p className="text-2xl font-display font-extrabold text-gold">
-                  R$ {calculations.maxCpc}
+                  R$ {calculations.maxCpc.replace('.', ',')}
                 </p>
                 <p className="text-[10px] text-muted-foreground leading-tight">
                   Teto de custo por clique no anúncio para pagar a taxa de conversão estimada.
@@ -351,7 +353,7 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                   {calculations.roundedMinSales} {calculations.roundedMinSales === 1 ? "venda" : "vendas"}
                 </span>
                 <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                  ({calculations.minSalesDaily} vds exatas)
+                  ({calculations.minSalesDaily.replace('.', ',')} vds exatas)
                 </p>
               </div>
             </div>
@@ -367,14 +369,14 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                       calculations.estProfit1Sale >= 0 ? "text-emerald-400" : "text-rose-400"
                     }`}
                   >
-                    {calculations.estProfit1Sale >= 0 ? "+" : ""}R$ {calculations.estProfit1Sale}
+                    {calculations.estProfit1Sale >= 0 ? "+" : ""}R$ {calculations.estProfit1Sale.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-gold/40 bg-gold/10 p-3 space-y-1 shadow-xs">
                   <p className="text-[10px] font-bold text-gold">2 Vendas / dia (Meta)</p>
                   <p className="font-display font-bold text-sm text-emerald-400">
-                    +R$ {calculations.estProfit2Sales}
+                    +R$ {calculations.estProfit2Sales.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <p className="text-[9px] font-mono text-muted-foreground">
                     ROAS: {calculations.roas2Sales}x
@@ -384,7 +386,7 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                 <div className="rounded-xl border border-white/5 bg-muted/20 p-3 space-y-1">
                   <p className="text-[10px] text-muted-foreground font-medium">3 Vendas / dia</p>
                   <p className="font-display font-bold text-sm text-emerald-400">
-                    +R$ {calculations.estProfit3Sales}
+                    +R$ {calculations.estProfit3Sales.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <p className="text-[9px] font-mono text-muted-foreground">
                     ROAS: {calculations.roas3Sales}x
@@ -403,11 +405,11 @@ export function CampaignCalculator({ onApplyToNewCampaign }: CampaignCalculatorP
                   Lucro Líquido Estimado (Cenário Moderado)
                 </p>
                 <p className="text-[10px] text-muted-foreground font-mono">
-                  Gasto: R$ {calculations.monthlySpend} · Retorno: R$ {calculations.monthlyRevenue}
+                  Gasto: R$ {calculations.monthlySpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · Retorno: R$ {calculations.monthlyRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <p className="text-xl sm:text-2xl font-display font-extrabold text-emerald-400">
-                +R$ {calculations.monthlyNetProfit.toLocaleString("pt-BR")}
+                +R$ {calculations.monthlyNetProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
             </div>
           </div>
