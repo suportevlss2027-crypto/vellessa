@@ -7,15 +7,17 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Files,
   HelpCircle,
   Link2,
+  Package,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
-import { useAffiliateStore, type DynamicMaterial } from "@/lib/affiliate-store";
+import { useAffiliateStore, type DynamicMaterial, type MaterialFileItem } from "@/lib/affiliate-store";
 import { getRawFile } from "@/lib/file-storage";
 
 export const Route = createFileRoute("/_app/materiais")({
@@ -35,6 +37,43 @@ export const Route = createFileRoute("/_app/materiais")({
 
 function Materiais() {
   const { copyText, downloadAsset, profile, linksList, materialsList } = useAffiliateStore();
+
+  const handleDownloadFileItem = async (f: MaterialFileItem) => {
+    if (f.sourceType === "upload" || !f.file_url) {
+      const blob = await getRawFile(f.id);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        toast.success(`Download de "${f.name}" iniciado!`);
+        return;
+      }
+    }
+    if (f.file_url) {
+      downloadAsset(f.file_url, f.name);
+      return;
+    }
+    toast.info("Arquivo não disponível para download.");
+  };
+
+  const handleDownloadAllFiles = async (m: DynamicMaterial) => {
+    if (m.files && m.files.length > 0) {
+      toast.info(`Iniciando download do pacote (${m.files.length} arquivos)...`);
+      for (let i = 0; i < m.files.length; i++) {
+        const f = m.files[i];
+        setTimeout(() => {
+          handleDownloadFileItem(f);
+        }, i * 400);
+      }
+      return;
+    }
+    handleDownloadMaterial(m);
+  };
 
   const handleDownloadMaterial = async (m: DynamicMaterial) => {
     // Arquivo bruto salvo no IndexedDB (upload direto)
@@ -252,30 +291,97 @@ function Materiais() {
             description="Manuais em PDF, fotos oficiais do produto e roteiros validados estarão disponíveis aqui assim que publicados pelo administrador."
           />
         ) : (
-          <div className="overflow-hidden rounded-3xl border border-gold/25 bg-card/60 backdrop-blur-md shadow-xs">
-            {materialsList.map((m, i) => (
-              <div
-                key={m.id || m.title || i}
-                className="flex items-center gap-4 border-b border-border/40 p-4 last:border-0 sm:p-5 hover:bg-accent/30 transition"
-              >
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gold/15 border border-gold/30 text-xs font-bold text-gold">
-                  {m.kind}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-foreground text-sm">{m.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Formato {m.kind} · {m.size}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDownloadMaterial(m)}
-                  className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-card px-4 py-2 text-xs sm:text-sm font-semibold text-foreground hover:border-gold hover:text-gold transition"
+          <div className="overflow-hidden rounded-3xl border border-gold/25 bg-card/60 backdrop-blur-md shadow-xs divide-y divide-border/40">
+            {materialsList.map((m, i) => {
+              const isMultiFile = m.files && m.files.length > 1;
+
+              if (isMultiFile && m.files) {
+                return (
+                  <div
+                    key={m.id || m.title || i}
+                    className="p-5 sm:p-6 hover:bg-accent/15 transition space-y-4"
+                  >
+                    {/* Header do Pacote de Arquivos */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gold/15 border border-gold/30 text-gold shadow-xs">
+                          <Package className="h-6 w-6" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-foreground text-sm sm:text-base">{m.title}</p>
+                            <span className="text-[10px] font-bold text-gold bg-gold/10 px-2.5 py-0.5 rounded-full border border-gold/25">
+                              PACOTE ({m.files.length} ARQUIVOS)
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Tamanho total: <strong className="text-foreground/90 font-medium">{m.size}</strong> · {m.files.length} arquivos disponíveis para download
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleDownloadAllFiles(m)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition self-start sm:self-auto shrink-0"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span>Baixar Todos ({m.files.length})</span>
+                      </button>
+                    </div>
+
+                    {/* Lista Interna dos Arquivos deste Pacote */}
+                    <div className="rounded-2xl border border-border/50 bg-background/50 divide-y divide-border/30 overflow-hidden">
+                      {m.files.map((fileItem, fIdx) => (
+                        <div
+                          key={fileItem.id || fIdx}
+                          className="flex items-center justify-between gap-3 p-3 text-xs hover:bg-muted/30 transition"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="grid h-7 w-9 place-items-center rounded-lg bg-gold/10 text-[10px] font-bold text-gold shrink-0 border border-gold/20">
+                              {fileItem.kind}
+                            </span>
+                            <span className="font-medium text-foreground truncate">{fileItem.name}</span>
+                            <span className="text-[11px] text-muted-foreground shrink-0 font-mono">({fileItem.size})</span>
+                          </div>
+                          <button
+                            onClick={() => handleDownloadFileItem(fileItem)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:border-gold hover:text-gold transition shrink-0 shadow-xs"
+                          >
+                            <Download className="h-3 w-3" />
+                            <span>Baixar</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Postagem de arquivo único tradicional (compatibilidade)
+              return (
+                <div
+                  key={m.id || m.title || i}
+                  className="flex items-center gap-4 p-4 sm:p-5 hover:bg-accent/30 transition"
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Baixar Arquivo</span>
-                </button>
-              </div>
-            ))}
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gold/15 border border-gold/30 text-xs font-bold text-gold">
+                    {m.kind}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-foreground text-sm">{m.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Formato {m.kind} · {m.size}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDownloadMaterial(m)}
+                    className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-card px-4 py-2 text-xs sm:text-sm font-semibold text-foreground hover:border-gold hover:text-gold transition"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Baixar Arquivo</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

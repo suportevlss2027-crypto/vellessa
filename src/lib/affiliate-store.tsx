@@ -18,7 +18,7 @@ import {
   type Creative,
 } from "@/data/content";
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
-import { storeRawFile, deleteRawFile } from "./file-storage";
+import { storeRawFile, deleteRawFile, deleteRawFiles } from "./file-storage";
 
 export interface AffiliateProfile {
   name: string;
@@ -68,6 +68,18 @@ export interface DynamicLink {
   note: string;
 }
 
+export interface MaterialFileItem {
+  id: string;
+  name: string;
+  kind: string;
+  size: string;
+  bytes: number;
+  sourceType: "upload" | "link";
+  file_url?: string;
+  mimeType?: string;
+  rawFile?: Blob | File;
+}
+
 export interface DynamicMaterial {
   id?: string;
   title: string;
@@ -77,6 +89,7 @@ export interface DynamicMaterial {
   sourceType?: "upload" | "link";
   rawFileName?: string;
   mimeType?: string;
+  files?: MaterialFileItem[];
 }
 
 export interface AffiliateMonitoringData {
@@ -169,6 +182,7 @@ interface AffiliateStoreContextType {
     rawFileName?: string;
     mimeType?: string;
     rawFile?: Blob | File;
+    files?: MaterialFileItem[];
   }) => Promise<void>;
   updateMaterial: (
     id: string,
@@ -181,6 +195,7 @@ interface AffiliateStoreContextType {
       rawFileName?: string;
       mimeType?: string;
       rawFile?: Blob | File;
+      files?: MaterialFileItem[];
     }
   ) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
@@ -1090,8 +1105,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     rawFileName?: string;
     mimeType?: string;
     rawFile?: Blob | File;
+    files?: MaterialFileItem[];
   }) => {
     const id = `mat-${Date.now()}`;
+    
+    // Salva arquivo único legado caso exista
     if (data.rawFile) {
       try {
         await storeRawFile(id, data.rawFile);
@@ -1099,15 +1117,34 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         console.error("Erro ao salvar arquivo bruto:", err);
       }
     }
+
+    // Salva múltiplos arquivos do pacote no IndexedDB
+    let sanitizedFiles: MaterialFileItem[] | undefined = undefined;
+    if (data.files && data.files.length > 0) {
+      sanitizedFiles = [];
+      for (const f of data.files) {
+        if (f.rawFile) {
+          try {
+            await storeRawFile(f.id, f.rawFile);
+          } catch (err) {
+            console.error("Erro ao salvar arquivo do pacote no IndexedDB:", err);
+          }
+        }
+        const { rawFile, ...fileMeta } = f;
+        sanitizedFiles.push(fileMeta);
+      }
+    }
+
     const newM: DynamicMaterial = {
       id,
       title: data.title,
       kind: data.kind.toUpperCase(),
       size: data.size,
       file_url: data.file_url,
-      sourceType: data.sourceType || (data.rawFile ? "upload" : "link"),
+      sourceType: data.sourceType || (data.rawFile || (sanitizedFiles && sanitizedFiles.length > 0) ? "upload" : "link"),
       rawFileName: data.rawFileName,
       mimeType: data.mimeType,
+      files: sanitizedFiles,
     };
     const updated = [...materialsList, newM];
     setMaterialsList(updated);
@@ -1126,6 +1163,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       rawFileName?: string;
       mimeType?: string;
       rawFile?: Blob | File;
+      files?: MaterialFileItem[];
     }
   ) => {
     if (data.rawFile) {
@@ -1135,6 +1173,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         console.error("Erro ao atualizar arquivo bruto:", err);
       }
     }
+
+    // Salva ou atualiza múltiplos arquivos no IndexedDB
+    let sanitizedFiles: MaterialFileItem[] | undefined = undefined;
+    if (data.files && data.files.length > 0) {
+      sanitizedFiles = [];
+      for (const f of data.files) {
+        if (f.rawFile) {
+          try {
+            await storeRawFile(f.id, f.rawFile);
+          } catch (err) {
+            console.error("Erro ao salvar arquivo do pacote no IndexedDB:", err);
+          }
+        }
+        const { rawFile, ...fileMeta } = f;
+        sanitizedFiles.push(fileMeta);
+      }
+    }
+
     const updated = materialsList.map((m) => {
       if ((m.id || m.title) !== id) return m;
       const { rawFile, ...rest } = data;
@@ -1142,6 +1198,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         ...m,
         ...rest,
         kind: rest.kind ? rest.kind.toUpperCase() : m.kind,
+        files: sanitizedFiles !== undefined ? sanitizedFiles : m.files,
       };
     });
     setMaterialsList(updated);
@@ -1150,8 +1207,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   const deleteMaterial = async (id: string) => {
+    const matToDelete = materialsList.find((m) => (m.id || m.title) === id);
     try {
-      await deleteRawFile(id);
+      const idsToDelete = [id];
+      if (matToDelete?.files) {
+        matToDelete.files.forEach((f) => idsToDelete.push(f.id));
+      }
+      await deleteRawFiles(idsToDelete);
     } catch {}
     const updated = materialsList.filter((m) => (m.id || m.title) !== id);
     setMaterialsList(updated);

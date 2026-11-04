@@ -68,6 +68,24 @@ export async function deleteRawFile(id: string): Promise<void> {
   }
 }
 
+export async function deleteRawFiles(ids: string[]): Promise<void> {
+  if (!ids || ids.length === 0) return;
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      ids.forEach((id) => {
+        store.delete(id);
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.error("Erro ao excluir múltiplos arquivos do IndexedDB:", error);
+  }
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes <= 0) return "0 B";
   const k = 1024;
