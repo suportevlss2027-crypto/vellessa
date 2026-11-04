@@ -11,20 +11,30 @@ interface VideoPlayerProps {
 
 function getEmbedUrl(url?: string): string | null {
   if (!url) return null;
-  // YouTube
-  const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+  const trimmed = url.trim();
+
+  // YouTube (Padrão, Não Listado, Shorts e Embed)
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
   if (ytMatch && ytMatch[1]) {
-    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`;
+    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&modestbranding=1`;
   }
+
   // Vimeo
-  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
   if (vimeoMatch && vimeoMatch[1]) {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
   }
-  // Embed or generic iframe
-  if (url.includes("/embed/")) {
-    return url;
+
+  // Loom
+  if (trimmed.includes("loom.com/share/")) {
+    return trimmed.replace("loom.com/share/", "loom.com/embed/");
   }
+
+  // Panda Video / VTurb / Player Embed
+  if (trimmed.includes("pandavideo") || trimmed.includes("vturb") || trimmed.includes("/embed") || trimmed.includes("player.")) {
+    return trimmed;
+  }
+
   return null;
 }
 
@@ -134,13 +144,19 @@ export function VideoPlayer({ cover, title, duration, videoUrl, onAutoComplete }
       ) : (
         <>
           {/* Background Poster / Visual Player */}
-          <img
-            src={cover}
-            alt={title}
-            className={`h-full w-full object-cover transition-all duration-700 ${
-              isPlaying ? "scale-105 opacity-60 filter contrast-125" : "opacity-90"
-            }`}
-          />
+          {cover ? (
+            <img
+              src={cover}
+              alt={title}
+              className={`h-full w-full object-cover transition-all duration-700 ${
+                isPlaying ? "scale-105 opacity-60 filter contrast-125" : "opacity-90"
+              }`}
+            />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-zinc-950 via-zinc-900 to-black flex items-center justify-center">
+              <span className="font-display text-2xl font-bold tracking-widest text-gold/30">VELESSA</span>
+            </div>
+          )}
 
           {/* Ambient gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />

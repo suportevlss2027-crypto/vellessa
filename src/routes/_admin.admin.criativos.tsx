@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Copy, Plus, Trash2, Image, Video, FileText } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
+import MediaUploadField from "@/components/admin/MediaUploadField";
 
 export const Route = createFileRoute("/_admin/admin/criativos")({
   head: () => ({
@@ -10,38 +11,98 @@ export const Route = createFileRoute("/_admin/admin/criativos")({
   component: AdminCriativosPage,
 });
 
-function AdminCriativosPage() {
-  const { creativesList, createCreative, deleteCreative } = useAffiliateStore();
-  const [showModal, setShowModal] = useState(false);
+type CreativeType = "Feed" | "Stories" | "Reels" | "Copy";
 
+function AdminCriativosPage() {
+  const { creativesList, createCreative, updateCreative, deleteCreative } =
+    useAffiliateStore();
+
+  // ── MODAL CRIAR ──────────────────────────────────────────────────────────
+  const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<"Feed" | "Stories" | "Reels" | "Copy">("Feed");
+  const [type, setType] = useState<CreativeType>("Feed");
   const [format, setFormat] = useState("1080×1080");
   const [imageUrl, setImageUrl] = useState("");
   const [copyText, setCopyText] = useState("");
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  // ── MODAL EDITAR ─────────────────────────────────────────────────────────
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editType, setEditType] = useState<CreativeType>("Feed");
+  const [editFormat, setEditFormat] = useState("1080×1080");
+  const [editImageUrl, setEditImageUrl] = useState("");
+  const [editCopyText, setEditCopyText] = useState("");
 
-    await createCreative({
-      title: title.trim(),
-      type,
-      format: format.trim(),
-      image: imageUrl.trim() || undefined,
-      text: copyText.trim() || undefined,
-    });
+  // ── helpers ───────────────────────────────────────────────────────────────
+  const formatForType = (t: CreativeType) => {
+    if (t === "Stories") return "1080×1920";
+    if (t === "Feed") return "1080×1080";
+    if (t === "Reels") return "Vídeo 0:30";
+    return "Texto";
+  };
 
+  const resetCreate = () => {
     setTitle("");
     setType("Feed");
     setFormat("1080×1080");
     setImageUrl("");
     setCopyText("");
+  };
+
+  // ── HANDLERS ──────────────────────────────────────────────────────────────
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    await createCreative({
+      title: title.trim(),
+      type,
+      format: format.trim(),
+      image: imageUrl || undefined,
+      text: copyText.trim() || undefined,
+    });
+    resetCreate();
     setShowModal(false);
+  };
+
+  const openEdit = (c: (typeof creativesList)[0]) => {
+    setEditId(c.id);
+    setEditTitle(c.title);
+    setEditType(c.type as CreativeType);
+    setEditFormat(c.format);
+    setEditImageUrl(c.image ?? "");
+    setEditCopyText(c.text ?? "");
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editId) return;
+    await updateCreative(editId, {
+      title: editTitle.trim(),
+      type: editType,
+      format: editFormat.trim(),
+      image: editImageUrl || undefined,
+      text: editCopyText.trim() || undefined,
+    });
+    setEditId(null);
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm("Excluir este criativo definitivamente?")) {
+      deleteCreative(id);
+    }
+  };
+
+  // ── TYPE BADGE COLOURS ────────────────────────────────────────────────────
+  const typeBadge: Record<CreativeType, string> = {
+    Feed: "bg-blue-500/10 text-blue-400",
+    Stories: "bg-violet-500/10 text-violet-400",
+    Reels: "bg-rose-500/10 text-rose-400",
+    Copy: "bg-emerald-500/10 text-emerald-400",
   };
 
   return (
     <div className="space-y-6">
+      {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
         <div>
           <h1 className="text-3xl font-semibold">Central de Criativos de Anúncio</h1>
@@ -57,51 +118,110 @@ function AdminCriativosPage() {
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {creativesList.map((c) => (
-          <div key={c.id} className="relative rounded-2xl border bg-card p-5 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-gold">
-                  {c.type}
-                </span>
-                <span className="text-xs text-muted-foreground">{c.format}</span>
-              </div>
-
-              {c.image && (
-                <div className="mt-3 aspect-video overflow-hidden rounded-xl bg-muted">
-                  <img src={c.image} alt={c.title} className="h-full w-full object-cover" />
+      {/* ── GRID ───────────────────────────────────────────────────────── */}
+      {creativesList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
+          <Copy className="mx-auto h-10 w-10 text-muted-foreground/40 mb-4" />
+          <p className="text-sm font-medium text-muted-foreground">Nenhum criativo cadastrado ainda.</p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-5 py-2.5 text-xs font-semibold text-primary-foreground shadow-gold"
+          >
+            <Plus className="h-4 w-4" /> Criar Primeiro Criativo
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {creativesList.map((c) => (
+            <div
+              key={c.id}
+              className="relative rounded-2xl border bg-card shadow-xs flex flex-col overflow-hidden transition hover:shadow-md"
+            >
+              {/* Imagem / placeholder */}
+              {c.image ? (
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                  <img
+                    src={c.image}
+                    alt={c.title}
+                    className="h-full w-full object-cover"
+                  />
+                  <span
+                    className={`absolute top-2 left-2 rounded-full px-2.5 py-0.5 text-[11px] font-semibold backdrop-blur-sm ${typeBadge[c.type as CreativeType] ?? "bg-accent text-gold"}`}
+                  >
+                    {c.type}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between px-5 pt-5">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${typeBadge[c.type as CreativeType] ?? "bg-accent text-gold"}`}
+                  >
+                    {c.type}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{c.format}</span>
                 </div>
               )}
 
-              <h3 className="mt-3 font-semibold text-foreground text-base">{c.title}</h3>
-              {c.text && (
-                <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                  {c.text}
-                </p>
-              )}
-            </div>
+              {/* Body */}
+              <div className="flex flex-1 flex-col p-5 pt-3 gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-foreground text-sm leading-snug line-clamp-2">
+                    {c.title}
+                  </h3>
+                  {c.image && (
+                    <span className="shrink-0 text-xs text-muted-foreground">{c.format}</span>
+                  )}
+                </div>
 
-            <div className="mt-4 flex items-center justify-between border-t pt-3">
-              <span className="text-[11px] text-muted-foreground">Disponível para todos</span>
-              <button
-                onClick={() => deleteCreative(c.id)}
-                className="text-xs text-red-500 hover:underline inline-flex items-center gap-1"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Excluir
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+                {c.text && (
+                  <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                    {c.text}
+                  </p>
+                )}
 
+                {/* Footer */}
+                <div className="mt-auto flex items-center justify-between border-t pt-3">
+                  <span className="text-[11px] text-muted-foreground">Disponível para todos</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEdit(c)}
+                      className="p-1.5 text-muted-foreground hover:text-gold transition"
+                      title="Editar criativo"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      className="p-1.5 text-muted-foreground hover:text-red-500 transition"
+                      title="Excluir criativo"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── MODAL CRIAR ────────────────────────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
           <form
             onSubmit={handleCreate}
-            className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
+            className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
           >
-            <h3 className="text-xl font-semibold">Novo Criativo Publicitário</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Novo Criativo Publicitário</h3>
+              <button
+                type="button"
+                onClick={() => { setShowModal(false); resetCreate(); }}
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              >
+                ✕
+              </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
@@ -109,12 +229,9 @@ function AdminCriativosPage() {
                 <select
                   value={type}
                   onChange={(e) => {
-                    const t = e.target.value as any;
+                    const t = e.target.value as CreativeType;
                     setType(t);
-                    if (t === "Stories") setFormat("1080×1920");
-                    else if (t === "Feed") setFormat("1080×1080");
-                    else if (t === "Reels") setFormat("Vídeo 0:30");
-                    else if (t === "Copy") setFormat("Texto");
+                    setFormat(formatForType(t));
                   }}
                   className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                 >
@@ -149,15 +266,14 @@ function AdminCriativosPage() {
             </label>
 
             {type !== "Copy" && (
-              <label className="block">
-                <span className="text-xs font-medium">Link da Imagem ou Capa (URL)</span>
-                <input
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium block">Imagem / Capa da Peça</span>
+                <MediaUploadField
                   value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://exemplo.com/imagem.jpg"
-                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  onChange={setImageUrl}
+                  aspectRatio="square"
                 />
-              </label>
+              </div>
             )}
 
             <label className="block">
@@ -174,7 +290,7 @@ function AdminCriativosPage() {
             <div className="flex justify-end gap-2 pt-3">
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); resetCreate(); }}
                 className="rounded-xl border px-4 py-2 text-xs font-semibold"
               >
                 Cancelar
@@ -184,6 +300,104 @@ function AdminCriativosPage() {
                 className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
               >
                 Publicar Criativo
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── MODAL EDITAR ───────────────────────────────────────────────── */}
+      {editId !== null && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <form
+            onSubmit={handleEdit}
+            className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Editar Criativo</h3>
+              <button
+                type="button"
+                onClick={() => setEditId(null)}
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-xs font-medium">Tipo de Criativo</span>
+                <select
+                  value={editType}
+                  onChange={(e) => {
+                    const t = e.target.value as CreativeType;
+                    setEditType(t);
+                    setEditFormat(formatForType(t));
+                  }}
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                >
+                  <option value="Feed">Feed (1:1)</option>
+                  <option value="Stories">Stories (9:16)</option>
+                  <option value="Reels">Reels / TikTok</option>
+                  <option value="Copy">Texto / Copy Persuasiva</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-medium">Formato / Duração</span>
+                <input
+                  value={editFormat}
+                  onChange={(e) => setEditFormat(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+            </div>
+
+            <label className="block">
+              <span className="text-xs font-medium">Título da Peça</span>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                required
+              />
+            </label>
+
+            {editType !== "Copy" && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium block">Imagem / Capa da Peça</span>
+                <MediaUploadField
+                  value={editImageUrl}
+                  onChange={setEditImageUrl}
+                  aspectRatio="square"
+                />
+              </div>
+            )}
+
+            <label className="block">
+              <span className="text-xs font-medium">Texto da Copy Sugerida</span>
+              <textarea
+                value={editCopyText}
+                onChange={(e) => setEditCopyText(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-xl border bg-background p-3 text-sm outline-none focus:border-gold"
+              />
+            </label>
+
+            <div className="flex justify-end gap-2 pt-3">
+              <button
+                type="button"
+                onClick={() => setEditId(null)}
+                className="rounded-xl border px-4 py-2 text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+              >
+                Salvar Alterações
               </button>
             </div>
           </form>

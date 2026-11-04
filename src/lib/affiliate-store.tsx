@@ -95,14 +95,19 @@ interface AffiliateStoreContextType {
 
   // Admin CMS Actions
   createModule: (data: { title: string; subtitle: string; cover?: string }) => Promise<void>;
+  updateModule: (id: string, data: { title?: string; subtitle?: string; cover?: string }) => Promise<void>;
   deleteModule: (id: string) => Promise<void>;
   createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string }) => Promise<void>;
+  updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string }) => Promise<void>;
   deleteLesson: (lessonId: string) => Promise<void>;
   createCreative: (data: { title: string; type: "Feed" | "Stories" | "Reels" | "Copy"; format: string; image?: string; text?: string }) => Promise<void>;
+  updateCreative: (id: string, data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string }) => Promise<void>;
   deleteCreative: (id: string) => Promise<void>;
   createMaterial: (data: { title: string; kind: string; size: string; file_url?: string }) => Promise<void>;
+  updateMaterial: (id: string, data: { title?: string; kind?: string; size?: string; file_url?: string }) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
   createAffiliateLink: (data: { label: string; url: string; note: string }) => Promise<void>;
+  updateAffiliateLink: (id: string, data: { label?: string; url?: string; note?: string }) => Promise<void>;
   deleteAffiliateLink: (id: string) => Promise<void>;
   seedInitialDataToDatabase: () => Promise<void>;
 
@@ -725,6 +730,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Novo módulo criado na Academia!");
   };
 
+  const updateModule = async (id: string, data: { title?: string; subtitle?: string; cover?: string }) => {
+    const updated = modulesList.map((m) => {
+      if (m.id !== id) return m;
+      return {
+        ...m,
+        title: data.title !== undefined ? data.title : m.title,
+        subtitle: data.subtitle !== undefined ? data.subtitle : m.subtitle,
+        cover: data.cover !== undefined ? data.cover : m.cover,
+      };
+    });
+    setModulesList(updated);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    toast.success("Módulo atualizado com sucesso!");
+  };
+
   const deleteModule = async (id: string) => {
     const updated = modulesList.filter((m) => m.id !== id);
     setModulesList(updated);
@@ -759,6 +779,32 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Nova aula cadastrada com sucesso!");
   };
 
+  const updateLesson = async (
+    moduleId: string,
+    lessonId: string,
+    data: { title?: string; duration?: string; videoUrl?: string; description?: string }
+  ) => {
+    const updated = modulesList.map((m) => {
+      if (m.id !== moduleId) return m;
+      return {
+        ...m,
+        lessons: m.lessons.map((l) => {
+          if (l.id !== lessonId) return l;
+          return {
+            ...l,
+            title: data.title !== undefined ? data.title : l.title,
+            duration: data.duration !== undefined ? data.duration : l.duration,
+            video_url: data.videoUrl !== undefined ? data.videoUrl : l.video_url,
+            description: data.description !== undefined ? data.description : l.description,
+          };
+        }),
+      };
+    });
+    setModulesList(updated);
+    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    toast.success("Aula atualizada com sucesso!");
+  };
+
   const deleteLesson = async (lessonId: string) => {
     const updated = modulesList.map((m) => ({
       ...m,
@@ -790,6 +836,22 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Criativo adicionado à biblioteca de afiliados!");
   };
 
+  const updateCreative = async (
+    id: string,
+    data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string }
+  ) => {
+    const updated = creativesList.map((c) => {
+      if (c.id !== id) return c;
+      return {
+        ...c,
+        ...data,
+      };
+    });
+    setCreativesList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+    toast.success("Criativo atualizado com sucesso!");
+  };
+
   const deleteCreative = async (id: string) => {
     const updated = creativesList.filter((c) => c.id !== id);
     setCreativesList(updated);
@@ -811,6 +873,22 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Material oficial publicado!");
   };
 
+  const updateMaterial = async (
+    id: string,
+    data: { title?: string; kind?: string; size?: string; file_url?: string }
+  ) => {
+    const updated = materialsList.map((m) => {
+      if ((m.id || m.title) !== id) return m;
+      return {
+        ...m,
+        ...data,
+      };
+    });
+    setMaterialsList(updated);
+    localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
+    toast.success("Material atualizado com sucesso!");
+  };
+
   const deleteMaterial = async (id: string) => {
     const updated = materialsList.filter((m) => (m.id || m.title) !== id);
     setMaterialsList(updated);
@@ -829,6 +907,22 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     setLinksList(updated);
     localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
     toast.success("Novo link rastreado configurado!");
+  };
+
+  const updateAffiliateLink = async (
+    id: string,
+    data: { label?: string; url?: string; note?: string }
+  ) => {
+    const updated = linksList.map((l) => {
+      if ((l.id || l.url) !== id) return l;
+      return {
+        ...l,
+        ...data,
+      };
+    });
+    setLinksList(updated);
+    localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
+    toast.success("Link atualizado com sucesso!");
   };
 
   const deleteAffiliateLink = async (id: string) => {
@@ -1024,14 +1118,19 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         materialsList,
         linksList,
         createModule,
+        updateModule,
         deleteModule,
         createLesson,
+        updateLesson,
         deleteLesson,
         createCreative,
+        updateCreative,
         deleteCreative,
         createMaterial,
+        updateMaterial,
         deleteMaterial,
         createAffiliateLink,
+        updateAffiliateLink,
         deleteAffiliateLink,
         seedInitialDataToDatabase,
         posts,
