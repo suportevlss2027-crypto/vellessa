@@ -41,6 +41,11 @@ export interface CommunityPost {
   userLiked?: boolean;
 }
 
+export interface PlatformFeatureSettings {
+  trafficManagerEnabled: boolean;
+  communityEnabled: boolean;
+}
+
 export interface AnnouncementItem {
   id: string;
   pinned?: boolean;
@@ -159,6 +164,11 @@ interface AffiliateStoreContextType {
   deleteAffiliateLink: (id: string) => Promise<void>;
   seedInitialDataToDatabase: () => Promise<void>;
 
+  // Feature Settings / Module Control
+  featureSettings: PlatformFeatureSettings;
+  toggleFeature: (key: keyof PlatformFeatureSettings) => void;
+  updateFeatureSettings: (settings: Partial<PlatformFeatureSettings>) => void;
+
   // Community state
   posts: CommunityPost[];
   addPost: (body: string) => void;
@@ -204,6 +214,12 @@ const STORAGE_KEYS = {
   LINKS: "vellessa_dynamic_links",
   AFFILIATES_MONITORING: "vellessa_affiliates_monitoring",
   CAMPAIGNS: "vellessa_affiliate_campaigns",
+  FEATURE_SETTINGS: "vellessa_feature_settings",
+};
+
+export const DEFAULT_FEATURE_SETTINGS: PlatformFeatureSettings = {
+  trafficManagerEnabled: false,
+  communityEnabled: false,
 };
 
 const DEFAULT_EMPTY_PROFILE: AffiliateProfile = {
@@ -1201,6 +1217,50 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Métricas de anúncios registradas!");
   };
 
+  // 6.5. Feature Settings / Controle de Módulos (Admin Toggles)
+  const [featureSettings, setFeatureSettings] = useState<PlatformFeatureSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_FEATURE_SETTINGS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FEATURE_SETTINGS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          trafficManagerEnabled: Boolean(parsed.trafficManagerEnabled),
+          communityEnabled: Boolean(parsed.communityEnabled),
+        };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_FEATURE_SETTINGS;
+  });
+
+  const toggleFeature = useCallback((key: keyof PlatformFeatureSettings) => {
+    setFeatureSettings((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem(STORAGE_KEYS.FEATURE_SETTINGS, JSON.stringify(next));
+      } catch {}
+      const label = key === "trafficManagerEnabled" ? "Gestor de Tráfego" : "Comunidade";
+      toast.success(
+        next[key]
+          ? `Módulo "${label}" ativado para afiliados!`
+          : `Módulo "${label}" desativado para afiliados!`
+      );
+      return next;
+    });
+  }, []);
+
+  const updateFeatureSettings = useCallback((settings: Partial<PlatformFeatureSettings>) => {
+    setFeatureSettings((prev) => {
+      const next = { ...prev, ...settings };
+      try {
+        localStorage.setItem(STORAGE_KEYS.FEATURE_SETTINGS, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
   // 7. Community Posts
   const [posts, setPosts] = useState<CommunityPost[]>(() => {
     if (typeof window === "undefined") return [];
@@ -1414,6 +1474,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         resetPassword,
         copyText,
         downloadAsset,
+        featureSettings,
+        toggleFeature,
+        updateFeatureSettings,
       }}
     >
       {children}

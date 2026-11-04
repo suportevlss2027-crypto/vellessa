@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Bell, BookOpen, ChevronsLeft, Crown, Home, Image, Link2, LogOut, Search, Shield, Sparkles, TrendingUp, Users,
 } from "lucide-react";
@@ -7,15 +7,6 @@ import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPopover } from "./NotificationsPopover";
-
-const nav = [
-  { to: "/painel", label: "Início", icon: Home },
-  { to: "/aulas", label: "Aulas", icon: BookOpen },
-  { to: "/campanhas", label: "Gestor de Tráfego", icon: TrendingUp },
-  { to: "/criativos", label: "Criativos", icon: Image },
-  { to: "/materiais", label: "Materiais", icon: Link2 },
-  { to: "/comunidade", label: "Comunidade", icon: Users },
-] as const;
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -41,8 +32,23 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { profile, unreadAnnouncementsCount, logout, isAdmin, isTitular } = useAffiliateStore();
+  const { profile, unreadAnnouncementsCount, logout, isAdmin, isTitular, featureSettings } = useAffiliateStore();
   const navigate = useNavigate();
+
+  const navItems = useMemo(() => {
+    return [
+      { to: "/painel", label: "Início", icon: Home },
+      { to: "/aulas", label: "Aulas", icon: BookOpen },
+      ...(featureSettings.trafficManagerEnabled || isAdmin
+        ? [{ to: "/campanhas", label: "Gestor de Tráfego", icon: TrendingUp }]
+        : []),
+      { to: "/criativos", label: "Criativos", icon: Image },
+      { to: "/materiais", label: "Materiais", icon: Link2 },
+      ...(featureSettings.communityEnabled || isAdmin
+        ? [{ to: "/comunidade", label: "Comunidade", icon: Users }]
+        : []),
+    ];
+  }, [featureSettings, isAdmin]);
 
   const path = useRouterState({ select: (s) => s.location.pathname });
   const isActive = (to: string) => path === to || path.startsWith(to + "/");
@@ -76,7 +82,7 @@ export function AppShell() {
           <Link to="/painel"><Logo compact={collapsed} /></Link>
         </div>
         <nav className="mt-5 flex flex-col gap-1">
-          {nav.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
               to={to}
@@ -211,7 +217,7 @@ export function AppShell() {
       </div>
 
       <nav className="fixed inset-x-3 bottom-3 z-40 flex justify-around rounded-2xl border bg-surface/95 p-1.5 shadow-soft backdrop-blur-xl md:hidden">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}

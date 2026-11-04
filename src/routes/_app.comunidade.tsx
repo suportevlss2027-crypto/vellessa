@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { Heart, MessageCircle, Pin, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/AppShell";
@@ -19,8 +19,20 @@ export const Route = createFileRoute("/_app/comunidade")({
 });
 
 function Comunidade() {
-  const { announcements, posts, addPost, toggleLikePost, profile } = useAffiliateStore();
+  const { announcements, posts, addPost, toggleLikePost, profile, featureSettings, isAdmin } = useAffiliateStore();
+  const navigate = useNavigate();
   const [newPostText, setNewPostText] = useState("");
+
+  useEffect(() => {
+    if (!featureSettings.communityEnabled && !isAdmin) {
+      toast.info("A Comunidade está temporariamente em manutenção pela equipe.");
+      navigate({ to: "/painel" });
+    }
+  }, [featureSettings.communityEnabled, isAdmin, navigate]);
+
+  if (!featureSettings.communityEnabled && !isAdmin) {
+    return null;
+  }
 
   const initials = profile.name
     ? profile.name
@@ -40,6 +52,17 @@ function Comunidade() {
 
   return (
     <>
+      {!featureSettings.communityEnabled && isAdmin && (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>
+              <strong>Modo Homologação Admin:</strong> A Comunidade está oculta para afiliados comuns. Você pode reativá-la a qualquer momento no Painel Admin.
+            </span>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         eyebrow="Juntas vamos mais longe"
         title="Comunidade"

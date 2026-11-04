@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { BookOpen, FileText, Image, Link2, Search, Users, Video, X } from "lucide-react";
+import { BookOpen, FileText, Image, Link2, Search, TrendingUp, Users, Video, X } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 
 interface CommandPaletteProps {
@@ -11,7 +11,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
-  const { allLessonsList, creativesList, linksList, materialsList } = useAffiliateStore();
+  const { allLessonsList, creativesList, linksList, materialsList, featureSettings, isAdmin } = useAffiliateStore();
 
   // Handle Ctrl+K / Cmd+K
   useEffect(() => {
@@ -104,9 +104,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {[
                   { label: "Aulas", to: "/aulas", icon: BookOpen },
+                  ...(featureSettings.trafficManagerEnabled || isAdmin
+                    ? [{ label: "Tráfego", to: "/campanhas", icon: TrendingUp }]
+                    : []),
                   { label: "Criativos", to: "/criativos", icon: Image },
                   { label: "Materiais", to: "/materiais", icon: Link2 },
-                  { label: "Comunidade", to: "/comunidade", icon: Users },
+                  ...(featureSettings.communityEnabled || isAdmin
+                    ? [{ label: "Comunidade", to: "/comunidade", icon: Users }]
+                    : []),
                 ].map(({ label, to, icon: Icon }) => (
                   <button
                     key={to}

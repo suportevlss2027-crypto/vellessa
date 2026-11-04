@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useMemo, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Activity,
   AlertTriangle,
@@ -50,7 +51,15 @@ type TabType = "campaigns" | "calculator" | "utms";
 type StatusFilter = "all" | "active" | "testing" | "scaling" | "paused";
 
 function GestaoTrafegoPage() {
-  const { campaignsList, deleteCampaign, copyText, profile } = useAffiliateStore();
+  const { campaignsList, deleteCampaign, copyText, profile, featureSettings, isAdmin } = useAffiliateStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!featureSettings.trafficManagerEnabled && !isAdmin) {
+      toast.info("O Gestor de Tráfego está temporariamente em calibração pela equipe.");
+      navigate({ to: "/painel" });
+    }
+  }, [featureSettings.trafficManagerEnabled, isAdmin, navigate]);
 
   const [activeTab, setActiveTab] = useState<TabType>("campaigns");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -135,6 +144,17 @@ function GestaoTrafegoPage() {
 
   return (
     <div className="space-y-8">
+      {!featureSettings.trafficManagerEnabled && isAdmin && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>
+              <strong>Modo Homologação Admin:</strong> O Gestor de Tráfego está oculto para afiliados comuns. Você pode reativá-lo a qualquer momento no Painel Admin.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <PageHeader
         eyebrow="Inteligência Financeira & Tráfego Pago"

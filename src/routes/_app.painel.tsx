@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { ArrowUpRight, BookOpen, CheckCircle, CheckCircle2, Image, Link2, Pin, Play, ShieldCheck, Sparkles, TrendingUp, Users } from "lucide-react";
 import { ProgressBar } from "@/components/AppShell";
 import { useAffiliateStore } from "@/lib/affiliate-store";
@@ -26,17 +27,35 @@ function Dashboard() {
     creativesList,
     materialsList,
     campaignsList,
+    featureSettings,
+    isAdmin,
   } = useAffiliateStore();
 
   const isCompletedAll = totalLessonsCount > 0 && completedCount === totalLessonsCount;
 
-  const shortcuts = [
-    { to: "/aulas", label: "Aulas", count: `${completedCount}/${totalLessonsCount} conc.`, desc: "Trilhas de escala", icon: BookOpen },
-    { to: "/campanhas", label: "Gestor de Tráfego", count: `${campaignsList.length} campanhas`, desc: "Meta Ads & Lucro", icon: TrendingUp },
-    { to: "/criativos", label: "Criativos", count: `${creativesList.length} peças`, desc: "Prontos para rodar", icon: Image },
-    { to: "/materiais", label: "Links e materiais", count: "Logzz & Apoio", desc: "Acesse links Logzz", icon: Link2 },
-    { to: "/comunidade", label: "Comunidade", count: `${announcements.length} avisos`, desc: "Mural e avisos", icon: Users },
-  ] as const;
+  const shortcuts = useMemo(
+    () => [
+      { to: "/aulas", label: "Aulas", count: `${completedCount}/${totalLessonsCount} conc.`, desc: "Trilhas de escala", icon: BookOpen },
+      ...(featureSettings.trafficManagerEnabled || isAdmin
+        ? [{ to: "/campanhas", label: "Gestor de Tráfego", count: `${campaignsList.length} campanhas`, desc: "Meta Ads & Lucro", icon: TrendingUp }]
+        : []),
+      { to: "/criativos", label: "Criativos", count: `${creativesList.length} peças`, desc: "Prontos para rodar", icon: Image },
+      { to: "/materiais", label: "Links e materiais", count: "Logzz & Apoio", desc: "Acesse links Logzz", icon: Link2 },
+      ...(featureSettings.communityEnabled || isAdmin
+        ? [{ to: "/comunidade", label: "Comunidade", count: `${announcements.length} avisos`, desc: "Mural e avisos", icon: Users }]
+        : []),
+    ],
+    [
+      completedCount,
+      totalLessonsCount,
+      featureSettings.trafficManagerEnabled,
+      featureSettings.communityEnabled,
+      isAdmin,
+      campaignsList.length,
+      creativesList.length,
+      announcements.length,
+    ]
+  );
 
   return (
     <div className="space-y-6">
@@ -144,7 +163,15 @@ function Dashboard() {
       </section>
 
       {/* 2. ATALHOS RÁPIDOS DE AÇÃO — COMPACTOS, ELEGANTES E AERADOS */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
+      <section
+        className={`grid gap-3 sm:gap-3.5 ${
+          shortcuts.length === 3
+            ? "grid-cols-1 sm:grid-cols-3"
+            : shortcuts.length === 4
+            ? "grid-cols-2 sm:grid-cols-4"
+            : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+        }`}
+      >
         {shortcuts.map(({ to, label, count, desc, icon: Icon }) => (
           <Link
             key={to}
@@ -238,10 +265,12 @@ function Dashboard() {
           <div>
             <div className="flex items-center justify-between border-b border-border/30 pb-3">
               <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-foreground">Avisos da Equipe</h2>
-              <Link to="/comunidade" className="inline-flex items-center gap-1 text-xs font-semibold text-gold hover:underline">
-                <span>Ver todos</span>
-                <span>→</span>
-              </Link>
+              {(featureSettings.communityEnabled || isAdmin) && (
+                <Link to="/comunidade" className="inline-flex items-center gap-1 text-xs font-semibold text-gold hover:underline">
+                  <span>Ver todos</span>
+                  <span>→</span>
+                </Link>
+              )}
             </div>
             {announcements.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Activity, AlertTriangle, BookOpen, Eye, Image, Link2, PlusCircle, Sparkles, TrendingUp, Users } from "lucide-react";
+import { Activity, AlertTriangle, BookOpen, CheckCircle2, Eye, Image, Link2, PlusCircle, SlidersHorizontal, Sparkles, TrendingUp, Users } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 
 export const Route = createFileRoute("/_admin/admin/")({
@@ -18,6 +18,8 @@ function AdminDashboard() {
     materialsList,
     linksList,
     affiliatesMonitoring,
+    featureSettings,
+    toggleFeature,
   } = useAffiliateStore();
 
   const monitoringList = useMemo(() => Object.values(affiliatesMonitoring || {}), [affiliatesMonitoring]);
@@ -51,6 +53,192 @@ function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Central de Permissões & Módulos Ativos (Feature Flags) — Padrão Apple HIG com Switches iOS */}
+      <section className="rounded-3xl border border-white/10 bg-card/90 p-6 shadow-xs backdrop-blur-md space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/30 pb-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold flex items-center gap-1.5">
+              <SlidersHorizontal className="h-3 w-3" /> Gestão de Recursos em Tempo Real
+            </span>
+            <h2 className="text-xl font-display font-bold text-foreground">
+              Controle de Módulos da Plataforma (Afiliados)
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Ative ou desative seções visíveis para os afiliados com 1 clique. O painel administrativo mantém acesso irrestrito para homologação e testes.
+            </p>
+          </div>
+          <span className="self-start sm:self-center rounded-full bg-gold/10 px-3 py-1 text-[10px] font-bold text-gold border border-gold/20 shrink-0">
+            Retorno Imediato
+          </span>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Card 1: Gestor de Tráfego & Calculadora Meta Ads */}
+          <div
+            className={`relative flex flex-col justify-between rounded-2xl border p-5 transition-all duration-200 ${
+              featureSettings.trafficManagerEnabled
+                ? "border-gold/40 bg-gold/5 shadow-xs"
+                : "border-white/10 bg-muted/20"
+            }`}
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`grid h-11 w-11 place-items-center rounded-2xl shadow-xs transition ${
+                      featureSettings.trafficManagerEnabled
+                        ? "bg-gold-gradient text-primary-foreground shadow-gold"
+                        : "bg-muted text-muted-foreground border border-white/10"
+                    }`}
+                  >
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Gestor de Tráfego</h3>
+                    <p className="text-[11px] text-muted-foreground">Meta Ads, Break-Even & UTMs</p>
+                  </div>
+                </div>
+
+                {/* Switch estilo iOS */}
+                <button
+                  type="button"
+                  onClick={() => toggleFeature("trafficManagerEnabled")}
+                  role="switch"
+                  aria-checked={featureSettings.trafficManagerEnabled}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    featureSettings.trafficManagerEnabled ? "bg-gold" : "bg-zinc-700"
+                  }`}
+                  title={
+                    featureSettings.trafficManagerEnabled
+                      ? "Clique para ocultar dos afiliados"
+                      : "Clique para ativar para os afiliados"
+                  }
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      featureSettings.trafficManagerEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                Calculadora inteligente de break-even de 60%, gerador de links com UTMs e registro de custos diários de anúncios.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-border/30 flex items-center justify-between text-xs">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                  featureSettings.trafficManagerEnabled
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    featureSettings.trafficManagerEnabled ? "bg-emerald-400" : "bg-zinc-400"
+                  }`}
+                />
+                {featureSettings.trafficManagerEnabled
+                  ? "Ativo para Afiliados"
+                  : "Oculto para Afiliados"}
+              </span>
+
+              <Link
+                to="/campanhas"
+                className="text-xs font-semibold text-gold hover:underline inline-flex items-center gap-1"
+              >
+                <span>Ver Módulo</span>
+                <span>→</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Card 2: Comunidade & Mural de Afiliados */}
+          <div
+            className={`relative flex flex-col justify-between rounded-2xl border p-5 transition-all duration-200 ${
+              featureSettings.communityEnabled
+                ? "border-gold/40 bg-gold/5 shadow-xs"
+                : "border-white/10 bg-muted/20"
+            }`}
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`grid h-11 w-11 place-items-center rounded-2xl shadow-xs transition ${
+                      featureSettings.communityEnabled
+                        ? "bg-gold-gradient text-primary-foreground shadow-gold"
+                        : "bg-muted text-muted-foreground border border-white/10"
+                    }`}
+                  >
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Comunidade & Mural</h3>
+                    <p className="text-[11px] text-muted-foreground">Troca de Experiências & Avisos</p>
+                  </div>
+                </div>
+
+                {/* Switch estilo iOS */}
+                <button
+                  type="button"
+                  onClick={() => toggleFeature("communityEnabled")}
+                  role="switch"
+                  aria-checked={featureSettings.communityEnabled}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    featureSettings.communityEnabled ? "bg-gold" : "bg-zinc-700"
+                  }`}
+                  title={
+                    featureSettings.communityEnabled
+                      ? "Clique para ocultar dos afiliados"
+                      : "Clique para ativar para os afiliados"
+                  }
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      featureSettings.communityEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                Mural social com publicações, curtidas e comunicados oficiais fixados pela equipe gestora da Vellessa.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-border/30 flex items-center justify-between text-xs">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                  featureSettings.communityEnabled
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    featureSettings.communityEnabled ? "bg-emerald-400" : "bg-zinc-400"
+                  }`}
+                />
+                {featureSettings.communityEnabled
+                  ? "Ativo para Afiliados"
+                  : "Oculto para Afiliados"}
+              </span>
+
+              <Link
+                to="/comunidade"
+                className="text-xs font-semibold text-gold hover:underline inline-flex items-center gap-1"
+              >
+                <span>Ver Módulo</span>
+                <span>→</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Estatísticas do CMS */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
