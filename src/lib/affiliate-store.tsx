@@ -70,6 +70,22 @@ export interface DynamicMaterial {
   file_url?: string;
 }
 
+export interface AffiliateMonitoringData {
+  affiliateId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  instagram?: string;
+  level: string;
+  role: "admin" | "affiliate";
+  createdAt: string;
+  lastLoginAt: string;
+  loginCount: number;
+  completedLessonIds: string[];
+  lastLessonWatchedTitle?: string;
+  lastLessonWatchedAt?: string;
+}
+
 interface AffiliateStoreContextType {
   profile: AffiliateProfile;
   isAdmin: boolean;
@@ -82,11 +98,15 @@ interface AffiliateStoreContextType {
   completedLessonIds: string[];
   isLessonDone: (id: string) => boolean;
   toggleLessonDone: (id: string) => void;
-  markLessonDone: (id: string) => void;
+  markLessonDone: (id: string, lessonTitle?: string) => void;
   completedCount: number;
   totalLessonsCount: number;
   progressPercentage: number;
   nextLesson: (Lesson & { module: DynamicModule }) | null;
+
+  // Telemetria & Monitoramento de Afiliados
+  affiliatesMonitoring: Record<string, AffiliateMonitoringData>;
+  recordAffiliateActivity: (data: { affiliateId: string; name?: string; email?: string; completedLessonId?: string; lessonTitle?: string }) => void;
 
   // Dynamic Creatives, Materials, Links
   creativesList: Creative[];
@@ -148,6 +168,7 @@ const STORAGE_KEYS = {
   CREATIVES: "vellessa_dynamic_creatives",
   MATERIALS: "vellessa_dynamic_materials",
   LINKS: "vellessa_dynamic_links",
+  AFFILIATES_MONITORING: "vellessa_affiliates_monitoring",
 };
 
 const DEFAULT_EMPTY_PROFILE: AffiliateProfile = {
@@ -304,11 +325,113 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     return allLessonsList.filter((l) => l.done).map((l) => l.id);
   });
 
+  // Telemetria & Monitoramento de Afiliados
+  const [affiliatesMonitoring, setAffiliatesMonitoring] = useState<Record<string, AffiliateMonitoringData>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.AFFILIATES_MONITORING);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
+
+  const recordAffiliateActivity = useCallback(
+    (data: {
+      affiliateId: string;
+      name?: string;
+      email?: string;
+      completedLessonId?: string;
+      lessonTitle?: string;
+    }) => {
+      const key = data.affiliateId;
+      if (!key) return;
+      const now = new Date().toISOString();
+
+      setAffiliatesMonitoring((prev) => {
+        const existing = prev[key] || {
+          affiliateId: key,
+          name: data.name || "Afiliada",
+          email: data.email || "",
+          level: "Afiliada Oficial",
+          role: "affiliate",
+          createdAt: now,
+          lastLoginAt: now,
+          loginCount: 1,
+          completedLessonIds: [],
+        };
+
+        const newCompleted = data.completedLessonId
+          ? Array.from(new Set([...existing.completedLessonIds, data.completedLessonId]))
+          : existing.completedLessonIds;
+
+        const updated: AffiliateMonitoringData = {
+          ...existing,
+          name: data.name || existing.name,
+          email: data.email || existing.email,
+          completedLessonIds: newCompleted,
+          lastLessonWatchedTitle: data.lessonTitle || existing.lastLessonWatchedTitle,
+          lastLessonWatchedAt: data.completedLessonId ? now : existing.lastLessonWatchedAt,
+        };
+
+        const next = { ...prev, [key]: updated };
+        try {
+          localStorage.setItem(STORAGE_KEYS.AFFILIATES_MONITORING, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    },
+    []
+  );
+
+  const recordAffiliateAccess = useCallback(
+    (prof: AffiliateProfile) => {
+      const key = prof.id || prof.email;
+      if (!key) return;
+      const now = new Date().toISOString();
+
+      setAffiliatesMonitoring((prev) => {
+        const existing = prev[key] || {
+          affiliateId: key,
+          name: prof.name || "Afiliada",
+          email: prof.email || "",
+          phone: prof.phone || "",
+          instagram: prof.instagram || "",
+          level: prof.level || "Afiliada Oficial",
+          role: prof.role || "affiliate",
+          createdAt: now,
+          lastLoginAt: now,
+          loginCount: 0,
+          completedLessonIds: [],
+        };
+
+        const updated: AffiliateMonitoringData = {
+          ...existing,
+          name: prof.name || existing.name,
+          email: prof.email || existing.email,
+          phone: prof.phone || existing.phone,
+          instagram: prof.instagram || existing.instagram,
+          level: prof.level || existing.level,
+          role: prof.role || existing.role,
+          lastLoginAt: now,
+          loginCount: (existing.loginCount || 0) + 1,
+        };
+
+        const next = { ...prev, [key]: updated };
+        try {
+          localStorage.setItem(STORAGE_KEYS.AFFILIATES_MONITORING, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    },
+    []
+  );
+
   const isLessonDone = (id: string) => completedLessonIds.includes(id);
 
   const toggleLessonDone = (id: string) => {
     setCompletedLessonIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+      const isRemoving = prev.includes(id);
+      const next = isRemoving ? prev.filter((item) => item !== id) : [...prev, id];
       try {
         localStorage.setItem(STORAGE_KEYS.COMPLETED_LESSONS, JSON.stringify(next));
       } catch (e) {
@@ -316,9 +439,18 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       }
       return next;
     });
+
+    if (profile.id || profile.email) {
+      recordAffiliateActivity({
+        affiliateId: profile.id || profile.email,
+        name: profile.name,
+        email: profile.email,
+        completedLessonId: id,
+      });
+    }
   };
 
-  const markLessonDone = (id: string) => {
+  const markLessonDone = (id: string, lessonTitle?: string) => {
     setCompletedLessonIds((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
@@ -329,6 +461,16 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       }
       return next;
     });
+
+    if (profile.id || profile.email) {
+      recordAffiliateActivity({
+        affiliateId: profile.id || profile.email,
+        name: profile.name,
+        email: profile.email,
+        completedLessonId: id,
+        lessonTitle,
+      });
+    }
   };
 
   const totalLessonsCount = allLessonsList.length;
@@ -397,7 +539,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           .single();
 
         if (dbProfile) {
-          setProfile({
+          const loadedProf: AffiliateProfile = {
             id: dbProfile.affiliate_code || session.user.id.slice(0, 8),
             name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliada",
             first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Afiliada",
@@ -406,7 +548,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             phone: dbProfile.phone || "",
             instagram: dbProfile.instagram || "",
             role: dbProfile.role === "admin" ? "admin" : "affiliate",
-          });
+          };
+          setProfile(loadedProf);
+          recordAffiliateAccess(loadedProf);
         }
       }
     } catch (e) {
@@ -448,13 +592,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       // nunca herdada de sessão anterior (prev.role). Isso elimina
       // o vetor de escalada de privilégio por contaminação de localStorage.
       setIsAuthenticated(true);
-      setProfile((prev) => ({
-        ...prev,
-        email: email || prev.email,
-        first: email.split("@")[0] || prev.first,
-        name: email.split("@")[0] || prev.name,
+      const fallbackProf: AffiliateProfile = {
+        ...profile,
+        email: email || profile.email,
+        first: email.split("@")[0] || profile.first,
+        name: email.split("@")[0] || profile.name,
         role: isSuperAdmin(email) ? "admin" : "affiliate",
-      }));
+      };
+      setProfile(fallbackProf);
+      recordAffiliateAccess(fallbackProf);
       localStorage.setItem(STORAGE_KEYS.AUTH, "true");
       toast.success("Acesso autenticado com sucesso!");
       setAuthLoading(false);
@@ -1114,6 +1260,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         totalLessonsCount,
         progressPercentage,
         nextLesson,
+        affiliatesMonitoring,
+        recordAffiliateActivity,
         creativesList,
         materialsList,
         linksList,

@@ -1,22 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { Search, Shield, UserCheck, Users, Mail, Phone, RefreshCw, Crown, Lock } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Search,
+  Shield,
+  UserCheck,
+  Users,
+  RefreshCw,
+  Crown,
+  Lock,
+  Eye,
+  AlertTriangle,
+  TrendingUp,
+  Activity,
+  ChevronDown,
+  BookOpen,
+} from "lucide-react";
 import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
+import { AffiliateDetailModal, formatRelativeTime } from "@/components/admin/AffiliateDetailModal";
 
 export const Route = createFileRoute("/_admin/admin/afiliados")({
   head: () => ({
-    meta: [{ title: "Afiliados Cadastrados — Vellessa CMS" }],
+    meta: [{ title: "Monitoramento de Afiliados — Vellessa CMS" }],
   }),
   component: AdminAfiliadosPage,
 });
 
+type FilterTab = "all" | "active" | "complete" | "inactive";
+
 function AdminAfiliadosPage() {
-  const { profile, isTitular } = useAffiliateStore();
+  const { profile, isTitular, affiliatesMonitoring, modulesList, allLessonsList } =
+    useAffiliateStore();
   const [search, setSearch] = useState("");
   const [dbAffiliates, setDbAffiliates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filterTab, setFilterTab] = useState<FilterTab>("all");
+  const [selectedAffiliate, setSelectedAffiliate] = useState<any | null>(null);
 
   const fetchAffiliates = async () => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -37,9 +57,11 @@ function AdminAfiliadosPage() {
             email: p.email,
             level: p.level || "Afiliada Ouro",
             status: p.status === "active" ? "Ativo" : p.status,
-            phone: p.phone || "—",
+            phone: p.phone || "",
+            instagram: p.instagram || "",
             role: p.role,
             date: new Date(p.created_at).toLocaleDateString("pt-BR"),
+            createdAt: p.created_at,
           }))
         );
       }
@@ -54,27 +76,78 @@ function AdminAfiliadosPage() {
     fetchAffiliates();
   }, []);
 
-  const affiliatesList = dbAffiliates;
+  // Enriquece os afiliados com dados de monitoramento
+  const enrichedAffiliates = useMemo(() => {
+    const totalLessons = allLessonsList.length;
+    return dbAffiliates.map((a) => {
+      const monKey = a.email || a.id;
+      const mon = affiliatesMonitoring[monKey] || {};
+      const completedCount = (mon.completedLessonIds || []).length;
+      const pct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+      return {
+        ...a,
+        ...mon,
+        progressPct: pct,
+        completedCount,
+        totalLessons,
+      };
+    });
+  }, [dbAffiliates, affiliatesMonitoring, allLessonsList]);
+
+  // KPIs calculados
+  const kpis = useMemo(() => {
+    const now = Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const total = enrichedAffiliates.length;
+    const avgCompletion =
+      total > 0
+        ? Math.round(
+            enrichedAffiliates.reduce((s, a) => s + (a.progressPct || 0), 0) / total
+          )
+        : 0;
+    const activeLast7 = enrichedAffiliates.filter(
+      (a) => a.lastLoginAt && now - new Date(a.lastLoginAt).getTime() < sevenDays
+    ).length;
+    const needAttention = enrichedAffiliates.filter(
+      (a) => !a.lastLoginAt || (a.completedLessonIds || []).length === 0
+    ).length;
+    return { total, avgCompletion, activeLast7, needAttention };
+  }, [enrichedAffiliates]);
+
+  // Filtragem por aba + busca
+  const filteredByTab = useMemo(() => {
+    const now = Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    return enrichedAffiliates.filter((a) => {
+      if (filterTab === "active")
+        return a.lastLoginAt && now - new Date(a.lastLoginAt).getTime() < sevenDays;
+      if (filterTab === "complete") return a.progressPct >= 100;
+      if (filterTab === "inactive")
+        return !a.lastLoginAt || (a.completedLessonIds || []).length === 0;
+      return true;
+    });
+  }, [enrichedAffiliates, filterTab]);
+
+  const filtered = filteredByTab.filter(
+    (a) =>
+      (a.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.email || "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.id || "").toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleToggleAdmin = async (affiliate: any) => {
-    // RBAC: Apenas o titular pode nomear ou revogar administradores
     if (!isTitular) {
       toast.error("Permissão negada: apenas o Titular (ymarssico) pode nomear ou revogar administradores.");
       return;
     }
-
-    // RBAC: O titular supremo é imutável
     if (isSuperAdmin(affiliate.email)) {
       toast.error("Ação bloqueada: o Titular Supremo possui governança permanente e não pode ser rebaixado.");
       return;
     }
-
     if (!affiliate.rawId || !isSupabaseConfigured || !supabase) {
-      // Demonstração local/offline
       toast.info(`Simulação: cargo de ${affiliate.name} seria alterado para ${affiliate.role === "admin" ? "Afiliada" : "Admin"}.`);
       return;
     }
-
     const newRole = affiliate.role === "admin" ? "affiliate" : "admin";
     try {
       const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", affiliate.rawId);
@@ -86,20 +159,21 @@ function AdminAfiliadosPage() {
     }
   };
 
-  const filtered = affiliatesList.filter(
-    (a) =>
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase()) ||
-      a.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const tabs: { key: FilterTab; label: string; count?: number }[] = [
+    { key: "all", label: "Todas", count: kpis.total },
+    { key: "active", label: "Ativas Recentes", count: kpis.activeLast7 },
+    { key: "complete", label: "Completaram Curso" },
+    { key: "inactive", label: "Precisam de Atenção", count: kpis.needAttention },
+  ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
         <div>
-          <h1 className="text-3xl font-semibold">Afiliados Cadastrados</h1>
+          <h1 className="text-3xl font-semibold">Monitoramento de Afiliados</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Acompanhe a lista de afiliadas da sua operação, códigos de rastreamento e status de conta.
+            Acompanhe o progresso nas aulas, frequência de acesso e engajamento de cada afiliada.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -111,8 +185,8 @@ function AdminAfiliadosPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-gold" : ""}`} />
             Atualizar
           </button>
-          <div className="flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-xs text-muted-foreground w-full sm:w-64">
-            <Search className="h-4 w-4" />
+          <div className="flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-xs text-muted-foreground w-full sm:w-72">
+            <Search className="h-4 w-4 shrink-0" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -123,93 +197,304 @@ function AdminAfiliadosPage() {
         </div>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {/* Total */}
+        <div className="rounded-3xl border bg-card p-5 space-y-2 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Total de Afiliadas</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-gold/10 text-gold">
+              <Users className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-3xl font-display font-bold text-foreground">{kpis.total}</p>
+          <p className="text-[11px] text-muted-foreground">cadastradas na plataforma</p>
+        </div>
+
+        {/* Avg Completion */}
+        <div className="rounded-3xl border bg-card p-5 space-y-2 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Taxa Média de Conclusão</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-blue-500/10 text-blue-400">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-3xl font-display font-bold text-foreground">{kpis.avgCompletion}%</p>
+          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+            <div
+              className="bg-blue-400 h-full rounded-full transition-all duration-700"
+              style={{ width: `${kpis.avgCompletion}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Active 7d */}
+        <div className="rounded-3xl border bg-card p-5 space-y-2 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Ativas nos Últimos 7 Dias</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Activity className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-3xl font-display font-bold text-foreground">{kpis.activeLast7}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {kpis.total > 0 ? Math.round((kpis.activeLast7 / kpis.total) * 100) : 0}% do total
+          </p>
+        </div>
+
+        {/* Need Attention */}
+        <div className="rounded-3xl border bg-card p-5 space-y-2 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Precisam de Atenção</span>
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/10 text-rose-400">
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-3xl font-display font-bold text-foreground">{kpis.needAttention}</p>
+          <p className="text-[11px] text-muted-foreground">sem acesso ou sem aulas</p>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setFilterTab(t.key)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition border ${
+              filterTab === t.key
+                ? "bg-gold text-primary-foreground border-gold shadow-gold"
+                : "bg-card text-muted-foreground border-border hover:border-gold/40 hover:text-foreground"
+            }`}
+          >
+            {t.label}
+            {t.count !== undefined && (
+              <span
+                className={`rounded-full px-1.5 py-px text-[10px] font-bold ${
+                  filterTab === t.key ? "bg-black/20" : "bg-muted"
+                }`}
+              >
+                {t.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
       <div className="overflow-hidden rounded-3xl border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
-                <th className="p-4 pl-6">Afiliado</th>
-                <th className="p-4">Código / ID</th>
-                <th className="p-4">Nível</th>
-                <th className="p-4">Papel</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Data de Entrada</th>
+                <th className="p-4 pl-6">Afiliada</th>
+                <th className="p-4">Nível / Papel</th>
+                <th className="p-4">
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="h-3.5 w-3.5" /> Progresso nas Aulas
+                  </span>
+                </th>
+                <th className="p-4">Último Acesso</th>
+                <th className="p-4">Frequência</th>
                 <th className="p-4 pr-6 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y text-foreground">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-xs text-muted-foreground">
-                    Nenhum afiliado cadastrado encontrado.
+                  <td colSpan={6} className="p-10 text-center text-xs text-muted-foreground">
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <RefreshCw className="h-4 w-4 animate-spin text-gold" /> Carregando afiliados...
+                      </span>
+                    ) : (
+                      "Nenhuma afiliada encontrada para o filtro selecionado."
+                    )}
                   </td>
                 </tr>
               ) : (
-                filtered.map((a) => (
-                  <tr key={a.id} className="hover:bg-muted/30 transition">
-                    <td className="p-4 pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-9 w-9 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
-                          {a.name.slice(0, 2).toUpperCase()}
+                filtered.map((a) => {
+                  const lastAccess = formatRelativeTime(a.lastLoginAt);
+                  const loginCount = a.loginCount || 0;
+                  const progressPct = a.progressPct || 0;
+                  const completedCount = a.completedCount || 0;
+                  const totalLessons = a.totalLessons || 0;
+
+                  return (
+                    <tr key={a.id} className="hover:bg-muted/30 transition group">
+                      {/* Afiliada */}
+                      <td className="p-4 pl-6">
+                        <div className="flex items-center gap-3">
+                          <div className="grid h-9 w-9 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs shrink-0">
+                            {(a.name || "?").slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold">{a.name}</p>
+                            <p className="text-xs text-muted-foreground">{a.email}</p>
+                            <p className="text-[10px] font-mono text-gold/80">{a.id}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold">{a.name}</p>
-                          <p className="text-xs text-muted-foreground">{a.email}</p>
+                      </td>
+
+                      {/* Nível / Papel */}
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-foreground">{a.level}</p>
+                          {isSuperAdmin(a.email) ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-gold">
+                              <Crown className="h-3 w-3" /> Titular Supremo
+                            </span>
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                a.role === "admin"
+                                  ? "bg-gold/15 text-gold border border-gold/30"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {a.role === "admin" && <Shield className="h-3 w-3" />}
+                              {a.role === "admin" ? "Admin" : "Afiliada"}
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="p-4 font-mono text-xs text-gold font-semibold">{a.id}</td>
-                    <td className="p-4 text-xs font-medium">{a.level}</td>
-                    <td className="p-4">
-                      {isSuperAdmin(a.email) ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground shadow-gold">
-                          <Crown className="h-3 w-3" /> Titular Supremo
-                        </span>
-                      ) : (
+                      </td>
+
+                      {/* Progresso nas Aulas */}
+                      <td className="p-4">
+                        <div className="space-y-1.5 min-w-[140px]">
+                          <div className="flex items-center justify-between text-[11px] font-mono">
+                            <span
+                              className={
+                                progressPct >= 100
+                                  ? "text-emerald-400 font-bold"
+                                  : progressPct > 0
+                                  ? "text-blue-400"
+                                  : "text-muted-foreground"
+                              }
+                            >
+                              {progressPct}%
+                            </span>
+                            <span className="text-muted-foreground">
+                              {completedCount}/{totalLessons}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                progressPct >= 100
+                                  ? "bg-emerald-400"
+                                  : progressPct > 0
+                                  ? "bg-blue-400"
+                                  : "bg-muted-foreground/20"
+                              }`}
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Último Acesso */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2 w-2 rounded-full shrink-0 ${
+                              lastAccess.color === "text-emerald-400"
+                                ? "bg-emerald-400"
+                                : lastAccess.color === "text-blue-400"
+                                ? "bg-blue-400"
+                                : lastAccess.color === "text-amber-400"
+                                ? "bg-amber-400"
+                                : "bg-rose-400/60"
+                            }`}
+                          />
+                          <span className={`text-xs font-medium ${lastAccess.color}`}>
+                            {lastAccess.text}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Frequência */}
+                      <td className="p-4">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                            a.role === "admin"
-                              ? "bg-gold/15 text-gold border border-gold/30"
-                              : "bg-muted text-muted-foreground"
+                          className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full ${
+                            loginCount >= 10
+                              ? "bg-emerald-500/10 text-emerald-400"
+                              : loginCount >= 3
+                              ? "bg-blue-500/10 text-blue-400"
+                              : loginCount >= 1
+                              ? "bg-muted text-muted-foreground"
+                              : "bg-rose-500/10 text-rose-400"
                           }`}
                         >
-                          {a.role === "admin" ? <Shield className="h-3 w-3" /> : null}
-                          {a.role === "admin" ? "Administrador Delegado" : "Afiliada"}
+                          {loginCount >= 10
+                            ? "Alta"
+                            : loginCount >= 3
+                            ? "Regular"
+                            : loginCount >= 1
+                            ? `${loginCount}x`
+                            : "Nunca"}
                         </span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        <UserCheck className="h-3 w-3" /> {a.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-xs text-muted-foreground">{a.date}</td>
-                    <td className="p-4 pr-6 text-right">
-                      {isSuperAdmin(a.email) ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/80 italic">
-                          <Lock className="h-3 w-3" /> Titular Imutável
-                        </span>
-                      ) : isTitular ? (
-                        <button
-                          onClick={() => handleToggleAdmin(a)}
-                          className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition"
-                          title={a.role === "admin" ? "Revogar permissão administrativa" : "Nomear como administrador"}
-                        >
-                          {a.role === "admin" ? "Revogar Admin" : "Nomear Admin"}
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground/60">
-                          Apenas Titular
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      {/* Ações */}
+                      <td className="p-4 pr-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Raio-X Button */}
+                          <button
+                            onClick={() => setSelectedAffiliate(a)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/5 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold/15 hover:border-gold transition"
+                            title="Ver Raio-X da afiliada"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Raio-X
+                          </button>
+
+                          {/* Toggle Admin */}
+                          {isSuperAdmin(a.email) ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/70 italic">
+                              <Lock className="h-3 w-3" />
+                            </span>
+                          ) : isTitular ? (
+                            <button
+                              onClick={() => handleToggleAdmin(a)}
+                              className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition text-muted-foreground"
+                              title={a.role === "admin" ? "Revogar permissão administrativa" : "Nomear como administrador"}
+                            >
+                              {a.role === "admin" ? "Revogar" : "Nomear Admin"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Footer da tabela */}
+        {filtered.length > 0 && (
+          <div className="border-t px-6 py-3 flex items-center justify-between text-xs text-muted-foreground bg-muted/20">
+            <span>
+              Exibindo <strong className="text-foreground">{filtered.length}</strong> de{" "}
+              <strong className="text-foreground">{kpis.total}</strong> afiliadas
+            </span>
+            <span className="font-mono">
+              {kpis.activeLast7} ativas nos últimos 7 dias
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Modal Raio-X */}
+      {selectedAffiliate && (
+        <AffiliateDetailModal
+          affiliate={selectedAffiliate}
+          modulesList={modulesList}
+          onClose={() => setSelectedAffiliate(null)}
+        />
+      )}
     </div>
   );
 }

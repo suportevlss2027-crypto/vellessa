@@ -70,7 +70,7 @@ function LessonPage() {
           title={lesson.title}
           duration={lesson.duration}
           videoUrl={lesson.video_url}
-          onAutoComplete={() => markLessonDone(lesson.id)}
+          onAutoComplete={() => markLessonDone(lesson.id, lesson.title)}
           onDurationDetected={(detectedDur) => {
             if (detectedDur && detectedDur !== lesson.duration && lesson.module?.id) {
               updateLesson(lesson.module.id, lesson.id, { duration: detectedDur });
