@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ExternalLink,
   FileText,
@@ -56,6 +56,24 @@ function AdminMateriaisPage() {
   const [editMatKind, setEditMatKind] = useState("PDF");
   const [editMatSize, setEditMatSize] = useState("2,5 MB");
   const [editMatFileUrl, setEditMatFileUrl] = useState("");
+
+  // Scroll lock para evitar duplo scrollbar
+  const anyModalOpen =
+    showLinkModal ||
+    editLinkId !== null ||
+    showMaterialModal ||
+    editMatId !== null;
+
+  useEffect(() => {
+    if (anyModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [anyModalOpen]);
 
   // ── HANDLERS LINKS ─────────────────────────────────────────────────────────
   const handleCreateLink = async (e: React.FormEvent) => {
@@ -304,12 +322,12 @@ function AdminMateriaisPage() {
 
       {/* ── MODAL NOVO LINK ──────────────────────────────────────────────── */}
       {showLinkModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleCreateLink}
-            className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
+            className="w-full max-w-md flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between">
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-semibold">Novo Link de Apoio ou Logzz</h3>
               <button
                 type="button"
@@ -320,46 +338,49 @@ function AdminMateriaisPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Nome / Rótulo</span>
-              <input
-                value={linkLabel}
-                onChange={(e) => setLinkLabel(e.target.value)}
-                placeholder="Ex: Oferta Kit 3 Frascos (Demonstração)"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium">URL de Destino</span>
-              <input
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://vellessa.com/kit3 ou https://app.logzz.com.br"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium">Dica / Nota</span>
-              <input
-                value={linkNote}
-                onChange={(e) => setLinkNote(e.target.value)}
-                placeholder="Ex: Maior comissão e melhor conversão"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-              />
-            </label>
-            <div className="flex justify-end gap-2 pt-3">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+              <label className="block">
+                <span className="text-xs font-medium">Nome / Rótulo</span>
+                <input
+                  value={linkLabel}
+                  onChange={(e) => setLinkLabel(e.target.value)}
+                  placeholder="Ex: Oferta Kit 3 Frascos (Demonstração)"
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium">URL de Destino</span>
+                <input
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://vellessa.com/kit3 ou https://app.logzz.com.br"
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium">Dica / Nota</span>
+                <input
+                  value={linkNote}
+                  onChange={(e) => setLinkNote(e.target.value)}
+                  placeholder="Ex: Maior comissão e melhor conversão"
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                />
+              </label>
+            </div>
+
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setShowLinkModal(false)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold"
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
               >
                 Salvar Link
               </button>
@@ -370,12 +391,12 @@ function AdminMateriaisPage() {
 
       {/* ── MODAL EDITAR LINK ────────────────────────────────────────────── */}
       {editLinkId !== null && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleEditLink}
-            className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
+            className="w-full max-w-md flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between">
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-semibold">Editar Link de Apoio</h3>
               <button
                 type="button"
@@ -386,43 +407,46 @@ function AdminMateriaisPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Nome / Rótulo</span>
-              <input
-                value={editLinkLabel}
-                onChange={(e) => setEditLinkLabel(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium">URL de Destino</span>
-              <input
-                value={editLinkUrl}
-                onChange={(e) => setEditLinkUrl(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium">Dica / Nota</span>
-              <input
-                value={editLinkNote}
-                onChange={(e) => setEditLinkNote(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-              />
-            </label>
-            <div className="flex justify-end gap-2 pt-3">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+              <label className="block">
+                <span className="text-xs font-medium">Nome / Rótulo</span>
+                <input
+                  value={editLinkLabel}
+                  onChange={(e) => setEditLinkLabel(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium">URL de Destino</span>
+                <input
+                  value={editLinkUrl}
+                  onChange={(e) => setEditLinkUrl(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium">Dica / Nota</span>
+                <input
+                  value={editLinkNote}
+                  onChange={(e) => setEditLinkNote(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                />
+              </label>
+            </div>
+
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setEditLinkId(null)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold"
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
               >
                 Salvar Alterações
               </button>
@@ -433,12 +457,12 @@ function AdminMateriaisPage() {
 
       {/* ── MODAL NOVO MATERIAL ──────────────────────────────────────────── */}
       {showMaterialModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleCreateMaterial}
-            className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
+            className="w-full max-w-md flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between">
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-semibold">Adicionar Arquivo de Apoio</h3>
               <button
                 type="button"
@@ -449,68 +473,70 @@ function AdminMateriaisPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Título do Arquivo</span>
-              <input
-                value={matTitle}
-                onChange={(e) => setMatTitle(e.target.value)}
-                placeholder="Ex: Manual de Marca e Identidade"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
               <label className="block">
-                <span className="text-xs font-medium">Tipo de Arquivo</span>
-                <select
-                  value={matKind}
-                  onChange={(e) => setMatKind(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                >
-                  <option value="PDF">PDF</option>
-                  <option value="ZIP">ZIP</option>
-                  <option value="DOC">DOC</option>
-                  <option value="VIDEO">VÍDEO</option>
-                  <option value="XLS">PLANILHA</option>
-                  <option value="PNG">IMAGEM</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium">Tamanho Estimado</span>
+                <span className="text-xs font-medium">Título do Arquivo</span>
                 <input
-                  value={matSize}
-                  onChange={(e) => setMatSize(e.target.value)}
-                  placeholder="Ex: 5,4 MB"
+                  value={matTitle}
+                  onChange={(e) => setMatTitle(e.target.value)}
+                  placeholder="Ex: Manual de Marca e Identidade"
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-medium">Tipo de Arquivo</span>
+                  <select
+                    value={matKind}
+                    onChange={(e) => setMatKind(e.target.value)}
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  >
+                    <option value="PDF">PDF</option>
+                    <option value="ZIP">ZIP</option>
+                    <option value="DOC">DOC</option>
+                    <option value="VIDEO">VÍDEO</option>
+                    <option value="XLS">PLANILHA</option>
+                    <option value="PNG">IMAGEM</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium">Tamanho Estimado</span>
+                  <input
+                    value={matSize}
+                    onChange={(e) => setMatSize(e.target.value)}
+                    placeholder="Ex: 5,4 MB"
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-medium">Link do Arquivo (URL para Download)</span>
+                <input
+                  value={matFileUrl}
+                  onChange={(e) => setMatFileUrl(e.target.value)}
+                  placeholder="https://drive.google.com/... ou link direto"
                   className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                 />
+                <span className="text-[11px] text-muted-foreground mt-1 block">
+                  Opcional. Se preenchido, o botão "Baixar Pacote" na área do afiliado baixará ou abrirá este arquivo diretamente.
+                </span>
               </label>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Link do Arquivo (URL para Download)</span>
-              <input
-                value={matFileUrl}
-                onChange={(e) => setMatFileUrl(e.target.value)}
-                placeholder="https://drive.google.com/... ou link direto"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-              />
-              <span className="text-[11px] text-muted-foreground mt-1 block">
-                Opcional. Se preenchido, o botão "Baixar Pacote" na área do afiliado baixará ou abrirá este arquivo diretamente.
-              </span>
-            </label>
-
-            <div className="flex justify-end gap-2 pt-3">
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setShowMaterialModal(false)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold"
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
               >
                 Cadastrar Material
               </button>
@@ -521,12 +547,12 @@ function AdminMateriaisPage() {
 
       {/* ── MODAL EDITAR MATERIAL ────────────────────────────────────────── */}
       {editMatId !== null && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleEditMaterial}
-            className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
+            className="w-full max-w-md flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between">
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-semibold">Editar Arquivo de Apoio</h3>
               <button
                 type="button"
@@ -537,49 +563,72 @@ function AdminMateriaisPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Título do Arquivo</span>
-              <input
-                value={editMatTitle}
-                onChange={(e) => setEditMatTitle(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
               <label className="block">
-                <span className="text-xs font-medium">Tipo de Arquivo</span>
-                <select
-                  value={editMatKind}
-                  onChange={(e) => setEditMatKind(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                >
-                  <option value="PDF">PDF</option>
-                  <option value="ZIP">ZIP</option>
-                  <option value="DOC">DOC</option>
-                  <option value="VIDEO">VÍDEO</option>
-                  <option value="XLS">PLANILHA</option>
-                  <option value="PNG">IMAGEM</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium">Tamanho Estimado</span>
+                <span className="text-xs font-medium">Título do Arquivo</span>
                 <input
-                  value={editMatSize}
-                  onChange={(e) => setEditMatSize(e.target.value)}
+                  value={editMatTitle}
+                  onChange={(e) => setEditMatTitle(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  required
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-medium">Tipo de Arquivo</span>
+                  <select
+                    value={editMatKind}
+                    onChange={(e) => setEditMatKind(e.target.value)}
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  >
+                    <option value="PDF">PDF</option>
+                    <option value="ZIP">ZIP</option>
+                    <option value="DOC">DOC</option>
+                    <option value="VIDEO">VÍDEO</option>
+                    <option value="XLS">PLANILHA</option>
+                    <option value="PNG">IMAGEM</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium">Tamanho Estimado</span>
+                  <input
+                    value={editMatSize}
+                    onChange={(e) => setEditMatSize(e.target.value)}
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-medium">Link do Arquivo (URL para Download)</span>
+                <input
+                  value={editMatFileUrl}
+                  onChange={(e) => setEditMatFileUrl(e.target.value)}
+                  placeholder="https://drive.google.com/... ou link direto"
                   className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                 />
               </label>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Link do Arquivo (URL para Download)</span>
-              <input
-                value={editMatFileUrl}
-                onChange={(e) => setEditMatFileUrl(e.target.value)}
-                placeholder="https://drive.google.com/... ou link direto"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
+              <button
+                type="button"
+                onClick={() => setEditMatId(null)}
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
               />
               <span className="text-[11px] text-muted-foreground mt-1 block">
                 Opcional. Link direto ou Google Drive/Dropbox para o arquivo.

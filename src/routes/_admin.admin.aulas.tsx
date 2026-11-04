@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FolderPlus,
   Plus,
@@ -99,6 +99,25 @@ function AdminAulasPage() {
     duration: string;
     cover: string;
   } | null>(null);
+
+  // Body scroll lock — bloqueia rolagem da página enquanto qualquer modal estiver aberto
+  const anyModalOpen =
+    showModuleModal ||
+    !!editingModule ||
+    showLessonModal ||
+    !!editingLesson ||
+    !!previewLesson;
+
+  useEffect(() => {
+    if (anyModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [anyModalOpen]);
 
   // Handlers for Module
   const handleCreateModule = async (e: React.FormEvent) => {
@@ -399,12 +418,13 @@ function AdminAulasPage() {
 
       {/* MODAL 1: CRIAR NOVO MÓDULO (COM UPLOAD DE CAPA COMPLETO) */}
       {showModuleModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleCreateModule}
-            className="w-full max-w-lg rounded-3xl border border-white/10 bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+            className="w-full max-w-lg flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-bold text-foreground">Novo Módulo de Treinamento</h3>
               <button
                 type="button"
@@ -416,37 +436,41 @@ function AdminAulasPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Título do Módulo</span>
-              <input
-                value={modTitle}
-                onChange={(e) => setModTitle(e.target.value)}
-                placeholder="Ex: Tráfego Pago no TikTok e Meta Ads"
-                className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-                required
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Título do Módulo</span>
+                <input
+                  value={modTitle}
+                  onChange={(e) => setModTitle(e.target.value)}
+                  placeholder="Ex: Tráfego Pago no TikTok e Meta Ads"
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                  required
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Subtítulo / Descrição Rápida</span>
+                <input
+                  value={modSubtitle}
+                  onChange={(e) => setModSubtitle(e.target.value)}
+                  placeholder="Ex: Como estruturar campanhas de alta conversão para o Sérum"
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                />
+              </label>
+
+              {/* Upload de Capa */}
+              <MediaUploadField
+                label="Foto de Capa do Módulo"
+                description="Envie uma imagem do seu computador, selecione uma arte oficial da Vellessa ou cole uma URL."
+                value={modCover}
+                onChange={setModCover}
+                aspectRatio="portrait"
               />
-            </label>
+            </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Subtítulo / Descrição Rápida</span>
-              <input
-                value={modSubtitle}
-                onChange={(e) => setModSubtitle(e.target.value)}
-                placeholder="Ex: Como estruturar campanhas de alta conversão para o Sérum"
-                className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-              />
-            </label>
-
-            {/* Upload de Capa */}
-            <MediaUploadField
-              label="Foto de Capa do Módulo"
-              description="Envie uma imagem do seu computador, selecione uma arte oficial da Vellessa ou cole uma URL."
-              value={modCover}
-              onChange={setModCover}
-              aspectRatio="portrait"
-            />
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
+            {/* Footer fixo */}
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setShowModuleModal(false)}
@@ -467,12 +491,13 @@ function AdminAulasPage() {
 
       {/* MODAL 2: EDITAR MÓDULO EXISTENTE */}
       {editingModule && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleUpdateModule}
-            className="w-full max-w-lg rounded-3xl border border-white/10 bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+            className="w-full max-w-lg flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-bold text-foreground">Editar Módulo</h3>
               <button
                 type="button"
@@ -484,35 +509,39 @@ function AdminAulasPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Título do Módulo</span>
-              <input
-                value={editModTitle}
-                onChange={(e) => setEditModTitle(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-                required
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Título do Módulo</span>
+                <input
+                  value={editModTitle}
+                  onChange={(e) => setEditModTitle(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                  required
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Subtítulo / Descrição Rápida</span>
+                <input
+                  value={editModSubtitle}
+                  onChange={(e) => setEditModSubtitle(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                />
+              </label>
+
+              {/* Upload de Capa */}
+              <MediaUploadField
+                label="Foto de Capa do Módulo"
+                description="Envie uma imagem do seu computador, selecione uma arte oficial da Vellessa ou cole uma URL."
+                value={editModCover}
+                onChange={setEditModCover}
+                aspectRatio="portrait"
               />
-            </label>
+            </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Subtítulo / Descrição Rápida</span>
-              <input
-                value={editModSubtitle}
-                onChange={(e) => setEditModSubtitle(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-              />
-            </label>
-
-            {/* Upload de Capa */}
-            <MediaUploadField
-              label="Foto de Capa do Módulo"
-              description="Envie uma imagem do seu computador, selecione uma arte oficial da Vellessa ou cole uma URL."
-              value={editModCover}
-              onChange={setEditModCover}
-              aspectRatio="portrait"
-            />
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
+            {/* Footer fixo */}
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setEditingModule(null)}
@@ -533,12 +562,13 @@ function AdminAulasPage() {
 
       {/* MODAL 3: CADASTRAR NOVA AULA */}
       {showLessonModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleCreateLesson}
-            className="w-full max-w-lg rounded-3xl border border-white/10 bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+            className="w-full max-w-lg flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-bold text-foreground">Cadastrar Nova Aula</h3>
               <button
                 type="button"
@@ -550,88 +580,92 @@ function AdminAulasPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Título da Aula</span>
-              <input
-                value={lessonTitle}
-                onChange={(e) => setLessonTitle(e.target.value)}
-                placeholder="Ex: Como Configurar o Pixel da Logzz"
-                className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-                required
-              />
-            </label>
-
-            {/* Link do Vídeo - Largura Total com Detecção Automática */}
-            <div className="space-y-2">
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
               <label className="block">
-                <span className="text-xs font-semibold text-foreground">Link do Vídeo (YouTube, Panda ou MP4)</span>
+                <span className="text-xs font-semibold text-foreground">Título da Aula</span>
                 <input
-                  value={lessonVideoUrl}
-                  onChange={(e) => handleNewVideoUrlChange(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
-                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                  value={lessonTitle}
+                  onChange={(e) => setLessonTitle(e.target.value)}
+                  placeholder="Ex: Como Configurar o Pixel da Logzz"
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                  required
                 />
               </label>
 
-              {/* Status Dinâmico de Duração */}
-              {isDetectingNew ? (
-                <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
-                  <span>Calculando duração exata do vídeo no YouTube...</span>
-                </div>
-              ) : lessonDuration ? (
-                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
-                  <div className="flex items-center gap-2 text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Duração calculada automaticamente: <strong className="font-mono text-emerald-200">{lessonDuration}</strong></span>
+              {/* Link do Vídeo - Largura Total com Detecção Automática */}
+              <div className="space-y-2">
+                <label className="block">
+                  <span className="text-xs font-semibold text-foreground">Link do Vídeo (YouTube, Panda ou MP4)</span>
+                  <input
+                    value={lessonVideoUrl}
+                    onChange={(e) => handleNewVideoUrlChange(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
+                    className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                  />
+                </label>
+
+                {/* Status Dinâmico de Duração */}
+                {isDetectingNew ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+                    <span>Calculando duração exata do vídeo no YouTube...</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowManualNew(!showManualNew)}
-                    className="text-[11px] text-muted-foreground hover:text-gold transition underline shrink-0 ml-2"
-                  >
-                    {showManualNew ? "Ocultar" : "Ajustar"}
-                  </button>
-                </div>
-              ) : null}
+                ) : lessonDuration ? (
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <span>Duração calculada automaticamente: <strong className="font-mono text-emerald-200">{lessonDuration}</strong></span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowManualNew(!showManualNew)}
+                      className="text-[11px] text-muted-foreground hover:text-gold transition underline shrink-0 ml-2"
+                    >
+                      {showManualNew ? "Ocultar" : "Ajustar"}
+                    </button>
+                  </div>
+                ) : null}
 
-              {/* Ajuste manual opcional (fallback) */}
-              {showManualNew && (
-                <div className="pt-1 animate-in fade-in">
-                  <label className="block">
-                    <span className="text-[11px] font-medium text-muted-foreground">Minutagem Manual (MM:SS)</span>
-                    <input
-                      value={lessonDuration}
-                      onChange={(e) => setLessonDuration(e.target.value)}
-                      placeholder="Ex: 14:20"
-                      className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
-                    />
-                  </label>
-                </div>
-              )}
+                {/* Ajuste manual opcional (fallback) */}
+                {showManualNew && (
+                  <div className="pt-1 animate-in fade-in">
+                    <label className="block">
+                      <span className="text-[11px] font-medium text-muted-foreground">Minutagem Manual (MM:SS)</span>
+                      <input
+                        value={lessonDuration}
+                        onChange={(e) => setLessonDuration(e.target.value)}
+                        placeholder="Ex: 14:20"
+                        className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-[11px] text-emerald-300 space-y-1">
+                <p className="font-semibold flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Dica de Vídeo:
+                </p>
+                <p className="text-emerald-300/80 leading-relaxed">
+                  Recomendamos hospedar a aula como <strong>Não Listado no YouTube</strong>. O sistema calcula a duração real automaticamente ao colar o link!
+                </p>
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Descrição / Objetivos da Aula</span>
+                <textarea
+                  value={lessonDescription}
+                  onChange={(e) => setLessonDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Explique o que a aluna vai aprender e o passo a passo..."
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
+                />
+              </label>
             </div>
 
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-[11px] text-emerald-300 space-y-1">
-              <p className="font-semibold flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> Dica de Vídeo:
-              </p>
-              <p className="text-emerald-300/80 leading-relaxed">
-                Recomendamos hospedar a aula como <strong>Não Listado no YouTube</strong>. O sistema calcula a duração real automaticamente ao colar o link!
-              </p>
-            </div>
-
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Descrição / Objetivos da Aula</span>
-              <textarea
-                value={lessonDescription}
-                onChange={(e) => setLessonDescription(e.target.value)}
-                rows={3}
-                placeholder="Explique o que a aluna vai aprender e o passo a passo..."
-                className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
-              />
-            </label>
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
+            {/* Footer fixo */}
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setShowLessonModal(false)}
@@ -652,12 +686,13 @@ function AdminAulasPage() {
 
       {/* MODAL 4: EDITAR AULA EXISTENTE */}
       {editingLesson && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleUpdateLesson}
-            className="w-full max-w-lg rounded-3xl border border-white/10 bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+            className="w-full max-w-lg flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-bold text-foreground">Editar Aula</h3>
               <button
                 type="button"
@@ -669,88 +704,92 @@ function AdminAulasPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Título da Aula</span>
-              <input
-                value={editLessonTitle}
-                onChange={(e) => setEditLessonTitle(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
-                required
-              />
-            </label>
-
-            {/* Link do Vídeo - Largura Total com Detecção Automática */}
-            <div className="space-y-2">
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
               <label className="block">
-                <span className="text-xs font-semibold text-foreground">Link do Vídeo</span>
+                <span className="text-xs font-semibold text-foreground">Título da Aula</span>
                 <input
-                  value={editLessonVideoUrl}
-                  onChange={(e) => handleEditVideoUrlChange(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
-                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                  value={editLessonTitle}
+                  onChange={(e) => setEditLessonTitle(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition"
+                  required
                 />
               </label>
 
-              {/* Status de Duração Automática */}
-              {isDetectingEdit ? (
-                <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
-                  <span>Calculando duração no YouTube...</span>
-                </div>
-              ) : editLessonDuration ? (
-                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
-                  <div className="flex items-center gap-2 text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Duração: <strong className="font-mono text-emerald-200">{editLessonDuration}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <button
-                      type="button"
-                      onClick={recheckEditDuration}
-                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-gold transition"
-                      title="Recalcular duração pelo YouTube"
-                    >
-                      <RefreshCw className="h-3 w-3" /> Recalcular
-                    </button>
-                    <span className="text-muted-foreground/40">·</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowManualEdit(!showManualEdit)}
-                      className="text-[11px] text-muted-foreground hover:text-gold transition underline"
-                    >
-                      {showManualEdit ? "Ocultar" : "Ajustar"}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+              {/* Link do Vídeo - Largura Total com Detecção Automática */}
+              <div className="space-y-2">
+                <label className="block">
+                  <span className="text-xs font-semibold text-foreground">Link do Vídeo</span>
+                  <input
+                    value={editLessonVideoUrl}
+                    onChange={(e) => handleEditVideoUrlChange(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
+                    className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                  />
+                </label>
 
-              {/* Ajuste manual opcional */}
-              {showManualEdit && (
-                <div className="pt-1 animate-in fade-in">
-                  <label className="block">
-                    <span className="text-[11px] font-medium text-muted-foreground">Minutagem Manual (MM:SS)</span>
-                    <input
-                      value={editLessonDuration}
-                      onChange={(e) => setEditLessonDuration(e.target.value)}
-                      placeholder="Ex: 14:20"
-                      className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
-                    />
-                  </label>
-                </div>
-              )}
+                {/* Status de Duração Automática */}
+                {isDetectingEdit ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+                    <span>Calculando duração no YouTube...</span>
+                  </div>
+                ) : editLessonDuration ? (
+                  <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <span>Duração: <strong className="font-mono text-emerald-200">{editLessonDuration}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={recheckEditDuration}
+                        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-gold transition"
+                        title="Recalcular duração pelo YouTube"
+                      >
+                        <RefreshCw className="h-3 w-3" /> Recalcular
+                      </button>
+                      <span className="text-muted-foreground/40">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowManualEdit(!showManualEdit)}
+                        className="text-[11px] text-muted-foreground hover:text-gold transition underline"
+                      >
+                        {showManualEdit ? "Ocultar" : "Ajustar"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Ajuste manual opcional */}
+                {showManualEdit && (
+                  <div className="pt-1 animate-in fade-in">
+                    <label className="block">
+                      <span className="text-[11px] font-medium text-muted-foreground">Minutagem Manual (MM:SS)</span>
+                      <input
+                        value={editLessonDuration}
+                        onChange={(e) => setEditLessonDuration(e.target.value)}
+                        placeholder="Ex: 14:20"
+                        className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Descrição / Objetivos da Aula</span>
+                <textarea
+                  value={editLessonDescription}
+                  onChange={(e) => setEditLessonDescription(e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
+                />
+              </label>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-semibold text-foreground">Descrição / Objetivos da Aula</span>
-              <textarea
-                value={editLessonDescription}
-                onChange={(e) => setEditLessonDescription(e.target.value)}
-                rows={3}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
-              />
-            </label>
-
-            <div className="flex justify-end gap-2 pt-3 border-t">
+            {/* Footer fixo */}
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setEditingLesson(null)}
@@ -772,14 +811,15 @@ function AdminAulasPage() {
       {/* MODAL 5: TESTAR / PREVIEW DO PLAYER DE VÍDEO NO ADMIN */}
       {previewLesson && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in"
           onClick={() => setPreviewLesson(null)}
         >
           <div
-            className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4"
+            className="relative w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-gold">
                   Teste do Player — Visão da Afiliada
@@ -795,18 +835,21 @@ function AdminAulasPage() {
               </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
-              <VideoPlayer
-                title={previewLesson.title}
-                videoUrl={previewLesson.videoUrl}
-                duration={previewLesson.duration}
-                cover={previewLesson.cover}
-              />
-            </div>
+            {/* Conteúdo com scroll seguro */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar">
+              <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black">
+                <VideoPlayer
+                  title={previewLesson.title}
+                  videoUrl={previewLesson.videoUrl}
+                  duration={previewLesson.duration}
+                  cover={previewLesson.cover}
+                />
+              </div>
 
-            <p className="text-xs text-muted-foreground">
-              Link testado: <span className="font-mono text-foreground break-all">{previewLesson.videoUrl}</span>
-            </p>
+              <p className="text-xs text-muted-foreground">
+                Link testado: <span className="font-mono text-foreground break-all">{previewLesson.videoUrl}</span>
+              </p>
+            </div>
           </div>
         </div>
       )}

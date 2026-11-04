@@ -20,13 +20,13 @@ const nav = [
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="grid h-9 w-9 place-items-center rounded-full bg-gold-gradient shadow-gold">
-        <span className="font-display text-lg font-semibold text-primary-foreground">V</span>
+      <div className="grid h-9 w-9 place-items-center rounded-xl bg-gold-gradient shadow-gold">
+        <span className="font-sans text-base font-extrabold text-primary-foreground tracking-tight">V</span>
       </div>
       {!compact && (
         <div className="leading-none">
-          <div className="font-display text-xl font-semibold tracking-[0.18em]">VELLESSA</div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Afiliados</div>
+          <div className="font-sans text-lg font-black tracking-[0.24em] text-foreground">VELLESSA</div>
+          <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.35em] text-gold/90">AFILIADOS</div>
         </div>
       )}
     </div>

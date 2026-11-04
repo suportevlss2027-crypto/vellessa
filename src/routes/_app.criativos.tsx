@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Download, FileText, Image as ImageIcon, Play, Sparkles, Video, X } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { type Creative } from "@/data/content";
@@ -29,6 +29,18 @@ function Criativos() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("Todos");
   const [open, setOpen] = useState<Creative | null>(null);
   const { copyText, downloadAsset, creativesList } = useAffiliateStore();
+
+  // Scroll lock ao abrir preview
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   const currentCreatives = creativesList || [];
 
@@ -243,15 +255,15 @@ function Criativos() {
       {/* MODAL DE PREVIEW EM ALTA RESOLUÇÃO */}
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-md animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in"
           onClick={() => setOpen(null)}
         >
           <div
-            className="relative grid max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl md:grid-cols-[1.1fr_1fr] animate-in zoom-in-95"
+            className="relative grid max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl md:grid-cols-[1.1fr_1fr] animate-in zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Visual da Imagem sem Distorção */}
-            <div className="relative bg-black/95 flex items-center justify-center max-h-[50vh] md:max-h-[85vh] overflow-hidden p-2">
+            <div className="relative bg-black/95 flex items-center justify-center max-h-[45vh] md:max-h-[88vh] overflow-hidden p-2">
               <img
                 src={open.image}
                 alt={open.title}
@@ -262,34 +274,39 @@ function Criativos() {
               </span>
             </div>
 
-            {/* Painel Lateral com Detalhes e Ações */}
-            <div className="flex flex-col justify-between p-5 sm:p-6 overflow-y-auto">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
-                    Material Oficial de Alta Resolução
-                  </span>
-                  <button
-                    onClick={() => setOpen(null)}
-                    aria-label="Fechar"
-                    className="grid h-8 w-8 place-items-center rounded-full bg-card border border-border/50 hover:bg-muted transition text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+            {/* Painel Lateral com Detalhes e Ações - Tripartite */}
+            <div className="flex flex-col max-h-[45vh] md:max-h-[88vh] bg-card">
+              {/* Header fixo */}
+              <div className="shrink-0 flex items-center justify-between p-5 pb-3 border-b border-border/20">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+                  Material Oficial Vellessa
+                </span>
+                <button
+                  onClick={() => setOpen(null)}
+                  aria-label="Fechar"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-card border border-border/50 hover:bg-muted transition text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Corpo rolável com scroll suave */}
+              <div className="flex-1 overflow-y-auto p-5 py-3 space-y-3 custom-scrollbar overscroll-contain">
+                <div>
+                  <h2 className="font-display text-xl font-bold text-foreground">{open.title}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Formato nativo {open.format}. Ideal para anúncios de topo de funil e stories engajados.
+                  </p>
                 </div>
 
-                <h2 className="mt-2 font-display text-xl font-bold text-foreground">{open.title}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Formato nativo {open.format}. Ideal para anúncios de topo de funil e stories engajados.
-                </p>
-
-                <div className="mt-4 rounded-xl bg-muted/40 border border-border/40 p-3.5 text-xs leading-relaxed text-foreground">
+                <div className="rounded-xl bg-muted/40 border border-border/40 p-3.5 text-xs leading-relaxed text-foreground">
                   <p className="font-semibold text-gold text-[10px] uppercase mb-1">Copy Recomendada para Anúncio:</p>
-                  {getCreativeCopy(open)}
+                  <p className="whitespace-pre-wrap">{getCreativeCopy(open)}</p>
                 </div>
               </div>
 
-              <div className="mt-5 flex gap-2 pt-3 border-t border-border/30">
+              {/* Footer fixo */}
+              <div className="shrink-0 flex gap-2 p-5 pt-3 border-t border-border/30 bg-card">
                 <button
                   onClick={() => copyText(getCreativeCopy(open), "Copy sugerida copiada!")}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-card py-2.5 text-xs font-semibold hover:border-gold hover:text-gold transition"

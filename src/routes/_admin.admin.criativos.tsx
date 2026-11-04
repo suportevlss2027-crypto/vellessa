@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import MediaUploadField from "@/components/admin/MediaUploadField";
@@ -32,6 +32,19 @@ function AdminCriativosPage() {
   const [editFormat, setEditFormat] = useState("1080×1080");
   const [editImageUrl, setEditImageUrl] = useState("");
   const [editCopyText, setEditCopyText] = useState("");
+
+  // Scroll lock para evitar duplo scrollbar
+  const anyModalOpen = showModal || editId !== null;
+  useEffect(() => {
+    if (anyModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [anyModalOpen]);
 
   // ── helpers ───────────────────────────────────────────────────────────────
   const formatForType = (t: CreativeType) => {
@@ -207,12 +220,13 @@ function AdminCriativosPage() {
 
       {/* ── MODAL CRIAR ────────────────────────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleCreate}
-            className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+            className="w-full max-w-lg flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-semibold">Novo Criativo Publicitário</h3>
               <button
                 type="button"
@@ -223,81 +237,85 @@ function AdminCriativosPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="text-xs font-medium">Tipo de Criativo</span>
-                <select
-                  value={type}
-                  onChange={(e) => {
-                    const t = e.target.value as CreativeType;
-                    setType(t);
-                    setFormat(formatForType(t));
-                  }}
-                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                >
-                  <option value="Feed">Feed (1:1)</option>
-                  <option value="Stories">Stories (9:16)</option>
-                  <option value="Reels">Reels / TikTok</option>
-                  <option value="Copy">Texto / Copy Persuasiva</option>
-                </select>
-              </label>
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-medium">Tipo de Criativo</span>
+                  <select
+                    value={type}
+                    onChange={(e) => {
+                      const t = e.target.value as CreativeType;
+                      setType(t);
+                      setFormat(formatForType(t));
+                    }}
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  >
+                    <option value="Feed">Feed (1:1)</option>
+                    <option value="Stories">Stories (9:16)</option>
+                    <option value="Reels">Reels / TikTok</option>
+                    <option value="Copy">Texto / Copy Persuasiva</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium">Formato / Duração</span>
+                  <input
+                    value={format}
+                    onChange={(e) => setFormat(e.target.value)}
+                    placeholder="1080×1080 ou 0:15"
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                    required
+                  />
+                </label>
+              </div>
 
               <label className="block">
-                <span className="text-xs font-medium">Formato / Duração</span>
+                <span className="text-xs font-medium">Título da Peça</span>
                 <input
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value)}
-                  placeholder="1080×1080 ou 0:15"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex: Ritual de Pele Dourada"
                   className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                   required
                 />
               </label>
+
+              {type !== "Copy" && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium block">Imagem / Capa da Peça</span>
+                  <MediaUploadField
+                    value={imageUrl}
+                    onChange={setImageUrl}
+                    aspectRatio="square"
+                  />
+                </div>
+              )}
+
+              <label className="block">
+                <span className="text-xs font-medium">Texto da Copy Sugerida</span>
+                <textarea
+                  value={copyText}
+                  onChange={(e) => setCopyText(e.target.value)}
+                  rows={3}
+                  placeholder="Texto persuasivo para a legenda do anúncio..."
+                  className="mt-1 w-full rounded-xl border bg-background p-3 text-sm outline-none focus:border-gold"
+                />
+              </label>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Título da Peça</span>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Ritual de Pele Dourada"
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-
-            {type !== "Copy" && (
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium block">Imagem / Capa da Peça</span>
-                <MediaUploadField
-                  value={imageUrl}
-                  onChange={setImageUrl}
-                  aspectRatio="square"
-                />
-              </div>
-            )}
-
-            <label className="block">
-              <span className="text-xs font-medium">Texto da Copy Sugerida</span>
-              <textarea
-                value={copyText}
-                onChange={(e) => setCopyText(e.target.value)}
-                rows={3}
-                placeholder="Texto persuasivo para a legenda do anúncio..."
-                className="mt-1 w-full rounded-xl border bg-background p-3 text-sm outline-none focus:border-gold"
-              />
-            </label>
-
-            <div className="flex justify-end gap-2 pt-3">
+            {/* Footer fixo */}
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => { setShowModal(false); resetCreate(); }}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold"
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
               >
                 Publicar Criativo
               </button>
@@ -308,12 +326,13 @@ function AdminCriativosPage() {
 
       {/* ── MODAL EDITAR ───────────────────────────────────────────────── */}
       {editId !== null && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-overlay/60 p-4 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in">
           <form
             onSubmit={handleEdit}
-            className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-2xl animate-in zoom-in-95 space-y-4 my-8"
+            className="w-full max-w-lg flex flex-col max-h-[88vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
-            <div className="flex items-center justify-between">
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <h3 className="text-xl font-semibold">Editar Criativo</h3>
               <button
                 type="button"
@@ -324,78 +343,82 @@ function AdminCriativosPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="text-xs font-medium">Tipo de Criativo</span>
-                <select
-                  value={editType}
-                  onChange={(e) => {
-                    const t = e.target.value as CreativeType;
-                    setEditType(t);
-                    setEditFormat(formatForType(t));
-                  }}
-                  className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                >
-                  <option value="Feed">Feed (1:1)</option>
-                  <option value="Stories">Stories (9:16)</option>
-                  <option value="Reels">Reels / TikTok</option>
-                  <option value="Copy">Texto / Copy Persuasiva</option>
-                </select>
-              </label>
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-medium">Tipo de Criativo</span>
+                  <select
+                    value={editType}
+                    onChange={(e) => {
+                      const t = e.target.value as CreativeType;
+                      setEditType(t);
+                      setEditFormat(formatForType(t));
+                    }}
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                  >
+                    <option value="Feed">Feed (1:1)</option>
+                    <option value="Stories">Stories (9:16)</option>
+                    <option value="Reels">Reels / TikTok</option>
+                    <option value="Copy">Texto / Copy Persuasiva</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium">Formato / Duração</span>
+                  <input
+                    value={editFormat}
+                    onChange={(e) => setEditFormat(e.target.value)}
+                    className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
+                    required
+                  />
+                </label>
+              </div>
 
               <label className="block">
-                <span className="text-xs font-medium">Formato / Duração</span>
+                <span className="text-xs font-medium">Título da Peça</span>
                 <input
-                  value={editFormat}
-                  onChange={(e) => setEditFormat(e.target.value)}
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
                   className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
                   required
                 />
               </label>
+
+              {editType !== "Copy" && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium block">Imagem / Capa da Peça</span>
+                  <MediaUploadField
+                    value={editImageUrl}
+                    onChange={setEditImageUrl}
+                    aspectRatio="square"
+                  />
+                </div>
+              )}
+
+              <label className="block">
+                <span className="text-xs font-medium">Texto da Copy Sugerida</span>
+                <textarea
+                  value={editCopyText}
+                  onChange={(e) => setEditCopyText(e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full rounded-xl border bg-background p-3 text-sm outline-none focus:border-gold"
+                />
+              </label>
             </div>
 
-            <label className="block">
-              <span className="text-xs font-medium">Título da Peça</span>
-              <input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="mt-1 h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:border-gold"
-                required
-              />
-            </label>
-
-            {editType !== "Copy" && (
-              <div className="space-y-1.5">
-                <span className="text-xs font-medium block">Imagem / Capa da Peça</span>
-                <MediaUploadField
-                  value={editImageUrl}
-                  onChange={setEditImageUrl}
-                  aspectRatio="square"
-                />
-              </div>
-            )}
-
-            <label className="block">
-              <span className="text-xs font-medium">Texto da Copy Sugerida</span>
-              <textarea
-                value={editCopyText}
-                onChange={(e) => setEditCopyText(e.target.value)}
-                rows={3}
-                className="mt-1 w-full rounded-xl border bg-background p-3 text-sm outline-none focus:border-gold"
-              />
-            </label>
-
-            <div className="flex justify-end gap-2 pt-3">
+            {/* Footer fixo */}
+            <div className="shrink-0 flex justify-end gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
               <button
                 type="button"
                 onClick={() => setEditId(null)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold"
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
               >
                 Salvar Alterações
               </button>

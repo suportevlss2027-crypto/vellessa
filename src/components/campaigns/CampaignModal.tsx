@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   X,
   Target,
@@ -33,6 +33,15 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
     useAffiliateStore();
 
   const isEditing = Boolean(campaign);
+
+  // Trava de rolagem no body da página para evitar barra de rolagem dupla
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   // Form states
   const [name, setName] = useState(campaign?.name || "");
@@ -145,7 +154,7 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
     }
 
     if (creativeSource === "official" && !selectedOfficialId && creativesList.length > 0) {
-      toast.error("Selecione um criativo oficial da lista ou opte por 'Meu Criativo Próprio'.");
+      toast.error("Selecione um criativo oficial da lista ou opte por 'Criativo Próprio'.");
       return;
     }
 
@@ -192,24 +201,24 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-card p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 space-y-6 my-8"
+        className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-3xl border border-white/10 bg-card shadow-2xl overflow-hidden animate-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-border/40 pb-4">
+        {/* 1. HEADER FIXO (Sempre Visível no Topo) */}
+        <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 shrink-0 bg-card/95 backdrop-blur-sm z-10">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold-gradient text-primary-foreground shadow-gold shrink-0">
-              <Target className="h-6 w-6" />
+            <div className="grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-xl bg-gold-gradient text-primary-foreground shadow-gold shrink-0">
+              <Target className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+              <h2 className="text-lg sm:text-xl font-bold text-foreground">
                 {isEditing ? "Editar Campanha de Anúncios" : "Nova Campanha de Tráfego Pago"}
               </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground">
                 Vincule criativos, defina sua oferta e gere links rastreados para o Meta Ads.
               </p>
             </div>
@@ -217,329 +226,333 @@ export function CampaignModal({ campaign, onClose }: CampaignModalProps) {
           <button
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-full bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition"
+            aria-label="Fechar"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Seção 1: Identificação & Plataforma */}
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Nome da Campanha *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: [CBO] Rugas & Melasma 40+ (Aberto)"
-                  className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-xs text-foreground outline-none focus:border-gold transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Plataforma
-                </label>
-                <select
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value as any)}
-                  className="w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-foreground outline-none focus:border-gold transition"
-                >
-                  <option value="meta">Meta Ads (Facebook & IG)</option>
-                  <option value="google">Google Ads / YouTube</option>
-                  <option value="tiktok">TikTok Ads</option>
-                  <option value="outro">Outra Rede (Taboola/Native)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Status Inicial
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
-                  className="w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-foreground outline-none focus:border-gold transition"
-                >
-                  <option value="testing">🟡 Em Teste (Validação)</option>
-                  <option value="active">🟢 Ativa (Rodando)</option>
-                  <option value="scaling">🔵 Em Escala</option>
-                  <option value="paused">⚪ Pausada</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Orçamento Diário (R$)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="5"
-                  value={dailyBudget}
-                  onChange={(e) => setDailyBudget(Number(e.target.value))}
-                  className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-xs text-foreground outline-none focus:border-gold transition font-bold text-gold"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Público / Ângulo (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={targetAudience}
-                  onChange={(e) => setTargetAudience(e.target.value)}
-                  placeholder="Ex: Mulheres 35-55 anos"
-                  className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-xs text-foreground outline-none focus:border-gold transition"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Seção 2: Oferta & Comissão Logzz */}
-          <div className="rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
-              <DollarSign className="h-3.5 w-3.5" /> Oferta & Comissão Logzz
-            </span>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Kit Ofertado
-                </label>
-                <select
-                  value={selectedKit}
-                  onChange={(e) => handleKitChange(e.target.value)}
-                  className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:border-gold transition"
-                >
-                  {DEFAULT_KITS.map((k) => (
-                    <option key={k.name} value={k.name}>
-                      {k.name} (R$ {k.commission},00)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Comissão por Venda (R$)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={commissionPerSale}
-                  onChange={(e) => setCommissionPerSale(Number(e.target.value))}
-                  className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs text-gold font-bold outline-none focus:border-gold transition"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Seção 3: Vinculação de Criativo (Oficial vs Próprio) */}
-          <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/30 pb-3">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
-                  <ImageIcon className="h-3.5 w-3.5" /> Criativo Vinculado
-                </span>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Escolha se vai rodar com uma peça oficial da Vellessa ou com um criativo que você mesmo produziu.
-                </p>
-              </div>
-              <div className="flex rounded-full border border-border/60 bg-card p-0.5 text-xs font-semibold self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setCreativeSource("official")}
-                  className={`rounded-full px-3 py-1 transition ${
-                    creativeSource === "official"
-                      ? "bg-gold text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Oficial Vellessa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreativeSource("custom")}
-                  className={`rounded-full px-3 py-1 transition ${
-                    creativeSource === "custom"
-                      ? "bg-gold text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Criativo Próprio
-                </button>
-              </div>
-            </div>
-
-            {creativeSource === "official" ? (
-              <div className="space-y-3">
-                {creativesList.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2 italic text-center">
-                    Nenhum criativo oficial cadastrado pelo administrador no sistema ainda. Alterne para "Criativo Próprio" para subir o seu.
-                  </p>
-                ) : (
-                  <div className="grid gap-2 sm:grid-cols-3 max-h-48 overflow-y-auto pr-1">
-                    {creativesList.map((c) => {
-                      const isSelected = selectedOfficialId === c.id;
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setSelectedOfficialId(c.id)}
-                          className={`flex items-center gap-2.5 rounded-xl p-2.5 text-left border transition ${
-                            isSelected
-                              ? "border-gold bg-gold/15 shadow-xs"
-                              : "border-border/40 bg-card hover:border-gold/40"
-                          }`}
-                        >
-                          <div className="h-10 w-10 rounded-lg overflow-hidden bg-muted/60 shrink-0 border border-white/10">
-                            {c.image ? (
-                              <img
-                                src={c.image}
-                                alt={c.title}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full grid place-items-center text-gold text-xs font-bold">
-                                {c.type}
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-foreground truncate">
-                              {c.title}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {c.type} · {c.format}
-                            </p>
-                          </div>
-                          {isSelected && (
-                            <CheckCircle2 className="h-4 w-4 text-gold shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      Título do Criativo Próprio
-                    </label>
-                    <input
-                      type="text"
-                      value={customTitle}
-                      onChange={(e) => setCustomTitle(e.target.value)}
-                      placeholder="Ex: Depoimento Dra. Camila no Reels"
-                      className="w-full rounded-xl border border-border/60 bg-card px-3.5 py-2 text-xs text-foreground outline-none focus:border-gold transition"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      Formato
-                    </label>
-                    <select
-                      value={customFormat}
-                      onChange={(e) => setCustomFormat(e.target.value as any)}
-                      className="w-full rounded-xl border border-border/60 bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-gold transition"
-                    >
-                      <option value="Feed">Feed (1:1)</option>
-                      <option value="Stories">Stories (9:16)</option>
-                      <option value="Reels">Reels / TikTok (9:16)</option>
-                      <option value="Copy">Texto / Copy</option>
-                    </select>
-                  </div>
+        {/* 2. FORMULÁRIO COM CORPO ROLÁVEL INDEPENDENTE & SCROLLBAR SAAS ELEGANTE */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 overscroll-contain custom-scrollbar">
+            {/* Seção 1: Identificação & Plataforma */}
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Nome da Campanha *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex: [CBO] Rugas & Melasma 40+ (Aberto)"
+                    className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2.5 text-xs text-foreground outline-none focus:border-gold transition"
+                  />
                 </div>
 
-                <MediaUploadField
-                  label="Mídia do seu Anúncio (Imagem ou Capa de Vídeo)"
-                  description="Faça upload do arquivo do seu computador ou informe a URL direta."
-                  value={customMedia}
-                  onChange={setCustomMedia}
-                  aspectRatio="video"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Plataforma
+                  </label>
+                  <select
+                    value={platform}
+                    onChange={(e) => setPlatform(e.target.value as any)}
+                    className="w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-foreground outline-none focus:border-gold transition"
+                  >
+                    <option value="meta">Meta Ads (Facebook & IG)</option>
+                    <option value="google">Google Ads / YouTube</option>
+                    <option value="tiktok">TikTok Ads</option>
+                    <option value="outro">Outra Rede (Taboola/Native)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Status Inicial
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as any)}
+                    className="w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs text-foreground outline-none focus:border-gold transition"
+                  >
+                    <option value="testing">🟡 Em Teste (Validação)</option>
+                    <option value="active">🟢 Ativa (Rodando)</option>
+                    <option value="scaling">🔵 Em Escala</option>
+                    <option value="paused">⚪ Pausada</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Orçamento Diário (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="5"
+                    value={dailyBudget}
+                    onChange={(e) => setDailyBudget(Number(e.target.value))}
+                    className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 text-xs text-foreground outline-none focus:border-gold transition font-bold text-gold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Público / Ângulo (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={targetAudience}
+                    onChange={(e) => setTargetAudience(e.target.value)}
+                    placeholder="Ex: Mulheres 35-55 anos"
+                    className="w-full rounded-xl border border-border/60 bg-muted/20 px-3.5 py-2 text-xs text-foreground outline-none focus:border-gold transition"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 2: Oferta & Comissão Logzz */}
+            <div className="rounded-2xl border border-border/60 bg-muted/10 p-4 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5" /> Oferta & Comissão Logzz
+              </span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Kit Ofertado
+                  </label>
+                  <select
+                    value={selectedKit}
+                    onChange={(e) => handleKitChange(e.target.value)}
+                    className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:border-gold transition"
+                  >
+                    {DEFAULT_KITS.map((k) => (
+                      <option key={k.name} value={k.name}>
+                        {k.name} (R$ {k.commission},00)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">
+                    Comissão por Venda (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={commissionPerSale}
+                    onChange={(e) => setCommissionPerSale(Number(e.target.value))}
+                    className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs text-gold font-bold outline-none focus:border-gold transition"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 3: Vinculação de Criativo (Oficial vs Próprio) */}
+            <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/30 pb-2.5">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5" /> Criativo Vinculado
+                  </span>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Escolha se vai rodar com uma peça oficial da Vellessa ou com um criativo que você mesmo produziu.
+                  </p>
+                </div>
+                <div className="flex rounded-full border border-border/60 bg-card p-0.5 text-xs font-semibold self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setCreativeSource("official")}
+                    className={`rounded-full px-3 py-1 transition ${
+                      creativeSource === "official"
+                        ? "bg-gold text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Oficial Vellessa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreativeSource("custom")}
+                    className={`rounded-full px-3 py-1 transition ${
+                      creativeSource === "custom"
+                        ? "bg-gold text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Criativo Próprio
+                  </button>
+                </div>
+              </div>
+
+              {creativeSource === "official" ? (
+                <div className="space-y-2">
+                  {creativesList.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 italic text-center">
+                      Nenhum criativo oficial cadastrado pelo administrador no sistema ainda. Alterne para "Criativo Próprio" para subir o seu.
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-3 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                      {creativesList.map((c) => {
+                        const isSelected = selectedOfficialId === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setSelectedOfficialId(c.id)}
+                            className={`flex items-center gap-2.5 rounded-xl p-2 text-left border transition ${
+                              isSelected
+                                ? "border-gold bg-gold/15 shadow-xs"
+                                : "border-border/40 bg-card hover:border-gold/40"
+                            }`}
+                          >
+                            <div className="h-9 w-9 rounded-lg overflow-hidden bg-muted/60 shrink-0 border border-white/10">
+                              {c.image ? (
+                                <img
+                                  src={c.image}
+                                  alt={c.title}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full grid place-items-center text-gold text-xs font-bold">
+                                  {c.type}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-foreground truncate">
+                                {c.title}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {c.type} · {c.format}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <CheckCircle2 className="h-4 w-4 text-gold shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">
+                        Título do Criativo Próprio
+                      </label>
+                      <input
+                        type="text"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value)}
+                        placeholder="Ex: Depoimento Dra. Camila no Reels"
+                        className="w-full rounded-xl border border-border/60 bg-card px-3.5 py-2 text-xs text-foreground outline-none focus:border-gold transition"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">
+                        Formato
+                      </label>
+                      <select
+                        value={customFormat}
+                        onChange={(e) => setCustomFormat(e.target.value as any)}
+                        className="w-full rounded-xl border border-border/60 bg-card px-3 py-2 text-xs text-foreground outline-none focus:border-gold transition"
+                      >
+                        <option value="Feed">Feed (1:1)</option>
+                        <option value="Stories">Stories (9:16)</option>
+                        <option value="Reels">Reels / TikTok (9:16)</option>
+                        <option value="Copy">Texto / Copy</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <MediaUploadField
+                    label="Mídia do seu Anúncio (Imagem ou Capa de Vídeo)"
+                    description="Faça upload do arquivo do seu computador ou informe a URL direta."
+                    value={customMedia}
+                    onChange={setCustomMedia}
+                    aspectRatio="video"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Seção 4: Gerador de Links com UTMs Integrado */}
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" /> Link Rastreado com UTM (Logzz Ready)
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold px-3 py-1 text-xs transition shadow-xs"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copiado!" : "Copiar Link Rastreado"}
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground font-mono break-all bg-card/60 rounded-xl p-2.5 border border-white/5 select-all">
+                {generatedUtmLink}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Cole esta URL exata no campo "URL de Destino" do seu anúncio no Meta Ads para registrar a origem das vendas.
+              </p>
+            </div>
+
+            {/* Seção 5: Métricas Iniciais / Histórico (Se estiver editando ou migrando) */}
+            {isEditing && (
+              <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                <span className="text-xs font-semibold text-foreground">
+                  Ajuste de Métricas Totais
+                </span>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] text-muted-foreground">Total Gasto (R$)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={totalAdSpend}
+                      onChange={(e) => setTotalAdSpend(Number(e.target.value))}
+                      className="w-full rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted-foreground">Vendas Confirmadas</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={salesCount}
+                      onChange={(e) => setSalesCount(Number(e.target.value))}
+                      className="w-full rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-emerald-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-muted-foreground">Custos Extras (R$)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={extraCosts}
+                      onChange={(e) => setExtraCosts(Number(e.target.value))}
+                      className="w-full rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground outline-none"
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Seção 4: Gerador de Links com UTMs Integrado */}
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5" /> Link Rastreado com UTM (Logzz Ready)
-              </span>
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold px-3 py-1 text-xs transition shadow-xs"
-              >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copiado!" : "Copiar Link Rastreado"}
-              </button>
-            </div>
-            <p className="text-[11px] text-muted-foreground font-mono break-all bg-card/60 rounded-xl p-2.5 border border-white/5 select-all">
-              {generatedUtmLink}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              Cole esta URL exata no campo "URL de Destino" do seu anúncio no Meta Ads para registrar a origem das vendas.
-            </p>
-          </div>
-
-          {/* Seção 5: Métricas Iniciais / Histórico (Se estiver editando ou migrando) */}
-          {isEditing && (
-            <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-3">
-              <span className="text-xs font-semibold text-foreground">
-                Ajuste de Métricas Totais
-              </span>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Total Gasto (R$)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={totalAdSpend}
-                    onChange={(e) => setTotalAdSpend(Number(e.target.value))}
-                    className="w-full rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Vendas Confirmadas</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={salesCount}
-                    onChange={(e) => setSalesCount(Number(e.target.value))}
-                    className="w-full rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-emerald-400 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] text-muted-foreground">Custos Extras (R$)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={extraCosts}
-                    onChange={(e) => setExtraCosts(Number(e.target.value))}
-                    className="w-full rounded-lg border bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t">
+          {/* 3. RODAPÉ FIXO / STICKY (Sempre Visível na Base — NUNCA Cortado!) */}
+          <div className="flex items-center justify-end gap-3 border-t border-border/40 px-6 py-4 shrink-0 bg-card/95 backdrop-blur-sm z-10">
             <button
               type="button"
               onClick={onClose}
