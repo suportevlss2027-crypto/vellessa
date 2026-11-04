@@ -13,9 +13,6 @@ interface MediaUploadFieldProps {
 
 const PRESET_GALLERY = [
   { id: "serum", label: "Sérum Vellessa Oficial", src: images.serum },
-  { id: "serumFloating", label: "Sérum Flutuante Dourado", src: images.serumFloating },
-  { id: "cover1", label: "Ritual Dourado", src: images.cover1 },
-  { id: "cover2", label: "Alta Definição e Pele", src: images.cover2 },
   { id: "cover3", label: "Ativos e Gotas", src: images.cover3 },
 ];
 
