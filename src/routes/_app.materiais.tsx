@@ -12,9 +12,11 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
-import { useAffiliateStore } from "@/lib/affiliate-store";
+import { useAffiliateStore, type DynamicMaterial } from "@/lib/affiliate-store";
+import { getRawFile } from "@/lib/file-storage";
 
 export const Route = createFileRoute("/_app/materiais")({
   head: () => ({
@@ -34,11 +36,30 @@ export const Route = createFileRoute("/_app/materiais")({
 function Materiais() {
   const { copyText, downloadAsset, profile, linksList, materialsList } = useAffiliateStore();
 
-  const handleDownloadMaterial = (m: { title: string; kind: string; size: string; file_url?: string }) => {
+  const handleDownloadMaterial = async (m: DynamicMaterial) => {
+    // Arquivo bruto salvo no IndexedDB (upload direto)
+    if ((m.sourceType === "upload" || m.rawFileName) && m.id) {
+      const blob = await getRawFile(m.id);
+      if (blob) {
+        const filename = m.rawFileName || `${m.title}.${m.kind.toLowerCase()}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        toast.success(`Download de "${filename}" iniciado!`);
+        return;
+      }
+    }
+    // Link externo
     if (m.file_url) {
       downloadAsset(m.file_url, `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${m.kind.toLowerCase()}`);
       return;
     }
+    // Fallback: gera arquivo placeholder
     const content = `=== VELESSA AFILIADOS - ARQUIVO OFICIAL DE APOIO ===\n\nTítulo: ${m.title}\nTipo: ${m.kind}\nTamanho do Pacote: ${m.size}\nAluna/Membro: ${profile.name} (ID: ${profile.id})\nData de Emissão: ${new Date().toLocaleDateString("pt-BR")}\n\nEste documento contém diretrizes oficiais de divulgação, especificações de ativos do Sérum Vellessa e orientações para criação de campanhas de alta conversão.\n\nLembre-se: Todas as vendas e links comissionados são operados exclusivamente através da plataforma parceira LOGZZ.`;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);

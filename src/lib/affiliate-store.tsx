@@ -18,6 +18,7 @@ import {
   type Creative,
 } from "@/data/content";
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
+import { storeRawFile, deleteRawFile } from "./file-storage";
 
 export interface AffiliateProfile {
   name: string;
@@ -73,6 +74,9 @@ export interface DynamicMaterial {
   kind: string;
   size: string;
   file_url?: string;
+  sourceType?: "upload" | "link";
+  rawFileName?: string;
+  mimeType?: string;
 }
 
 export interface AffiliateMonitoringData {
@@ -156,8 +160,29 @@ interface AffiliateStoreContextType {
   createCreative: (data: { title: string; type: "Feed" | "Stories" | "Reels" | "Copy"; format: string; image?: string; text?: string }) => Promise<void>;
   updateCreative: (id: string, data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string }) => Promise<void>;
   deleteCreative: (id: string) => Promise<void>;
-  createMaterial: (data: { title: string; kind: string; size: string; file_url?: string }) => Promise<void>;
-  updateMaterial: (id: string, data: { title?: string; kind?: string; size?: string; file_url?: string }) => Promise<void>;
+  createMaterial: (data: {
+    title: string;
+    kind: string;
+    size: string;
+    file_url?: string;
+    sourceType?: "upload" | "link";
+    rawFileName?: string;
+    mimeType?: string;
+    rawFile?: Blob | File;
+  }) => Promise<void>;
+  updateMaterial: (
+    id: string,
+    data: {
+      title?: string;
+      kind?: string;
+      size?: string;
+      file_url?: string;
+      sourceType?: "upload" | "link";
+      rawFileName?: string;
+      mimeType?: string;
+      rawFile?: Blob | File;
+    }
+  ) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
   createAffiliateLink: (data: { label: string; url: string; note: string }) => Promise<void>;
   updateAffiliateLink: (id: string, data: { label?: string; url?: string; note?: string }) => Promise<void>;
@@ -1056,13 +1081,33 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Criativo removido.");
   };
 
-  const createMaterial = async (data: { title: string; kind: string; size: string; file_url?: string }) => {
+  const createMaterial = async (data: {
+    title: string;
+    kind: string;
+    size: string;
+    file_url?: string;
+    sourceType?: "upload" | "link";
+    rawFileName?: string;
+    mimeType?: string;
+    rawFile?: Blob | File;
+  }) => {
+    const id = `mat-${Date.now()}`;
+    if (data.rawFile) {
+      try {
+        await storeRawFile(id, data.rawFile);
+      } catch (err) {
+        console.error("Erro ao salvar arquivo bruto:", err);
+      }
+    }
     const newM: DynamicMaterial = {
-      id: `mat-${Date.now()}`,
+      id,
       title: data.title,
       kind: data.kind.toUpperCase(),
       size: data.size,
       file_url: data.file_url,
+      sourceType: data.sourceType || (data.rawFile ? "upload" : "link"),
+      rawFileName: data.rawFileName,
+      mimeType: data.mimeType,
     };
     const updated = [...materialsList, newM];
     setMaterialsList(updated);
@@ -1072,13 +1117,31 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
   const updateMaterial = async (
     id: string,
-    data: { title?: string; kind?: string; size?: string; file_url?: string }
+    data: {
+      title?: string;
+      kind?: string;
+      size?: string;
+      file_url?: string;
+      sourceType?: "upload" | "link";
+      rawFileName?: string;
+      mimeType?: string;
+      rawFile?: Blob | File;
+    }
   ) => {
+    if (data.rawFile) {
+      try {
+        await storeRawFile(id, data.rawFile);
+      } catch (err) {
+        console.error("Erro ao atualizar arquivo bruto:", err);
+      }
+    }
     const updated = materialsList.map((m) => {
       if ((m.id || m.title) !== id) return m;
+      const { rawFile, ...rest } = data;
       return {
         ...m,
-        ...data,
+        ...rest,
+        kind: rest.kind ? rest.kind.toUpperCase() : m.kind,
       };
     });
     setMaterialsList(updated);
@@ -1087,6 +1150,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   const deleteMaterial = async (id: string) => {
+    try {
+      await deleteRawFile(id);
+    } catch {}
     const updated = materialsList.filter((m) => (m.id || m.title) !== id);
     setMaterialsList(updated);
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
