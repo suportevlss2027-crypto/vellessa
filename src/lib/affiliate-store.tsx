@@ -86,6 +86,34 @@ export interface AffiliateMonitoringData {
   lastLessonWatchedAt?: string;
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  platform: "meta" | "google" | "tiktok" | "outro";
+  status: "testing" | "active" | "scaling" | "paused";
+  kitName: string;
+  commissionPerSale: number;
+  targetAudience?: string;
+  creativeSource: "official" | "custom";
+  officialCreativeId?: string;
+  officialCreativeTitle?: string;
+  officialCreativeImage?: string;
+  customCreative?: {
+    title: string;
+    format: "Feed" | "Stories" | "Reels" | "Copy";
+    imageOrVideoUrl?: string;
+  };
+  dailyBudget: number;
+  totalAdSpend: number;
+  salesCount: number;
+  totalCommission: number;
+  extraCosts?: number;
+  startDate: string;
+  notes?: string;
+  utmLink?: string;
+  destinationUrl?: string;
+}
+
 interface AffiliateStoreContextType {
   profile: AffiliateProfile;
   isAdmin: boolean;
@@ -151,6 +179,12 @@ interface AffiliateStoreContextType {
   adminSignUp: (data: { name: string; email: string; password: string; masterKey?: string }) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
+  // Gestão de Tráfego & Campanhas (Meta Ads)
+  campaignsList: Campaign[];
+  createCampaign: (data: Omit<Campaign, "id">) => void;
+  updateCampaign: (id: string, data: Partial<Campaign>) => void;
+  deleteCampaign: (id: string) => void;
+  recordCampaignMetric: (id: string, metric: { adSpend: number; salesCount: number; extraCosts?: number }) => void;
 
   // Utilities
   copyText: (text: string, successLabel?: string) => Promise<boolean>;
@@ -169,6 +203,7 @@ const STORAGE_KEYS = {
   MATERIALS: "vellessa_dynamic_materials",
   LINKS: "vellessa_dynamic_links",
   AFFILIATES_MONITORING: "vellessa_affiliates_monitoring",
+  CAMPAIGNS: "vellessa_affiliate_campaigns",
 };
 
 const DEFAULT_EMPTY_PROFILE: AffiliateProfile = {
@@ -1089,6 +1124,82 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     localStorage.removeItem(STORAGE_KEYS.LINKS);
     toast.success("Base de dados limpa com sucesso!");
   };
+  // Gestão de Tráfego & Campanhas (Meta Ads)
+  const [campaignsList, setCampaignsList] = useState<Campaign[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  const createCampaign = (data: Omit<Campaign, "id">) => {
+    const newCamp: Campaign = {
+      ...data,
+      id: "camp_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6),
+      totalCommission: (data.salesCount || 0) * (data.commissionPerSale || 0),
+    };
+    const updated = [newCamp, ...campaignsList];
+    setCampaignsList(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(updated));
+    } catch {}
+    toast.success("Campanha cadastrada com sucesso!");
+  };
+
+  const updateCampaign = (id: string, data: Partial<Campaign>) => {
+    const updated = campaignsList.map((c) => {
+      if (c.id !== id) return c;
+      const merged = { ...c, ...data };
+      merged.totalCommission = (merged.salesCount || 0) * (merged.commissionPerSale || 0);
+      return merged;
+    });
+    setCampaignsList(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(updated));
+    } catch {}
+    toast.success("Campanha atualizada!");
+  };
+
+  const deleteCampaign = (id: string) => {
+    const updated = campaignsList.filter((c) => c.id !== id);
+    setCampaignsList(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(updated));
+    } catch {}
+    toast.success("Campanha removida.");
+  };
+
+  const recordCampaignMetric = (
+    id: string,
+    metric: { adSpend: number; salesCount: number; extraCosts?: number }
+  ) => {
+    const updated = campaignsList.map((c) => {
+      if (c.id !== id) return c;
+      const newSpend = (c.totalAdSpend || 0) + (metric.adSpend || 0);
+      const newSales = (c.salesCount || 0) + (metric.salesCount || 0);
+      const newExtras = (c.extraCosts || 0) + (metric.extraCosts || 0);
+      const newComm = newSales * (c.commissionPerSale || 0);
+      return {
+        ...c,
+        totalAdSpend: newSpend,
+        salesCount: newSales,
+        extraCosts: newExtras,
+        totalCommission: newComm,
+      };
+    });
+    setCampaignsList(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(updated));
+    } catch {}
+    toast.success("Métricas de anúncios registradas!");
+  };
 
   // 7. Community Posts
   const [posts, setPosts] = useState<CommunityPost[]>(() => {
@@ -1262,6 +1373,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         nextLesson,
         affiliatesMonitoring,
         recordAffiliateActivity,
+        campaignsList,
+        createCampaign,
+        updateCampaign,
+        deleteCampaign,
+        recordCampaignMetric,
         creativesList,
         materialsList,
         linksList,

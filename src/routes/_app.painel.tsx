@@ -25,12 +25,14 @@ function Dashboard() {
     announcements,
     creativesList,
     materialsList,
+    campaignsList,
   } = useAffiliateStore();
 
   const isCompletedAll = totalLessonsCount > 0 && completedCount === totalLessonsCount;
 
   const shortcuts = [
     { to: "/aulas", label: "Aulas", count: `${completedCount}/${totalLessonsCount} conc.`, desc: "Trilhas de escala", icon: BookOpen },
+    { to: "/campanhas", label: "Gestor de Tráfego", count: `${campaignsList.length} campanhas`, desc: "Meta Ads & Lucro", icon: TrendingUp },
     { to: "/criativos", label: "Criativos", count: `${creativesList.length} peças`, desc: "Prontos para rodar", icon: Image },
     { to: "/materiais", label: "Links e materiais", count: "Logzz & Apoio", desc: "Acesse links Logzz", icon: Link2 },
     { to: "/comunidade", label: "Comunidade", count: `${announcements.length} avisos`, desc: "Mural e avisos", icon: Users },
@@ -142,7 +144,7 @@ function Dashboard() {
       </section>
 
       {/* 2. ATALHOS RÁPIDOS DE AÇÃO — COMPACTOS, ELEGANTES E AERADOS */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-3.5 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-3.5 sm:grid-cols-3 lg:grid-cols-5">
         {shortcuts.map(({ to, label, count, desc, icon: Icon }) => (
           <Link
             key={to}

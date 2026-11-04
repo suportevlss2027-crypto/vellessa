@@ -1,7 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Bell, BookOpen, ChevronsLeft, Crown, Home, Image, Link2, LogOut, Search, Shield, Sparkles, Users,
+  Bell, BookOpen, ChevronsLeft, Crown, Home, Image, Link2, LogOut, Search, Shield, Sparkles, TrendingUp, Users,
 } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { NotificationsPopover } from "./NotificationsPopover";
 const nav = [
   { to: "/painel", label: "Início", icon: Home },
   { to: "/aulas", label: "Aulas", icon: BookOpen },
+  { to: "/campanhas", label: "Gestor de Tráfego", icon: TrendingUp },
   { to: "/criativos", label: "Criativos", icon: Image },
   { to: "/materiais", label: "Materiais", icon: Link2 },
   { to: "/comunidade", label: "Comunidade", icon: Users },
