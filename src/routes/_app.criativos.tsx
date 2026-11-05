@@ -15,6 +15,7 @@ import { type Creative } from "@/data/content";
 import { EmptyState } from "@/components/EmptyState";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
+import { resolveCreativeDownload } from "@/lib/creative-storage";
 
 export const Route = createFileRoute("/_app/criativos")({
   head: () => ({
@@ -120,14 +121,31 @@ function Criativos() {
       ? copyItems
       : [];
 
-  // Download: arquivo direto ou fallback para imagem/texto
-  const handleDownload = (c: Creative) => {
-    if (c.fileUrl) {
-      const a = document.createElement("a");
-      a.href = c.fileUrl;
-      a.download = c.title.toLowerCase().replace(/[^a-z0-9]/g, "-");
-      a.click();
-    } else if (c.image) {
+  // Download: arquivo direto via Supabase CDN / IndexedDB blob ou fallback
+  const handleDownload = async (c: Creative) => {
+    try {
+      const resolved = await resolveCreativeDownload(c);
+      if (resolved) {
+        const a = document.createElement("a");
+        a.href = resolved.url;
+        a.download = resolved.fileName;
+        if (!resolved.isBlobUrl && (resolved.url.startsWith("http://") || resolved.url.startsWith("https://"))) {
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+        }
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (resolved.isBlobUrl) {
+          setTimeout(() => URL.revokeObjectURL(resolved.url), 10000);
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn("Erro ao resolver download:", e);
+    }
+
+    if (c.image) {
       downloadAsset(c.image, `${c.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.jpg`);
     } else if (c.text) {
       const blob = new Blob([c.text], { type: "text/plain;charset=utf-8" });

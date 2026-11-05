@@ -38,6 +38,11 @@ import {
 } from "@/lib/affiliate-store";
 import { type Creative } from "@/data/content";
 import MediaUploadField from "@/components/admin/MediaUploadField";
+import {
+  uploadCreativeFile,
+  processCreativeThumbnail,
+  resolveCreativeDownload,
+} from "@/lib/creative-storage";
 
 export const Route = createFileRoute("/_admin/admin/criativos")({
   head: () => ({
@@ -239,6 +244,8 @@ function AdminCriativosPage() {
   const [fileType, setFileType] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [fileName, setFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [isAutoDetected, setIsAutoDetected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -248,7 +255,6 @@ function AdminCriativosPage() {
     title: string;
     type: CreativeType;
     format: string;
-    fileUrl: string;
     fileType: string;
     fileSize: string;
     thumbnailUrl: string;
@@ -271,6 +277,7 @@ function AdminCriativosPage() {
   const [editFileType, setEditFileType] = useState("");
   const [editFileSize, setEditFileSize] = useState("");
   const [editFileName, setEditFileName] = useState("");
+  const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll lock
@@ -381,32 +388,27 @@ function AdminCriativosPage() {
     );
   };
 
-  // ── UPLOAD EM LOTE — processa múltiplos arquivos ──────────────────────────
+  // ── UPLOAD EM LOTE — processa múltiplos arquivos com streaming e thumbnails leves ──────────
   const handleBatchFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const oversized = files.filter((f) => f.size > 100 * 1024 * 1024);
+    const oversized = files.filter((f) => f.size > 500 * 1024 * 1024);
     if (oversized.length > 0) {
-      toast.error(`${oversized.length} arquivo(s) excedem 100MB e foram ignorados.`);
+      toast.error(`${oversized.length} arquivo(s) excedem 500MB e foram ignorados.`);
     }
 
-    const valid = files.filter((f) => f.size <= 100 * 1024 * 1024);
+    const valid = files.filter((f) => f.size <= 500 * 1024 * 1024);
     if (valid.length === 0) return;
 
-    toast.loading(`Processando ${valid.length} arquivo(s)...`, { id: "batch-load" });
+    toast.loading(`Gerando prévias de ${valid.length} arquivo(s)...`, { id: "batch-load" });
 
     const processed: BatchFile[] = await Promise.all(
-      valid.map(async (file) => {
+      valid.map(async (file, idx) => {
         const sizeStr = formatFileSize(file.size);
         const mime = file.type || "application/octet-stream";
         const baseName = file.name.replace(/\.[^.]+$/, "");
-
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (ev) => resolve(ev.target?.result as string);
-          reader.readAsDataURL(file);
-        });
+        const tempId = `temp-${Date.now()}-${idx}`;
 
         let detectedFormat = "Arquivo de Apoio";
         let suggestedType: CreativeType = "Copy";
@@ -416,7 +418,10 @@ function AdminCriativosPage() {
           const meta = await detectCreativeMetadata(file);
           detectedFormat = meta.detectedFormat;
           suggestedType = meta.suggestedType;
-          thumbnailUrl = meta.thumbnailUrl || "";
+          thumbnailUrl = await processCreativeThumbnail(tempId, file);
+          if (!thumbnailUrl && meta.thumbnailUrl) {
+            thumbnailUrl = meta.thumbnailUrl;
+          }
         } catch {}
 
         return {
@@ -424,7 +429,6 @@ function AdminCriativosPage() {
           title: baseName,
           type: suggestedType,
           format: detectedFormat,
-          fileUrl: dataUrl,
           fileType: mime,
           fileSize: sizeStr,
           thumbnailUrl,
@@ -436,7 +440,6 @@ function AdminCriativosPage() {
     toast.dismiss("batch-load");
     toast.success(`${processed.length} arquivo(s) prontos para publicar!`, { icon: "⚡" });
     setBatchFiles(processed);
-    // reset input so same files can be re-selected if needed
     if (batchInputRef.current) batchInputRef.current.value = "";
   };
 
@@ -455,24 +458,37 @@ function AdminCriativosPage() {
     if (batchFiles.length === 0) return;
     setIsBatchPublishing(true);
 
+    let successCount = 0;
     for (let i = 0; i < batchFiles.length; i++) {
       const item = batchFiles[i];
-      toast.loading(`Publicando ${i + 1} de ${batchFiles.length}…`, { id: "pub-batch" });
-      await createCreative({
-        title: item.title.trim() || `Criativo ${i + 1}`,
-        type: item.type,
-        format: item.format,
-        image: item.thumbnailUrl || undefined,
-        folderId: selectedFolderId || undefined,
-        fileUrl: item.fileUrl || undefined,
-        fileType: item.fileType || undefined,
-        fileSize: item.fileSize || undefined,
-      });
+      const creativeId = `c-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`;
+      toast.loading(`Enviando ${i + 1} de ${batchFiles.length}: "${item.title}"…`, { id: "pub-batch" });
+
+      try {
+        const uploadRes = await uploadCreativeFile(creativeId, item.file);
+
+        await createCreative({
+          id: creativeId,
+          title: item.title.trim() || `Criativo ${i + 1}`,
+          type: item.type,
+          format: item.format,
+          image: item.thumbnailUrl || undefined,
+          folderId: selectedFolderId || undefined,
+          fileUrl: uploadRes.fileUrl,
+          storageType: uploadRes.storageType,
+          storagePath: uploadRes.storagePath,
+          fileType: item.fileType || undefined,
+          fileSize: item.fileSize || undefined,
+        });
+        successCount++;
+      } catch (err) {
+        console.error("Erro ao subir arquivo em lote:", err);
+      }
     }
 
     toast.dismiss("pub-batch");
     toast.success(
-      `${batchFiles.length} criativo(s) publicados com sucesso!`,
+      `${successCount} de ${batchFiles.length} criativo(s) publicados com sucesso!`,
       { icon: "🎉" }
     );
     setBatchFiles([]);
@@ -488,52 +504,50 @@ function AdminCriativosPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("O arquivo excede o limite máximo de 100MB.");
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("O arquivo excede o limite máximo de 500MB.");
       return;
     }
 
     const sizeStr = formatFileSize(file.size);
     const mime = file.type || "application/octet-stream";
     const name = file.name;
+    const tempId = `temp-${Date.now()}`;
 
-    // Converte para Base64 para download direto do afiliado
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target?.result as string;
-      if (!isEdit) {
-        setFileUrl(dataUrl);
-        setFileName(name);
-        setFileSize(sizeStr);
-        setFileType(mime);
-      } else {
-        setEditFileUrl(dataUrl);
-        setEditFileName(name);
-        setEditFileSize(sizeStr);
-        setEditFileType(mime);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (!isEdit) {
+      setSelectedFile(file);
+      setFileName(name);
+      setFileSize(sizeStr);
+      setFileType(mime);
+    } else {
+      setEditSelectedFile(file);
+      setEditFileName(name);
+      setEditFileSize(sizeStr);
+      setEditFileType(mime);
+    }
 
-    // Detecção automática de metadados e thumbnail
+    // Detecção automática de metadados e thumbnail leve
     try {
       const meta = await detectCreativeMetadata(file);
+      const thumb = await processCreativeThumbnail(tempId, file);
+      const finalThumb = thumb || meta.thumbnailUrl || "";
+
       if (!isEdit) {
         setFormat(meta.detectedFormat);
         setType(meta.suggestedType);
         setIsAutoDetected(true);
-        if (meta.thumbnailUrl && !imageUrl) {
-          setImageUrl(meta.thumbnailUrl);
+        if (finalThumb && !imageUrl) {
+          setImageUrl(finalThumb);
         }
       } else {
         setEditFormat(meta.detectedFormat);
         setEditType(meta.suggestedType);
-        if (meta.thumbnailUrl && !editImageUrl) {
-          setEditImageUrl(meta.thumbnailUrl);
+        if (finalThumb && !editImageUrl) {
+          setEditImageUrl(finalThumb);
         }
       }
       toast.success(
-        `Arquivo "${name}" carregado (${meta.detectedFormat})!`,
+        `Arquivo "${name}" pronto (${meta.detectedFormat})!`,
         { icon: "⚡" }
       );
     } catch {
@@ -612,6 +626,8 @@ function AdminCriativosPage() {
     setFileType("");
     setFileSize("");
     setFileName("");
+    setSelectedFile(null);
+    setIsUploading(false);
     setIsAutoDetected(false);
     setBatchFiles([]);
     setShowCreateModal(true);
@@ -621,19 +637,54 @@ function AdminCriativosPage() {
     e.preventDefault();
     if (!title.trim()) return;
 
+    setIsUploading(true);
+    const creativeId = `c-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    let finalFileUrl = fileUrl || undefined;
+    let finalStorageType: "supabase" | "indexeddb" | "external" | undefined = undefined;
+    let finalStoragePath: string | undefined = undefined;
+
+    if (selectedFile) {
+      toast.loading("Enviando arquivo com alta performance...", { id: "single-up" });
+      try {
+        const uploadRes = await uploadCreativeFile(creativeId, selectedFile);
+        finalFileUrl = uploadRes.fileUrl;
+        finalStorageType = uploadRes.storageType;
+        finalStoragePath = uploadRes.storagePath;
+        toast.dismiss("single-up");
+        toast.success(
+          uploadRes.isCloud
+            ? "Arquivo salvo na Nuvem (Supabase)!"
+            : "Arquivo salvo com sucesso no Armazenamento Local!",
+          { icon: "⚡" }
+        );
+      } catch (err) {
+        toast.dismiss("single-up");
+        toast.error("Erro ao processar arquivo. Tente novamente.");
+        setIsUploading(false);
+        return;
+      }
+    } else if (externalDownloadUrl) {
+      finalStorageType = "external";
+    }
+
     await createCreative({
+      id: creativeId,
       title: title.trim(),
       type,
       format: format.trim(),
       image: imageUrl || undefined,
       text: copyBody.trim() || undefined,
       folderId: selectedFolderId || undefined,
-      fileUrl: fileUrl || undefined,
+      fileUrl: finalFileUrl,
       externalDownloadUrl: externalDownloadUrl.trim() || undefined,
       fileType: fileType || undefined,
       fileSize: fileSize || undefined,
+      storageType: finalStorageType,
+      storagePath: finalStoragePath,
     });
 
+    setIsUploading(false);
+    setSelectedFile(null);
     setShowCreateModal(false);
   };
 
@@ -650,11 +701,31 @@ function AdminCriativosPage() {
     setEditFileType(c.fileType || "");
     setEditFileSize(c.fileSize || "");
     setEditFileName(c.fileUrl ? "Arquivo Anexado" : "");
+    setEditSelectedFile(null);
   };
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editId) return;
+
+    let finalFileUrl = editFileUrl || undefined;
+    let finalStorageType: "supabase" | "indexeddb" | "external" | undefined = undefined;
+    let finalStoragePath: string | undefined = undefined;
+
+    if (editSelectedFile) {
+      toast.loading("Enviando novo arquivo...", { id: "edit-up" });
+      try {
+        const uploadRes = await uploadCreativeFile(editId, editSelectedFile);
+        finalFileUrl = uploadRes.fileUrl;
+        finalStorageType = uploadRes.storageType;
+        finalStoragePath = uploadRes.storagePath;
+        toast.dismiss("edit-up");
+      } catch (err) {
+        toast.dismiss("edit-up");
+        toast.error("Erro ao enviar novo arquivo.");
+        return;
+      }
+    }
 
     await updateCreative(editId, {
       title: editTitle.trim(),
@@ -663,13 +734,15 @@ function AdminCriativosPage() {
       image: editImageUrl || undefined,
       text: editCopyBody.trim() || undefined,
       folderId: editSelectedFolderId || undefined,
-      fileUrl: editFileUrl || undefined,
+      fileUrl: finalFileUrl,
       externalDownloadUrl: editExternalDownloadUrl.trim() || undefined,
       fileType: editFileType || undefined,
       fileSize: editFileSize || undefined,
+      ...(finalStorageType ? { storageType: finalStorageType, storagePath: finalStoragePath } : {}),
     });
 
     setEditId(null);
+    setEditSelectedFile(null);
   };
 
   const handleDeleteOne = (id: string) => {
@@ -1807,14 +1880,24 @@ function AdminCriativosPage() {
               </button>
               <button
                 type="submit"
-                disabled={isBatchPublishing}
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={isBatchPublishing || isUploading}
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
-                {isBatchPublishing
-                  ? "Publicando…"
-                  : batchFiles.length > 1
-                  ? `Publicar ${batchFiles.length} Criativos`
-                  : "Publicar Criativo"}
+                {isUploading ? (
+                  <>
+                    <UploadCloud className="h-3.5 w-3.5 animate-pulse" />
+                    <span>Enviando arquivo…</span>
+                  </>
+                ) : isBatchPublishing ? (
+                  <>
+                    <UploadCloud className="h-3.5 w-3.5 animate-pulse" />
+                    <span>Publicando em lote…</span>
+                  </>
+                ) : batchFiles.length > 1 ? (
+                  `Publicar ${batchFiles.length} Criativos`
+                ) : (
+                  "Publicar Criativo"
+                )}
               </button>
             </div>
           </form>

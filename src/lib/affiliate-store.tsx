@@ -19,6 +19,7 @@ import {
 } from "@/data/content";
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
 import { storeRawFile, deleteRawFile, deleteRawFiles } from "./file-storage";
+import { deleteCreativeAssets, deleteBatchCreativeAssets } from "./creative-storage";
 
 export interface AffiliateProfile {
   name: string;
@@ -219,6 +220,7 @@ interface AffiliateStoreContextType {
   updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string }) => Promise<void>;
   deleteLesson: (lessonId: string) => Promise<void>;
   createCreative: (data: {
+    id?: string;
     title: string;
     type: "Feed" | "Stories" | "Reels" | "Copy";
     format: string;
@@ -229,6 +231,8 @@ interface AffiliateStoreContextType {
     externalDownloadUrl?: string;
     fileType?: string;
     fileSize?: string;
+    storageType?: "supabase" | "indexeddb" | "external";
+    storagePath?: string;
   }) => Promise<void>;
   updateCreative: (
     id: string,
@@ -243,6 +247,8 @@ interface AffiliateStoreContextType {
       externalDownloadUrl?: string;
       fileType?: string;
       fileSize?: string;
+      storageType?: "supabase" | "indexeddb" | "external";
+      storagePath?: string;
     }
   ) => Promise<void>;
   deleteCreative: (id: string) => Promise<void>;
@@ -1333,6 +1339,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   const createCreative = async (data: {
+    id?: string;
     title: string;
     type: "Feed" | "Stories" | "Reels" | "Copy";
     format: string;
@@ -1343,9 +1350,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     externalDownloadUrl?: string;
     fileType?: string;
     fileSize?: string;
+    storageType?: "supabase" | "indexeddb" | "external";
+    storagePath?: string;
   }) => {
     const newC: Creative = {
-      id: `c-${Date.now()}`,
+      id: data.id || `c-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: data.title,
       type: data.type,
       format: data.format,
@@ -1356,6 +1365,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       externalDownloadUrl: data.externalDownloadUrl,
       fileType: data.fileType,
       fileSize: data.fileSize,
+      storageType: data.storageType,
+      storagePath: data.storagePath,
     };
     const updated = [newC, ...creativesList];
     setCreativesList(updated);
@@ -1376,6 +1387,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       externalDownloadUrl?: string;
       fileType?: string;
       fileSize?: string;
+      storageType?: "supabase" | "indexeddb" | "external";
+      storagePath?: string;
     }
   ) => {
     const updated = creativesList.map((c) => {
@@ -1391,6 +1404,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   const deleteCreative = async (id: string) => {
+    const item = creativesList.find((c) => c.id === id);
+    if (item) {
+      deleteCreativeAssets(item).catch(() => {});
+    }
     const updated = creativesList.filter((c) => c.id !== id);
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
@@ -1409,6 +1426,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
   const deleteCreativesBatch = async (creativeIds: string[]) => {
     const targetSet = new Set(creativeIds);
+    const toDelete = creativesList.filter((c) => targetSet.has(c.id));
+    if (toDelete.length > 0) {
+      deleteBatchCreativeAssets(toDelete).catch(() => {});
+    }
     const updated = creativesList.filter((c) => !targetSet.has(c.id));
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));

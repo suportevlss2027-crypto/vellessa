@@ -45,6 +45,8 @@ export type Creative = {
   externalDownloadUrl?: string;
   fileType?: string;
   fileSize?: string;
+  storageType?: "supabase" | "indexeddb" | "external";
+  storagePath?: string;
 };
 
 export const creatives: Creative[] = [];
