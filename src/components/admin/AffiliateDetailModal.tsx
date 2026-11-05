@@ -15,8 +15,12 @@ import {
   Sparkles,
   User,
   X,
+  Edit2,
+  Trash2,
+  Pause,
+  Play,
 } from "lucide-react";
-import { type DynamicModule } from "@/lib/affiliate-store";
+import { type DynamicModule, isSuperAdmin } from "@/lib/affiliate-store";
 
 interface AffiliateDetailModalProps {
   affiliate: {
@@ -39,6 +43,9 @@ interface AffiliateDetailModalProps {
   };
   modulesList: DynamicModule[];
   onClose: () => void;
+  onEdit?: (affiliate: any) => void;
+  onToggleStatus?: (affiliate: any) => void;
+  onDelete?: (affiliate: any) => void;
 }
 
 export function formatRelativeTime(dateString?: string): { text: string; color: string } {
@@ -74,6 +81,9 @@ export function AffiliateDetailModal({
   affiliate,
   modulesList,
   onClose,
+  onEdit,
+  onToggleStatus,
+  onDelete,
 }: AffiliateDetailModalProps) {
   // Trava de rolagem no body da página
   useEffect(() => {
@@ -341,10 +351,63 @@ export function AffiliateDetailModal({
         </div>
 
         {/* 3. FOOTER FIXO (Sempre Visível) */}
-        <div className="flex justify-end px-6 py-4 border-t border-border/40 shrink-0 bg-card/95 backdrop-blur-sm z-10">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-6 py-4 border-t border-border/40 shrink-0 bg-card/95 backdrop-blur-sm z-10">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(affiliate);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/20 transition cursor-pointer"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                Editar Cadastro
+              </button>
+            )}
+            {onToggleStatus && !isSuperAdmin(affiliate.email) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleStatus(affiliate);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                  affiliate.status === "Suspenso" || affiliate.status === "suspended"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                    : "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                }`}
+              >
+                {affiliate.status === "Suspenso" || affiliate.status === "suspended" ? (
+                  <>
+                    <Play className="h-3.5 w-3.5" />
+                    Reativar Acesso
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-3.5 w-3.5" />
+                    Suspender Acesso
+                  </>
+                )}
+              </button>
+            )}
+            {onDelete && !isSuperAdmin(affiliate.email) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onDelete(affiliate);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Excluir
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="rounded-xl border border-white/10 px-5 py-2 text-xs font-semibold hover:bg-muted transition text-foreground"
+            className="rounded-xl border border-white/10 px-5 py-2 text-xs font-semibold hover:bg-muted transition text-foreground cursor-pointer text-center"
           >
             Fechar Raio-X
           </button>

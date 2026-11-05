@@ -30,6 +30,8 @@ export interface AffiliateProfile {
   phone: string;
   instagram: string;
   role: "admin" | "affiliate";
+  status?: "active" | "suspended" | "inactive" | string;
+  pix_key?: string;
 }
 
 export interface CommunityPost {
@@ -135,6 +137,8 @@ export interface AffiliateMonitoringData {
   instagram?: string;
   level: string;
   role: "admin" | "affiliate";
+  status?: "active" | "suspended" | "inactive" | string;
+  pixKey?: string;
   createdAt: string;
   lastLoginAt: string;
   loginCount: number;
@@ -193,6 +197,8 @@ interface AffiliateStoreContextType {
   affiliatesMonitoring: Record<string, AffiliateMonitoringData>;
   recordAffiliateActivity: (data: { affiliateId: string; name?: string; email?: string; completedLessonId?: string; lessonTitle?: string }) => void;
   recordAffiliateAccess: (prof: AffiliateProfile) => void;
+  updateAffiliateMonitoring: (emailOrId: string, data: Partial<AffiliateMonitoringData>) => void;
+  deleteAffiliateMonitoring: (emailOrId: string) => void;
 
   // Dynamic Creatives, Materials, Links, Folders
   creativesList: Creative[];
@@ -819,6 +825,52 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     []
   );
 
+  const updateAffiliateMonitoring = useCallback((key: string, data: Partial<AffiliateMonitoringData>) => {
+    if (!key) return;
+    setAffiliatesMonitoring((prev) => {
+      const lowerKey = key.toLowerCase();
+      const targetKey = prev[key]
+        ? key
+        : Object.keys(prev).find((k) => prev[k]?.email?.toLowerCase() === lowerKey || prev[k]?.affiliateId?.toLowerCase() === lowerKey) || key;
+
+      const existing = prev[targetKey];
+      if (!existing) {
+        return prev;
+      }
+
+      const next = {
+        ...prev,
+        [targetKey]: {
+          ...existing,
+          ...data,
+        },
+      };
+
+      try {
+        localStorage.setItem(STORAGE_KEYS.AFFILIATES_MONITORING, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const deleteAffiliateMonitoring = useCallback((key: string) => {
+    if (!key) return;
+    setAffiliatesMonitoring((prev) => {
+      const lowerKey = key.toLowerCase();
+      const next = { ...prev };
+      delete next[key];
+      Object.keys(next).forEach((k) => {
+        if (next[k]?.email?.toLowerCase() === lowerKey || next[k]?.affiliateId?.toLowerCase() === lowerKey) {
+          delete next[k];
+        }
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.AFFILIATES_MONITORING, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
   const isLessonDone = (id: string) => completedLessonIds.includes(id);
 
   const toggleLessonDone = (id: string) => {
@@ -932,6 +984,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           .single();
 
         if (dbProfile) {
+          // Bloqueio de governança para afiliados suspensos (não afeta titular nem admin)
+          if (dbProfile.status === "suspended" && !isSuperAdmin(session.user.email) && dbProfile.role !== "admin") {
+            toast.error("Sua conta de afiliado está temporariamente suspensa pelo administrador.");
+            await supabase.auth.signOut();
+            setIsAuthenticated(false);
+            localStorage.removeItem(STORAGE_KEYS.AUTH);
+            return;
+          }
+
           const loadedProf: AffiliateProfile = {
             id: dbProfile.affiliate_code || session.user.id.slice(0, 8),
             name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliado",
@@ -941,6 +1002,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             phone: dbProfile.phone || "",
             instagram: dbProfile.instagram || "",
             role: dbProfile.role === "admin" ? "admin" : "affiliate",
+            status: dbProfile.status || "active",
+            pix_key: dbProfile.pix_key || "",
           };
           setProfile(loadedProf);
           recordAffiliateAccess(loadedProf);
@@ -1137,6 +1200,22 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         }
 
         if (data.user) {
+          // Checa se o usuário está suspenso antes de autorizar
+          try {
+            const { data: dbProfile } = await supabase
+              .from("profiles")
+              .select("status, role")
+              .eq("id", data.user.id)
+              .single();
+
+            if (dbProfile && dbProfile.status === "suspended" && !isSuperAdmin(data.user.email) && dbProfile.role !== "admin") {
+              toast.error("Sua conta de afiliado está temporariamente suspensa pelo administrador.");
+              await supabase.auth.signOut();
+              setAuthLoading(false);
+              return false;
+            }
+          } catch {}
+
           setIsAuthenticated(true);
           localStorage.setItem(STORAGE_KEYS.AUTH, "true");
           await checkSupabaseSession();
@@ -1150,6 +1229,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       // RBAC: a role é determinada EXCLUSIVAMENTE pelo e-mail —
       // nunca herdada de sessão anterior (prev.role). Isso elimina
       // o vetor de escalada de privilégio por contaminação de localStorage.
+      const cleanEmail = (email || profile.email).toLowerCase();
+      const existingMon = Object.values(affiliatesMonitoring).find(
+        (m) => m.email?.toLowerCase() === cleanEmail
+      );
+      if (existingMon && existingMon.status === "suspended" && !isSuperAdmin(cleanEmail) && existingMon.role !== "admin") {
+        toast.error("Sua conta de afiliado está temporariamente suspensa pelo administrador.");
+        setAuthLoading(false);
+        return false;
+      }
       setIsAuthenticated(true);
       const fallbackProf: AffiliateProfile = {
         ...profile,
@@ -2457,6 +2545,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         affiliatesMonitoring,
         recordAffiliateActivity,
         recordAffiliateAccess,
+        updateAffiliateMonitoring,
+        deleteAffiliateMonitoring,
         campaignsList,
         createCampaign,
         updateCampaign,

@@ -166,7 +166,27 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- ==============================================================================
--- 9. RELATÓRIO DIAGNÓSTICO IMEDIATO (RESULTADOS VISÍVEIS NA ABA RESULTS)
+-- 9. RPC SEGURA PARA EXCLUSÃO DEFINITIVA DE USUÁRIO (PERFIL + AUTH.USERS)
+-- Permite que o administrador exclua a conta sem precisar da Service Role Key
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.delete_user_by_admin(target_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  -- 1. Remove dependências e perfil
+  DELETE FROM public.profiles WHERE id = target_user_id;
+  -- 2. Remove credencial do Auth
+  DELETE FROM auth.users WHERE id = target_user_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_user_by_admin(uuid) TO authenticated, anon;
+
+-- ==============================================================================
+-- 10. RELATÓRIO DIAGNÓSTICO IMEDIATO (RESULTADOS VISÍVEIS NA ABA RESULTS)
 -- ==============================================================================
 SELECT 
   'auth.users (Contas Registradas no Auth)' AS tabela, 

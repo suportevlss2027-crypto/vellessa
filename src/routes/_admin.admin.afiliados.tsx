@@ -26,6 +26,12 @@ import {
   WifiOff,
   ClipboardCopy,
   ChevronUp,
+  Edit2,
+  Trash2,
+  Pause,
+  Play,
+  CreditCard,
+  AlertCircle,
 } from "lucide-react";
 import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
 import { supabase, isSupabaseConfigured, createIsolatedSupabaseClient } from "@/lib/supabase";
@@ -47,6 +53,8 @@ function AdminAfiliadosPage() {
     isTitular,
     affiliatesMonitoring,
     recordAffiliateAccess,
+    updateAffiliateMonitoring,
+    deleteAffiliateMonitoring,
     modulesList,
     allLessonsList,
   } = useAffiliateStore();
@@ -55,6 +63,28 @@ function AdminAfiliadosPage() {
   const [loading, setLoading] = useState(false);
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [selectedAffiliate, setSelectedAffiliate] = useState<any | null>(null);
+
+  // Modal de Edição de Afiliado
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingAffiliate, setEditingAffiliate] = useState<{
+    rawId?: string;
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    instagram: string;
+    level: string;
+    role: "affiliate" | "admin";
+    status: "active" | "suspended" | "inactive";
+    pixKey: string;
+    commissionRate: number;
+  } | null>(null);
+
+  // Modal de Exclusão de Afiliado
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [affiliateToDelete, setAffiliateToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Diagnóstico de banco de dados
   const [diagOpen, setDiagOpen] = useState(false);
@@ -128,10 +158,13 @@ function AdminAfiliadosPage() {
             name: p.name,
             email: p.email,
             level: p.level || "Afiliado(a) Ouro",
-            status: p.status === "active" ? "Ativo" : p.status,
+            status: p.status === "suspended" ? "Suspenso" : (p.status === "active" ? "Ativo" : (p.status || "Ativo")),
+            rawStatus: p.status || "active",
             phone: p.phone || "",
             instagram: p.instagram || "",
-            role: p.role,
+            role: p.role || "affiliate",
+            pixKey: p.pix_key || "",
+            commissionRate: p.commission_rate ?? 0.60,
             date: new Date(p.created_at).toLocaleDateString("pt-BR"),
             createdAt: p.created_at,
           }));
@@ -156,10 +189,13 @@ function AdminAfiliadosPage() {
           name: mon.name || email.split("@")[0],
           email: mon.email,
           level: mon.level || "Afiliado Oficial",
-          status: "Ativo",
+          status: mon.status === "suspended" ? "Suspenso" : (mon.status === "active" ? "Ativo" : (mon.status || "Ativo")),
+          rawStatus: mon.status || "active",
           phone: mon.phone || "",
           instagram: mon.instagram || "",
           role: mon.role || "affiliate",
+          pixKey: mon.pixKey || "",
+          commissionRate: 0.60,
           date: new Date(mon.createdAt || Date.now()).toLocaleDateString("pt-BR"),
           createdAt: mon.createdAt || new Date().toISOString(),
         });
@@ -254,6 +290,183 @@ function AdminAfiliadosPage() {
       fetchAffiliates();
     } catch (e: any) {
       toast.error(`Erro ao atualizar permissão: ${e.message}`);
+    }
+  };
+
+  // Handlers para Edição de Afiliado
+  const handleOpenEdit = (affiliate: any) => {
+    setEditingAffiliate({
+      rawId: affiliate.rawId || affiliate.id,
+      id: affiliate.id,
+      name: affiliate.name || "",
+      email: affiliate.email || "",
+      phone: affiliate.phone || "",
+      instagram: affiliate.instagram ? (affiliate.instagram.startsWith("@") ? affiliate.instagram : `@${affiliate.instagram}`) : "",
+      level: affiliate.level || "Afiliado(a) Ouro",
+      role: (affiliate.role as "affiliate" | "admin") || "affiliate",
+      status: (affiliate.rawStatus as "active" | "suspended" | "inactive") || (affiliate.status === "Suspenso" ? "suspended" : "active"),
+      pixKey: affiliate.pixKey || "",
+      commissionRate: affiliate.commissionRate !== undefined ? Math.round(affiliate.commissionRate * 100) : 60,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAffiliate) return;
+    if (!editingAffiliate.name.trim() || !editingAffiliate.email.trim()) {
+      toast.error("Nome e e-mail são obrigatórios.");
+      return;
+    }
+
+    if (isSuperAdmin(editingAffiliate.email)) {
+      if (editingAffiliate.role !== "admin") {
+        toast.error("Governança permanente: O Titular Supremo não pode ter o cargo alterado.");
+        return;
+      }
+      if (editingAffiliate.status === "suspended") {
+        toast.error("Governança permanente: O Titular Supremo não pode ser suspenso.");
+        return;
+      }
+    }
+
+    setIsEditing(true);
+    const trimmedName = editingAffiliate.name.trim();
+    const trimmedEmail = editingAffiliate.email.trim().toLowerCase();
+    const rawId = editingAffiliate.rawId;
+
+    try {
+      if (isSupabaseConfigured && supabase && rawId) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            name: trimmedName,
+            first_name: trimmedName.split(" ")[0] || trimmedName,
+            email: trimmedEmail,
+            phone: editingAffiliate.phone.trim() || null,
+            instagram: editingAffiliate.instagram.trim().replace(/^@+/, "@") || null,
+            level: editingAffiliate.level,
+            role: editingAffiliate.role,
+            status: editingAffiliate.status,
+            pix_key: editingAffiliate.pixKey.trim() || null,
+            commission_rate: (editingAffiliate.commissionRate || 60) / 100,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", rawId);
+
+        if (error) {
+          console.warn("[AdminAfiliados] Erro ao atualizar no Supabase:", error);
+          toast.error(`Aviso Supabase: ${error.message}`);
+        }
+      }
+
+      updateAffiliateMonitoring(trimmedEmail, {
+        name: trimmedName,
+        email: trimmedEmail,
+        phone: editingAffiliate.phone.trim(),
+        instagram: editingAffiliate.instagram.trim(),
+        level: editingAffiliate.level,
+        role: editingAffiliate.role,
+        status: editingAffiliate.status,
+        pixKey: editingAffiliate.pixKey.trim(),
+      });
+
+      toast.success(`Afiliado(a) ${trimmedName} atualizado(a) com sucesso!`);
+      setShowEditModal(false);
+      setEditingAffiliate(null);
+      await fetchAffiliates();
+    } catch (err: any) {
+      toast.error(`Erro ao salvar alterações: ${err?.message || "Tente novamente."}`);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // Handler para Suspensão / Reativação rápida de Afiliado
+  const handleToggleStatus = async (affiliate: any) => {
+    if (isSuperAdmin(affiliate.email)) {
+      toast.error("Ação bloqueada: O Titular Supremo possui governança permanente e não pode ser suspenso.");
+      return;
+    }
+
+    const currentStatus = affiliate.rawStatus || (affiliate.status === "Suspenso" ? "suspended" : "active");
+    const nextStatus = currentStatus === "suspended" ? "active" : "suspended";
+    const actionLabel = nextStatus === "suspended" ? "suspenso" : "reativado";
+
+    try {
+      if (isSupabaseConfigured && supabase && affiliate.rawId) {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ status: nextStatus, updated_at: new Date().toISOString() })
+          .eq("id", affiliate.rawId);
+
+        if (error) throw error;
+      }
+
+      updateAffiliateMonitoring(affiliate.email || affiliate.id, {
+        status: nextStatus,
+      });
+
+      toast.success(`Afiliado(a) ${affiliate.name} foi ${actionLabel} com sucesso!`);
+      await fetchAffiliates();
+    } catch (e: any) {
+      toast.error(`Erro ao alterar status: ${e.message}`);
+    }
+  };
+
+  // Handlers para Exclusão de Afiliado
+  const handleOpenDelete = (affiliate: any) => {
+    if (isSuperAdmin(affiliate.email)) {
+      toast.error("Ação bloqueada: O Titular Supremo possui governança permanente e não pode ser excluído.");
+      return;
+    }
+    setAffiliateToDelete(affiliate);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!affiliateToDelete) return;
+    if (isSuperAdmin(affiliateToDelete.email)) {
+      toast.error("Ação bloqueada: O Titular Supremo não pode ser excluído.");
+      setShowDeleteConfirm(false);
+      return;
+    }
+
+    setIsDeleting(true);
+    const targetId = affiliateToDelete.rawId || affiliateToDelete.id;
+    const targetEmail = affiliateToDelete.email;
+    const targetName = affiliateToDelete.name;
+
+    try {
+      if (isSupabaseConfigured && supabase && targetId) {
+        // Tenta primeiro chamar a RPC delete_user_by_admin (apaga profiles e auth.users simultaneamente)
+        const { error: rpcErr } = await supabase.rpc("delete_user_by_admin", {
+          target_user_id: targetId,
+        });
+
+        if (rpcErr) {
+          console.warn("[AdminAfiliados] RPC delete_user_by_admin falhou/não instalada, executando fallback profiles.delete:", rpcErr);
+          const { error: deleteErr } = await supabase
+            .from("profiles")
+            .delete()
+            .eq("id", targetId);
+
+          if (deleteErr) {
+            throw deleteErr;
+          }
+        }
+      }
+
+      deleteAffiliateMonitoring(targetEmail || targetId);
+
+      toast.success(`Afiliado(a) ${targetName} foi excluído(a) com sucesso da plataforma.`);
+      setShowDeleteConfirm(false);
+      setAffiliateToDelete(null);
+      await fetchAffiliates();
+    } catch (e: any) {
+      toast.error(`Erro ao excluir afiliado: ${e?.message || "Erro desconhecido"}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -781,31 +994,86 @@ function AdminAfiliadosPage() {
 
                       {/* Ações */}
                       <td className="p-4 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           {/* Raio-X Button */}
                           <button
+                            type="button"
                             onClick={() => setSelectedAffiliate(a)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/5 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold/15 hover:border-gold transition"
-                            title="Ver Raio-X do afiliado"
+                            className="inline-flex items-center gap-1 rounded-lg border border-gold/30 bg-gold/5 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold/15 hover:border-gold transition cursor-pointer"
+                            title="Ver Raio-X detalhado do afiliado"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             Raio-X
                           </button>
 
+                          {/* Editar Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(a)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-card px-2.5 py-1 text-xs font-semibold text-foreground hover:border-gold/50 hover:bg-gold/10 transition cursor-pointer"
+                            title="Editar dados e comissões do afiliado"
+                          >
+                            <Edit2 className="h-3.5 w-3.5 text-gold" />
+                            Editar
+                          </button>
+
+                          {/* Suspender / Reativar (Apenas se não for titular supremo) */}
+                          {!isSuperAdmin(a.email) && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(a)}
+                              className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+                                a.rawStatus === "suspended" || a.status === "Suspenso"
+                                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                                  : "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                              }`}
+                              title={
+                                a.rawStatus === "suspended" || a.status === "Suspenso"
+                                  ? "Reativar acesso do afiliado"
+                                  : "Suspender acesso do afiliado"
+                              }
+                            >
+                              {a.rawStatus === "suspended" || a.status === "Suspenso" ? (
+                                <>
+                                  <Play className="h-3 w-3" />
+                                  Reativar
+                                </>
+                              ) : (
+                                <>
+                                  <Pause className="h-3 w-3" />
+                                  Suspender
+                                </>
+                              )}
+                            </button>
+                          )}
+
                           {/* Toggle Admin */}
                           {isSuperAdmin(a.email) ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/70 italic">
-                              <Lock className="h-3 w-3" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gold/80 italic px-2 py-1">
+                              <Lock className="h-3 w-3" /> Imutável
                             </span>
                           ) : isTitular ? (
                             <button
+                              type="button"
                               onClick={() => handleToggleAdmin(a)}
-                              className="rounded-lg border px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition text-muted-foreground"
+                              className="rounded-lg border border-border/60 px-2.5 py-1 text-xs font-semibold hover:border-gold hover:text-gold transition text-muted-foreground cursor-pointer"
                               title={a.role === "admin" ? "Revogar permissão administrativa" : "Nomear como administrador"}
                             >
-                              {a.role === "admin" ? "Revogar" : "Nomear Admin"}
+                              {a.role === "admin" ? "Revogar Admin" : "Nomear Admin"}
                             </button>
                           ) : null}
+
+                          {/* Excluir Afiliado (Apenas se não for titular supremo) */}
+                          {!isSuperAdmin(a.email) && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDelete(a)}
+                              className="inline-flex items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/50 transition cursor-pointer"
+                              title="Excluir afiliado definitivamente"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -836,6 +1104,9 @@ function AdminAfiliadosPage() {
           affiliate={selectedAffiliate}
           modulesList={modulesList}
           onClose={() => setSelectedAffiliate(null)}
+          onEdit={(aff) => handleOpenEdit(aff)}
+          onToggleStatus={(aff) => handleToggleStatus(aff)}
+          onDelete={(aff) => handleOpenDelete(aff)}
         />
       )}
 
@@ -991,6 +1262,300 @@ function AdminAfiliadosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição Completa de Afiliado */}
+      {showEditModal && editingAffiliate && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div
+            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-gold/40 bg-card p-6 shadow-2xl animate-in zoom-in-95 text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-border/40">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold/10 text-gold border border-gold/25">
+                  <Edit2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold flex items-center gap-2">
+                    Editar Cadastro do Afiliado
+                    {isSuperAdmin(editingAffiliate.email) && (
+                      <span className="text-[10px] bg-gold-gradient text-primary-foreground font-bold px-2 py-0.5 rounded-full shadow-gold">
+                        Titular Supremo
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Código: <span className="font-mono text-gold font-semibold">{editingAffiliate.id}</span> • Atualize permissões, dados e comissões.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-muted/60 text-muted-foreground hover:text-foreground transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveEdit} className="space-y-4 pt-4">
+              {/* Nome Completo */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground/90">Nome Completo *</label>
+                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                  <input
+                    required
+                    value={editingAffiliate.name}
+                    onChange={(e) => setEditingAffiliate({ ...editingAffiliate, name: e.target.value })}
+                    placeholder="Nome completo do afiliado"
+                    className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+
+              {/* Email & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">E-mail de Acesso *</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      required
+                      type="email"
+                      value={editingAffiliate.email}
+                      disabled={isSuperAdmin(editingAffiliate.email)}
+                      onChange={(e) => setEditingAffiliate({ ...editingAffiliate, email: e.target.value })}
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Status da Conta</label>
+                  <select
+                    value={editingAffiliate.status}
+                    disabled={isSuperAdmin(editingAffiliate.email)}
+                    onChange={(e) => setEditingAffiliate({ ...editingAffiliate, status: e.target.value as any })}
+                    className="w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs outline-none text-foreground disabled:opacity-60"
+                  >
+                    <option value="active">Ativo (Acesso Total Liberado)</option>
+                    <option value="suspended">Suspenso (Acesso Temporariamente Bloqueado)</option>
+                    <option value="inactive">Inativo (Pausado)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* WhatsApp & Instagram */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">WhatsApp / Telefone</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={editingAffiliate.phone}
+                      onChange={(e) => setEditingAffiliate({ ...editingAffiliate, phone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Instagram</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Instagram className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={editingAffiliate.instagram}
+                      onChange={(e) => setEditingAffiliate({ ...editingAffiliate, instagram: e.target.value })}
+                      placeholder="@perfil"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Nível do Afiliado & Comissão */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Nível / Categoria</label>
+                  <select
+                    value={editingAffiliate.level}
+                    onChange={(e) => setEditingAffiliate({ ...editingAffiliate, level: e.target.value })}
+                    className="w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs outline-none text-foreground"
+                  >
+                    <option value="Afiliado(a) Bronze">Afiliado(a) Bronze (40% comissão)</option>
+                    <option value="Afiliado(a) Prata">Afiliado(a) Prata (50% comissão)</option>
+                    <option value="Afiliado(a) Ouro">Afiliado(a) Ouro (60% comissão)</option>
+                    <option value="Afiliado(a) Diamante">Afiliado(a) Diamante (65% comissão)</option>
+                    <option value="Afiliado(a) Black">Afiliado(a) Black (70% comissão)</option>
+                    <option value="Afiliado(a) Embaixador">Afiliado(a) Embaixador (VIP)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Taxa de Comissão (%)</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <span className="font-mono text-gold font-bold">%</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={editingAffiliate.commissionRate}
+                      onChange={(e) => setEditingAffiliate({ ...editingAffiliate, commissionRate: Number(e.target.value) || 0 })}
+                      className="w-full bg-transparent outline-none text-foreground font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cargo & Chave PIX */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Cargo / Permissões</label>
+                  <select
+                    value={editingAffiliate.role}
+                    disabled={isSuperAdmin(editingAffiliate.email) || !isTitular}
+                    onChange={(e) => setEditingAffiliate({ ...editingAffiliate, role: e.target.value as "affiliate" | "admin" })}
+                    className="w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs outline-none text-foreground disabled:opacity-60"
+                  >
+                    <option value="affiliate">Afiliado(a) Padrão</option>
+                    <option value="admin">Administrador(a) do Sistema</option>
+                  </select>
+                  {isSuperAdmin(editingAffiliate.email) && (
+                    <p className="text-[10px] text-gold/80 italic">O Titular Supremo possui cargo permanente.</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Chave PIX (Para Repasse)</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={editingAffiliate.pixKey}
+                      onChange={(e) => setEditingAffiliate({ ...editingAffiliate, pixKey: e.target.value })}
+                      placeholder="CPF, e-mail, telefone ou chave aleatória"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex items-center justify-between pt-4 border-t border-border/40">
+                {!isSuperAdmin(editingAffiliate.email) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const aff = editingAffiliate;
+                      setShowEditModal(false);
+                      handleOpenDelete(aff);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Excluir Usuário
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="rounded-xl border border-border/60 px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isEditing}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gold-gradient px-5 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-50 cursor-pointer"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    {isEditing ? "Salvando..." : "Salvar Alterações"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão Definitiva */}
+      {showDeleteConfirm && affiliateToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-rose-500/40 bg-card p-6 shadow-2xl animate-in zoom-in-95 text-foreground space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header com Alerta */}
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-display text-lg font-bold text-rose-400">
+                  Excluir Afiliado Definitivamente?
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Esta operação desvinculará todos os acessos do usuário e removerá o cadastro do sistema.
+                </p>
+              </div>
+            </div>
+
+            {/* Cartão de Detalhes do Usuário Alvo */}
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Nome:</span>
+                <span className="font-semibold text-foreground">{affiliateToDelete.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">E-mail:</span>
+                <span className="font-mono text-foreground">{affiliateToDelete.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Código:</span>
+                <span className="font-mono text-gold">{affiliateToDelete.id}</span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-[11px] text-rose-300/90 leading-relaxed">
+              ⚠️ <strong>Atenção:</strong> A exclusão é irreversível. O perfil será apagado de <code>public.profiles</code> e a credencial será removida do <code>auth.users</code>.
+            </div>
+
+            {/* Botões */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="rounded-xl border border-border/60 px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 px-5 py-2 text-xs font-semibold text-white shadow-lg shadow-rose-900/30 transition disabled:opacity-50 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {isDeleting ? "Excluindo..." : "Sim, Excluir Definitivamente"}
+              </button>
+            </div>
           </div>
         </div>
       )}
