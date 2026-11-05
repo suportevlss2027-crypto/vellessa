@@ -358,6 +358,7 @@ alter table public.profiles enable row level security;
 alter table public.modules enable row level security;
 alter table public.lessons enable row level security;
 alter table public.lesson_materials enable row level security;
+alter table public.creative_folders enable row level security;
 alter table public.creatives enable row level security;
 alter table public.materials enable row level security;
 alter table public.affiliate_links enable row level security;
@@ -401,6 +402,13 @@ create policy "Anyone authenticated can view lesson materials" on public.lesson_
 
 drop policy if exists "Admins can manage lesson materials" on public.lesson_materials;
 create policy "Admins can manage lesson materials" on public.lesson_materials for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- CREATIVE FOLDERS: Afiliados leem, admins gerenciam
+drop policy if exists "Anyone authenticated can view creative folders" on public.creative_folders;
+create policy "Anyone authenticated can view creative folders" on public.creative_folders for select to authenticated using (true);
+
+drop policy if exists "Admins can manage creative folders" on public.creative_folders;
+create policy "Admins can manage creative folders" on public.creative_folders for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- CREATIVES: Afiliados leem, admins gerenciam
 drop policy if exists "Anyone authenticated can view creatives" on public.creatives;
