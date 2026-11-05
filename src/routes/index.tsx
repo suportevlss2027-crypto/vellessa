@@ -87,7 +87,7 @@ function AuthPage() {
         <div className="relative z-10">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-0.5 text-[11px] font-semibold text-gold shadow-xs">
             <Sparkles className="h-3 w-3 text-gold" />
-            <span>Portal Oficial de Afiliadas & Gestão</span>
+            <span>Portal Oficial de Afiliados & Gestão</span>
           </div>
           <h2 className="mt-2 font-display text-2xl xl:text-3xl 2xl:text-4xl font-bold leading-tight tracking-tight text-foreground">
             A arte de transformar beleza em{" "}
@@ -180,7 +180,7 @@ function AuthPage() {
             className="group inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/5 hover:bg-gold/15 px-3 py-1 text-[11px] font-medium text-gold/90 transition-all duration-300 hover:scale-[1.01] hover:text-gold cursor-pointer"
           >
             <Calculator className="h-3 w-3 text-gold/80" />
-            <span>Simular ganhos estimados como afiliada</span>
+            <span>Simular ganhos estimados como afiliado</span>
             <ArrowUpRight className="h-3 w-3 text-gold/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </div>
@@ -231,7 +231,7 @@ function AuthPage() {
           </div>
 
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            {mode === "login" ? "Bem-vinda de volta" : "Cadastre-se na Vellessa"}
+            {mode === "login" ? "Boas-vindas de volta" : "Cadastre-se na Vellessa"}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-foreground/75 leading-relaxed">
             {mode === "login"
@@ -320,7 +320,7 @@ function AuthPage() {
         </p>
       </div>
 
-      {/* Modal Interativo da Calculadora de Afiliadas Vellessa */}
+      {/* Modal Interativo da Calculadora de Afiliados Vellessa */}
       <EarningsCalculatorModal
         open={isCalculatorOpen}
         onOpenChange={setIsCalculatorOpen}

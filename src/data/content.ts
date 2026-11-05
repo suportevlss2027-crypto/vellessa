@@ -5,8 +5,8 @@ export const images = { serum, cover3 };
 
 export const affiliate = {
   name: "",
-  first: "Afiliada",
-  level: "Afiliada Oficial",
+  first: "Afiliado",
+  level: "Afiliado Oficial",
   email: "",
   id: "",
 };

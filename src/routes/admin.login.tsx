@@ -77,7 +77,7 @@ function AdminLoginPage() {
               Painel Administrativo
             </h1>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Insira suas credenciais autorizadas para gerenciar cursos, criativos, materiais e afiliadas da operação.
+              Insira suas credenciais autorizadas para gerenciar cursos, criativos, materiais e afiliados da operação.
             </p>
           </div>
 
@@ -149,7 +149,7 @@ function AdminLoginPage() {
             to="/"
             className="text-xs text-muted-foreground hover:text-gold transition inline-flex items-center gap-1"
           >
-            ← Voltar para o Portal de Afiliadas (Login de Alunas)
+            ← Voltar para o Portal de Afiliados (Login de Membros)
           </Link>
         </div>
       </main>

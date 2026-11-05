@@ -55,7 +55,7 @@ function AdminAfiliadosPage() {
             rawId: p.id,
             name: p.name,
             email: p.email,
-            level: p.level || "Afiliada Ouro",
+            level: p.level || "Afiliado(a) Ouro",
             status: p.status === "active" ? "Ativo" : p.status,
             phone: p.phone || "",
             instagram: p.instagram || "",
@@ -145,14 +145,14 @@ function AdminAfiliadosPage() {
       return;
     }
     if (!affiliate.rawId || !isSupabaseConfigured || !supabase) {
-      toast.info(`Simulação: cargo de ${affiliate.name} seria alterado para ${affiliate.role === "admin" ? "Afiliada" : "Admin"}.`);
+      toast.info(`Simulação: cargo de ${affiliate.name} seria alterado para ${affiliate.role === "admin" ? "Afiliado(a)" : "Admin"}.`);
       return;
     }
     const newRole = affiliate.role === "admin" ? "affiliate" : "admin";
     try {
       const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", affiliate.rawId);
       if (error) throw error;
-      toast.success(`Permissão de ${affiliate.name} atualizada para ${newRole === "admin" ? "Administrador" : "Afiliada"}!`);
+      toast.success(`Permissão de ${affiliate.name} atualizada para ${newRole === "admin" ? "Administrador" : "Afiliado(a)"}!`);
       fetchAffiliates();
     } catch (e: any) {
       toast.error(`Erro ao atualizar permissão: ${e.message}`);
@@ -160,8 +160,8 @@ function AdminAfiliadosPage() {
   };
 
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
-    { key: "all", label: "Todas", count: kpis.total },
-    { key: "active", label: "Ativas Recentes", count: kpis.activeLast7 },
+    { key: "all", label: "Todos", count: kpis.total },
+    { key: "active", label: "Ativos Recentes", count: kpis.activeLast7 },
     { key: "complete", label: "Completaram Curso" },
     { key: "inactive", label: "Precisam de Atenção", count: kpis.needAttention },
   ];
@@ -173,7 +173,7 @@ function AdminAfiliadosPage() {
         <div>
           <h1 className="text-3xl font-semibold">Monitoramento de Afiliados</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Acompanhe o progresso nas aulas, frequência de acesso e engajamento de cada afiliada.
+            Acompanhe o progresso nas aulas, frequência de acesso e engajamento de cada afiliado(a).
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -202,7 +202,7 @@ function AdminAfiliadosPage() {
         {/* Total */}
         <div className="rounded-3xl border bg-card p-5 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Total de Afiliadas</span>
+            <span className="text-xs font-medium text-muted-foreground">Total de Afiliados</span>
             <div className="grid h-8 w-8 place-items-center rounded-xl bg-gold/10 text-gold">
               <Users className="h-4 w-4" />
             </div>
@@ -287,7 +287,7 @@ function AdminAfiliadosPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               <tr>
-                <th className="p-4 pl-6">Afiliada</th>
+                <th className="p-4 pl-6">Afiliado(a)</th>
                 <th className="p-4">Nível / Papel</th>
                 <th className="p-4">
                   <span className="flex items-center gap-1">
@@ -308,7 +308,7 @@ function AdminAfiliadosPage() {
                         <RefreshCw className="h-4 w-4 animate-spin text-gold" /> Carregando afiliados...
                       </span>
                     ) : (
-                      "Nenhuma afiliada encontrada para o filtro selecionado."
+                      "Nenhum afiliado encontrado para o filtro selecionado."
                     )}
                   </td>
                 </tr>
@@ -322,7 +322,7 @@ function AdminAfiliadosPage() {
 
                   return (
                     <tr key={a.id} className="hover:bg-muted/30 transition group">
-                      {/* Afiliada */}
+                      {/* Afiliado(a) */}
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-3">
                           <div className="grid h-9 w-9 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs shrink-0">
@@ -353,7 +353,7 @@ function AdminAfiliadosPage() {
                               }`}
                             >
                               {a.role === "admin" && <Shield className="h-3 w-3" />}
-                              {a.role === "admin" ? "Admin" : "Afiliada"}
+                              {a.role === "admin" ? "Admin" : "Afiliado(a)"}
                             </span>
                           )}
                         </div>
@@ -443,7 +443,7 @@ function AdminAfiliadosPage() {
                           <button
                             onClick={() => setSelectedAffiliate(a)}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/5 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold/15 hover:border-gold transition"
-                            title="Ver Raio-X da afiliada"
+                            title="Ver Raio-X do afiliado"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             Raio-X
@@ -478,10 +478,10 @@ function AdminAfiliadosPage() {
           <div className="border-t px-6 py-3 flex items-center justify-between text-xs text-muted-foreground bg-muted/20">
             <span>
               Exibindo <strong className="text-foreground">{filtered.length}</strong> de{" "}
-              <strong className="text-foreground">{kpis.total}</strong> afiliadas
+              <strong className="text-foreground">{kpis.total}</strong> afiliados
             </span>
             <span className="font-mono">
-              {kpis.activeLast7} ativas nos últimos 7 dias
+              {kpis.activeLast7} ativos nos últimos 7 dias
             </span>
           </div>
         )}

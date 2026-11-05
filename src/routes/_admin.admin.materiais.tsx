@@ -872,7 +872,7 @@ function AdminMateriaisPage() {
           <div>
             <h2 className="text-2xl font-semibold">Links Oficiais & Afiliação Logzz</h2>
             <p className="text-xs text-muted-foreground">
-              Configure as páginas de demonstração oficiais e os links de acesso à Logzz disponibilizados para as afiliadas.
+              Configure as páginas de demonstração oficiais e os links de acesso à Logzz disponibilizados para os afiliados.
             </p>
           </div>
           <button

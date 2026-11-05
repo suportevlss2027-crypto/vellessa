@@ -252,7 +252,7 @@ export function AffiliateDetailModal({
           ) : (
             <div className="rounded-2xl border border-white/10 bg-muted/10 p-3.5 text-xs text-muted-foreground flex items-center gap-2">
               <Phone className="h-4 w-4 text-muted-foreground/60" />
-              <span>Afiliada não possui número de WhatsApp cadastrado no perfil.</span>
+              <span>Afiliado(a) não possui número de WhatsApp cadastrado no perfil.</span>
             </div>
           )}
 

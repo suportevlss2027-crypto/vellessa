@@ -192,7 +192,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           {filteredLinks.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Links de Afiliada ({filteredLinks.length})
+                Links de Afiliado ({filteredLinks.length})
               </p>
               <div className="space-y-1">
                 {filteredLinks.map((link) => (

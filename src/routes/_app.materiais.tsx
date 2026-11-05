@@ -167,7 +167,7 @@ function Lightbox({ files, startIndex, onClose }: LightboxProps) {
   );
 }
 
-// ── Página de Materiais da Afiliada ───────────────────────────────────────────
+// ── Página de Materiais de Afiliados ───────────────────────────────────────────
 function Materiais() {
   const { copyText, downloadAsset, profile, linksList, materialsList, foldersList } =
     useAffiliateStore();
@@ -264,7 +264,7 @@ function Materiais() {
       );
       return;
     }
-    const content = `=== VELLESSA AFILIADOS - ARQUIVO OFICIAL DE APOIO ===\n\nTítulo: ${m.title}\nTipo: ${m.kind}\nTamanho do Pacote: ${m.size}\nAluna/Membro: ${profile.name} (ID: ${profile.id})\nData de Emissão: ${new Date().toLocaleDateString("pt-BR")}\n\nEste documento contém diretrizes oficiais de divulgação.`;
+    const content = `=== VELLESSA AFILIADOS - ARQUIVO OFICIAL DE APOIO ===\n\nTítulo: ${m.title}\nTipo: ${m.kind}\nTamanho do Pacote: ${m.size}\nMembro/Afiliado: ${profile.name} (ID: ${profile.id})\nData de Emissão: ${new Date().toLocaleDateString("pt-BR")}\n\nEste documento contém diretrizes oficiais de divulgação.`;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const filename = `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`;
@@ -535,7 +535,7 @@ function Materiais() {
                 A Vellessa opera no modelo{" "}
                 <strong className="text-emerald-300">Cash on Delivery (Pagamento na Entrega)</strong> em
                 parceria com a <strong className="text-foreground">Logzz</strong>. É dentro do seu
-                painel da Logzz que seu link com pixel de afiliada é gerado, as vendas caem em tempo real
+                painel da Logzz que seu link com pixel de afiliado é gerado, as vendas caem em tempo real
                 e você recebe suas comissões de <strong className="text-gold">até 60%</strong> direto no
                 Pix.
               </p>

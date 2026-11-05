@@ -77,7 +77,7 @@ export function EarningsCalculatorModal({
             <span>Simulador de Lucratividade Oficial</span>
           </div>
           <DialogTitle className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Projete seus <span className="italic text-gold-gradient">ganhos reais</span> como parceira
+            Projete seus <span className="italic text-gold-gradient">ganhos reais</span> como parceiro(a)
           </DialogTitle>
           <DialogDescription className="text-xs text-foreground/75 leading-relaxed">
             Selecione uma oferta oficial e simule seu retorno financeiro com 60% de comissão direta.

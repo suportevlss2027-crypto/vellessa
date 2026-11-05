@@ -285,8 +285,8 @@ export const DEFAULT_FEATURE_SETTINGS: PlatformFeatureSettings = {
 const DEFAULT_EMPTY_PROFILE: AffiliateProfile = {
   id: "",
   name: "",
-  first: "Afiliada",
-  level: "Afiliada Oficial",
+  first: "Afiliado",
+  level: "Afiliado Oficial",
   email: "",
   phone: "",
   instagram: "",
@@ -475,9 +475,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       setAffiliatesMonitoring((prev) => {
         const existing = prev[key] || {
           affiliateId: key,
-          name: data.name || "Afiliada",
+          name: data.name || "Afiliado",
           email: data.email || "",
-          level: "Afiliada Oficial",
+          level: "Afiliado Oficial",
           role: "affiliate",
           createdAt: now,
           lastLoginAt: now,
@@ -517,11 +517,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       setAffiliatesMonitoring((prev) => {
         const existing = prev[key] || {
           affiliateId: key,
-          name: prof.name || "Afiliada",
+          name: prof.name || "Afiliado",
           email: prof.email || "",
           phone: prof.phone || "",
           instagram: prof.instagram || "",
-          level: prof.level || "Afiliada Oficial",
+          level: prof.level || "Afiliado Oficial",
           role: prof.role || "affiliate",
           createdAt: now,
           lastLoginAt: now,
@@ -666,10 +666,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         if (dbProfile) {
           const loadedProf: AffiliateProfile = {
             id: dbProfile.affiliate_code || session.user.id.slice(0, 8),
-            name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliada",
-            first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Afiliada",
+            name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliado",
+            first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Afiliado",
             email: session.user.email || "",
-            level: dbProfile.level || "Afiliada Ouro",
+            level: dbProfile.level || "Afiliado Ouro",
             phone: dbProfile.phone || "",
             instagram: dbProfile.instagram || "",
             role: dbProfile.role === "admin" ? "admin" : "affiliate",
@@ -1499,7 +1499,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
     const newPost: CommunityPost = {
       id: `p-${Date.now()}`,
-      author: profile.name || "Afiliada",
+      author: profile.name || "Afiliado",
       initials,
       time: "agora",
       body: body.trim(),
@@ -1577,7 +1577,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(next));
       return next;
     });
-    toast.success("Aviso oficial publicado para todas as afiliadas!");
+    toast.success("Aviso oficial publicado para todos os afiliados!");
   };
 
   // 9. Safe Clipboard & Download

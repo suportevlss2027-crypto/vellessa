@@ -81,10 +81,10 @@ function GestaoTrafegoPage() {
       if (utmSource.trim()) urlObj.searchParams.set("utm_source", utmSource.trim());
       urlObj.searchParams.set("utm_medium", "paid");
       if (utmCampaign.trim()) urlObj.searchParams.set("utm_campaign", utmCampaign.trim());
-      urlObj.searchParams.set("src", profile.id || "afiliada");
+      urlObj.searchParams.set("src", profile.id || "afiliado");
       return urlObj.toString();
     } catch {
-      return `${utmUrl}?utm_source=${utmSource}&utm_medium=paid&utm_campaign=${utmCampaign}&src=${profile.id || "afiliada"}`;
+      return `${utmUrl}?utm_source=${utmSource}&utm_medium=paid&utm_campaign=${utmCampaign}&src=${profile.id || "afiliado"}`;
     }
   }, [utmUrl, utmSource, utmCampaign, profile.id]);
 

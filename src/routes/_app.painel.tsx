@@ -8,9 +8,9 @@ export const Route = createFileRoute("/_app/painel")({
   head: () => ({
     meta: [
       { title: "Início — Vellessa Afiliados" },
-      { name: "description", content: "Seu painel de afiliada Vellessa: progresso, avisos e novidades." },
+      { name: "description", content: "Seu painel de afiliado Vellessa: progresso, avisos e novidades." },
       { property: "og:title", content: "Início — Vellessa Afiliados" },
-      { property: "og:description", content: "Seu painel de afiliada Vellessa." },
+      { property: "og:description", content: "Seu painel de afiliado Vellessa." },
     ],
   }),
   component: Dashboard,
@@ -100,18 +100,18 @@ function Dashboard() {
         <div className="relative z-10 max-w-lg">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold text-gold shadow-xs">
             <Sparkles className="h-2.5 w-2.5 text-gold" />
-            <span>{profile.level || "Afiliada Oficial"}</span>
+            <span>{profile.level || "Afiliado Oficial"}</span>
           </div>
 
           <h1 className="mt-2.5 font-display text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-foreground">
-            Olá, <span className="italic text-gold-gradient">{profile.first || "Afiliada"}</span>.
+            Olá, <span className="italic text-gold-gradient">{profile.first || "Afiliado"}</span>.
           </h1>
 
           <p className="mt-2 text-xs sm:text-sm text-foreground/80 font-normal leading-relaxed max-w-md">
             {totalLessonsCount === 0
-              ? "Bem-vinda à sua área de membros Vellessa. Aqui você encontra aulas, materiais de apoio e criativos para suas vendas."
+              ? "Boas-vindas à sua área de membros Vellessa. Aqui você encontra aulas, materiais de apoio e criativos para suas vendas."
               : isCompletedAll
-              ? "Parabéns! Você concluiu 100% da Academia Vellessa e está pronta para escalar suas vendas com autoridade."
+              ? "Parabéns! Você concluiu 100% da Academia Vellessa e está no ponto ideal para escalar suas vendas com autoridade."
               : `Você concluiu ${progressPercentage}% da jornada oficial. Continue de onde parou e prepare suas próximas campanhas.`}
           </p>
 

@@ -16,8 +16,8 @@ describe("AffiliateStore Unit Tests", () => {
     const { result } = renderHook(() => useAffiliateStore(), { wrapper });
 
     expect(result.current.profile.name).toBe("");
-    expect(result.current.profile.first).toBe("Afiliada");
-    expect(result.current.profile.level).toBe("Afiliada Oficial");
+    expect(result.current.profile.first).toBe("Afiliado");
+    expect(result.current.profile.level).toBe("Afiliado Oficial");
     expect(result.current.totalLessonsCount).toBe(0);
     expect(result.current.progressPercentage).toBe(0);
   });

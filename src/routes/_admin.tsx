@@ -149,7 +149,7 @@ function AdminLayout() {
               to="/painel"
               className="hidden sm:inline-flex items-center gap-2 rounded-full border bg-card px-4 py-1.5 text-xs font-semibold text-foreground hover:border-gold transition"
             >
-              Ver como Afiliada
+              Ver como Afiliado
             </Link>
 
             <div className="flex items-center gap-2.5 rounded-full border bg-card py-1 pl-1 pr-3">

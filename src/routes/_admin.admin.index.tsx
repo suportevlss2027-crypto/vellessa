@@ -265,7 +265,7 @@ function AdminDashboard() {
         ))}
       </div>
 
-      {/* Monitoramento de Afiliadas & Engajamento */}
+      {/* Monitoramento de Afiliados & Engajamento */}
       <div className="rounded-3xl border bg-card p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/10 text-gold shadow-gold shrink-0">

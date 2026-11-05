@@ -10,9 +10,9 @@ export const Route = createFileRoute("/_app/comunidade")({
   head: () => ({
     meta: [
       { title: "Comunidade — Vellessa Afiliados" },
-      { name: "description", content: "Avisos da equipe e conversas entre afiliadas Vellessa." },
+      { name: "description", content: "Avisos da equipe e conversas entre afiliados Vellessa." },
       { property: "og:title", content: "Comunidade — Vellessa Afiliados" },
-      { property: "og:description", content: "Avisos da equipe e conversas entre afiliadas." },
+      { property: "og:description", content: "Avisos da equipe e conversas entre afiliados." },
     ],
   }),
   component: Comunidade,
@@ -64,9 +64,9 @@ function Comunidade() {
       )}
 
       <PageHeader
-        eyebrow="Juntas vamos mais longe"
+        eyebrow="Juntos vamos mais longe"
         title="Comunidade"
-        description="Avisos oficiais da gerência de afiliados e troca de experiências, conquistas e dúvidas entre afiliadas."
+        description="Avisos oficiais da gerência de afiliados e troca de experiências, conquistas e dúvidas entre afiliados."
       />
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
@@ -109,7 +109,7 @@ function Comunidade() {
 
         <section className="space-y-3.5">
           <div className="flex items-center justify-between border-b border-border/30 pb-2">
-            <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-foreground">Mural de Afiliadas</h2>
+            <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-foreground">Mural de Afiliados</h2>
             <span className="text-xs text-muted-foreground font-medium">Compartilhe sua jornada</span>
           </div>
 

@@ -243,7 +243,7 @@ function AdminAulasPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">Gestão de Cursos e Aulas</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Crie novos módulos com capa personalizada, configure links de vídeo e organize a trilha de capacitação das afiliadas.
+            Crie novos módulos com capa personalizada, configure links de vídeo e organize a trilha de capacitação dos afiliados.
           </p>
         </div>
         <div className="flex gap-2">
@@ -658,7 +658,7 @@ function AdminAulasPage() {
                   value={lessonDescription}
                   onChange={(e) => setLessonDescription(e.target.value)}
                   rows={3}
-                  placeholder="Explique o que a aluna vai aprender e o passo a passo..."
+                  placeholder="Explique o que o aluno vai aprender e o passo a passo..."
                   className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
                 />
               </label>
@@ -822,7 +822,7 @@ function AdminAulasPage() {
             <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-gold">
-                  Teste do Player — Visão da Afiliada
+                  Teste do Player — Visão do Afiliado
                 </span>
                 <h3 className="text-lg font-bold text-foreground">{previewLesson.title}</h3>
               </div>
