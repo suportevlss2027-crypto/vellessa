@@ -306,11 +306,86 @@ export const DEFAULT_BILLBOARD_SETTINGS: BillboardSettings = {
   badgeText: "LQZZ",
   title: "Parceria Oficial Logzz COD",
   subtitle: "Até 60% de comissão via Pix no checkout oficial",
-  buttonText: "Painel Logzz",
+  buttonText: "Acessar Logzz",
   buttonUrl: "https://app.logzz.com.br",
   theme: "emerald",
   showPulse: true,
 };
+
+export interface BillboardPreset {
+  id: string;
+  label: string;
+  tag: string;
+  description: string;
+  settings: BillboardSettings;
+}
+
+export const BILLBOARD_PRESETS: BillboardPreset[] = [
+  {
+    id: "logzz",
+    label: "Parceria Logzz COD",
+    tag: "LQZZ",
+    description: "Checkout COD oficial e comissões Pix de até 60%",
+    settings: {
+      enabled: true,
+      badgeText: "LQZZ",
+      title: "Parceria Oficial Logzz COD",
+      subtitle: "Até 60% de comissão via Pix no checkout oficial",
+      buttonText: "Acessar Logzz",
+      buttonUrl: "https://app.logzz.com.br",
+      theme: "emerald",
+      showPulse: true,
+    },
+  },
+  {
+    id: "campaign",
+    label: "Campanha de Escala",
+    tag: "ESCALA",
+    description: "Frete grátis e kits com maior margem de lucro",
+    settings: {
+      enabled: true,
+      badgeText: "ESCALA",
+      title: "Campanha Especial de Frete Grátis Ativa",
+      subtitle: "Aproveite a alta conversão nos kits de 3 e 5 frascos",
+      buttonText: "Ver Ofertas",
+      buttonUrl: "/materiais",
+      theme: "gold",
+      showPulse: true,
+    },
+  },
+  {
+    id: "creatives",
+    label: "Novos Criativos",
+    tag: "NOVO",
+    description: "Vídeos e imagens validados para tráfego pago",
+    settings: {
+      enabled: true,
+      badgeText: "NOVO",
+      title: "Novos Criativos em Alta Resolução Disponíveis",
+      subtitle: "Vídeos e imagens validados para anúncios de alta conversão",
+      buttonText: "Baixar Peças",
+      buttonUrl: "/criativos",
+      theme: "sapphire",
+      showPulse: true,
+    },
+  },
+  {
+    id: "urgent",
+    label: "Aviso Urgente",
+    tag: "AVISO",
+    description: "Comunicados cruciais da gerência para todos os afiliados",
+    settings: {
+      enabled: true,
+      badgeText: "AVISO",
+      title: "Comunicado Oficial da Operação Vellessa",
+      subtitle: "Informações importantes sobre estoque e processamento",
+      buttonText: "Ler Comunicado",
+      buttonUrl: "/comunidade",
+      theme: "ruby",
+      showPulse: true,
+    },
+  },
+];
 
 export const BILLBOARD_THEMES: Record<
   BillboardTheme,

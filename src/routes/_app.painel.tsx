@@ -79,7 +79,7 @@ function Dashboard() {
             </div>
 
             <h1 className="mt-2.5 font-display text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-foreground">
-              Olá, <span className="italic text-gold-gradient">{profile.first || "Afiliado"}</span>.
+              Olá, <span className="italic text-gold-gradient">{profile.first || "Afiliado"}</span>
             </h1>
 
             <p className="mt-2 text-xs sm:text-sm text-foreground/80 font-normal leading-relaxed max-w-md">
@@ -108,7 +108,7 @@ function Dashboard() {
                         {billboardSettings.title}
                       </p>
                       {billboardSettings.showPulse && (
-                        <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="relative flex h-2 w-2 shrink-0 ml-2">
                           <span
                             className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${billboardTheme.pulseColor}`}
                           />
@@ -128,7 +128,7 @@ function Dashboard() {
                     href={billboardSettings.buttonUrl}
                     target={billboardSettings.buttonUrl.startsWith("http") ? "_blank" : undefined}
                     rel={billboardSettings.buttonUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition shrink-0 self-start sm:self-auto ${billboardTheme.buttonBg} ${billboardTheme.buttonBorder} ${billboardTheme.buttonText}`}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition shrink-0 self-start sm:self-auto hover:scale-[1.02] hover:brightness-110 active:scale-95 ${billboardTheme.buttonBg} ${billboardTheme.buttonBorder} ${billboardTheme.buttonText}`}
                   >
                     <span>{billboardSettings.buttonText}</span>
                     <ArrowUpRight className="h-3.5 w-3.5" />
@@ -163,11 +163,17 @@ function Dashboard() {
                 )}
               </Link>
             )}
+
+            {/* Micro-rodapé de Confiança e Quiet Luxury */}
+            <div className="mt-4 flex items-center gap-2 text-[10px] text-muted-foreground/75 font-medium">
+              <ShieldCheck className="h-3.5 w-3.5 text-gold/80 shrink-0" />
+              <span>Plataforma Oficial de Capacitação & Vendas COD · Logzz Checkout</span>
+            </div>
           </div>
 
           {/* Coluna Direita: Vitrine Cinematográfica em Vídeo HD (16:9) — 100% Desobstruída */}
           <div className="relative shrink-0 flex flex-col items-center lg:items-end justify-center w-full lg:w-[46%] xl:w-[48%] max-w-[460px] mx-auto lg:mx-0">
-            <div className="group relative w-full aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 shadow-2xl transition duration-500 hover:border-gold/30">
+            <div className="group relative w-full aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 ring-1 ring-white/10 ring-inset shadow-2xl transition duration-500 hover:border-gold/40 hover:shadow-gold/10">
               {/* Glow áureo de fundo */}
               <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.20)_0%,oklch(0.65_0.15_150/0.12)_45%,transparent_70%)] blur-xl" />
 
