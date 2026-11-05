@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   Shield,
@@ -21,6 +21,11 @@ import {
   Phone,
   Instagram,
   Key,
+  Database,
+  Wifi,
+  WifiOff,
+  ClipboardCopy,
+  ChevronUp,
 } from "lucide-react";
 import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
 import { supabase, isSupabaseConfigured, createIsolatedSupabaseClient } from "@/lib/supabase";
@@ -50,6 +55,43 @@ function AdminAfiliadosPage() {
   const [loading, setLoading] = useState(false);
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [selectedAffiliate, setSelectedAffiliate] = useState<any | null>(null);
+
+  // Diagnóstico de banco de dados
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagResult, setDiagResult] = useState<{
+    connected: boolean;
+    profilesCount: number;
+    profilesEmails: string[];
+    rlsOk: boolean;
+    errorMsg?: string;
+  } | null>(null);
+
+  const runDiagnostic = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      setDiagResult({ connected: false, profilesCount: 0, profilesEmails: [], rlsOk: false, errorMsg: "Supabase não configurado (verifique o .env)" });
+      return;
+    }
+    setDiagLoading(true);
+    setDiagResult(null);
+    try {
+      const { data, error } = await supabase.from("profiles").select("id, email, name, role, status");
+      if (error) {
+        setDiagResult({ connected: true, profilesCount: 0, profilesEmails: [], rlsOk: false, errorMsg: error.message });
+      } else {
+        setDiagResult({
+          connected: true,
+          profilesCount: data?.length ?? 0,
+          profilesEmails: (data ?? []).map((p: any) => p.email || "(sem e-mail)"),
+          rlsOk: true,
+        });
+      }
+    } catch (e: any) {
+      setDiagResult({ connected: false, profilesCount: 0, profilesEmails: [], rlsOk: false, errorMsg: e?.message });
+    } finally {
+      setDiagLoading(false);
+    }
+  }, []);
 
   // Modal de Criação de Afiliado pelo Admin
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -387,6 +429,115 @@ function AdminAfiliadosPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* ── Painel de Diagnóstico do Banco ── */}
+      <div className="rounded-2xl border border-gold/20 bg-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => { setDiagOpen((v) => !v); if (!diagOpen) runDiagnostic(); }}
+          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-muted/30 transition"
+        >
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-foreground">
+            <Database className="h-4 w-4 text-gold" />
+            Diagnóstico de Conexão com o Banco de Dados
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {!diagOpen && <span>Clique para verificar</span>}
+            {diagOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </button>
+
+        {diagOpen && (
+          <div className="border-t border-border/40 px-5 py-4 space-y-3">
+            {diagLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                <RefreshCw className="h-4 w-4 animate-spin text-gold" />
+                Consultando banco de dados...
+              </div>
+            )}
+
+            {diagResult && !diagLoading && (
+              <div className="space-y-3">
+                {/* Status Conexão */}
+                <div className="flex items-center gap-2.5">
+                  {diagResult.connected
+                    ? <Wifi className="h-4 w-4 text-emerald-400" />
+                    : <WifiOff className="h-4 w-4 text-rose-400" />
+                  }
+                  <span className={`text-sm font-semibold ${diagResult.connected ? "text-emerald-400" : "text-rose-400"}`}>
+                    {diagResult.connected ? "Supabase conectado com sucesso" : "Falha na conexão com o Supabase"}
+                  </span>
+                </div>
+
+                {/* Contagem de Perfis */}
+                {diagResult.connected && (
+                  <div className="flex items-start gap-2.5">
+                    <Users className="h-4 w-4 text-gold mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {diagResult.profilesCount === 0
+                          ? "⚠️ Nenhum perfil encontrado em public.profiles"
+                          : `✅ ${diagResult.profilesCount} perfil(is) encontrado(s) em public.profiles`
+                        }
+                      </p>
+                      {diagResult.profilesEmails.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {diagResult.profilesEmails.join(" · ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* RLS */}
+                {diagResult.connected && (
+                  <div className="flex items-center gap-2.5">
+                    <Shield className={`h-4 w-4 ${diagResult.rlsOk ? "text-emerald-400" : "text-rose-400"}`} />
+                    <span className={`text-sm font-semibold ${diagResult.rlsOk ? "text-emerald-400" : "text-rose-400"}`}>
+                      {diagResult.rlsOk
+                        ? "RLS desbloqueado — leitura de todos os perfis OK"
+                        : "RLS bloqueando a leitura — execute o script SQL abaixo"
+                      }
+                    </span>
+                  </div>
+                )}
+
+                {/* Erro */}
+                {diagResult.errorMsg && (
+                  <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-4 py-2 text-xs text-rose-400 font-mono">
+                    {diagResult.errorMsg}
+                  </div>
+                )}
+
+                {/* Se perfis = 0 → mostra o SQL */}
+                {diagResult.connected && diagResult.profilesCount === 0 && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+                    <p className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      A tabela public.profiles está vazia! Execute este SQL no Supabase SQL Editor para corrigir:
+                    </p>
+                    <div className="rounded-lg bg-black/60 p-3 font-mono text-[11px] text-emerald-300 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap">
+                      {`-- Cole no SQL Editor do Supabase (ícone >_ no menu lateral)\nSELECT id, email, created_at FROM auth.users;\n\n-- Depois rode o script completo do arquivo:\n-- supabase/migrate_profiles_and_backfill.sql`}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={runDiagnostic}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 px-3 py-1 text-xs font-semibold text-gold hover:bg-gold/10 transition"
+                >
+                  <RefreshCw className="h-3 w-3" /> Reexecutar diagnóstico
+                </button>
+              </div>
+            )}
+
+            {!diagLoading && !diagResult && (
+              <p className="text-xs text-muted-foreground">Clique em "Reexecutar diagnóstico" para iniciar.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
