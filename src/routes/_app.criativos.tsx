@@ -66,6 +66,8 @@ function Criativos() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("Todos");
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [open, setOpen] = useState<Creative | null>(null);
+  const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
+  const [isResolvingVideo, setIsResolvingVideo] = useState(false);
   const { copyText, downloadAsset, creativesList, creativeFoldersList } =
     useAffiliateStore();
 
@@ -78,6 +80,60 @@ function Criativos() {
     }
     return () => {
       document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  // Carrega e resolve a prévia de vídeo quando o modal abre
+  useEffect(() => {
+    let active = true;
+    let createdBlobUrl: string | null = null;
+
+    if (!open) {
+      setPreviewVideoUrl(null);
+      setIsResolvingVideo(false);
+      return;
+    }
+
+    const isVideo =
+      open.type === "Reels" ||
+      open.fileType?.startsWith("video/") ||
+      (open.fileUrl && /\.(mp4|webm|mov|m4v)$/i.test(open.fileUrl)) ||
+      (open.title && /\.(mp4|webm|mov|m4v)$/i.test(open.title));
+
+    if (isVideo) {
+      setIsResolvingVideo(true);
+      resolveCreativeDownload(open)
+        .then((res) => {
+          if (!active) {
+            if (res?.isBlobUrl && res.url) URL.revokeObjectURL(res.url);
+            return;
+          }
+          if (res?.url) {
+            if (res.isBlobUrl) createdBlobUrl = res.url;
+            setPreviewVideoUrl(res.url);
+          } else if (open.fileUrl) {
+            setPreviewVideoUrl(open.fileUrl);
+          } else {
+            setPreviewVideoUrl(null);
+          }
+        })
+        .catch((err) => {
+          console.warn("Erro ao resolver prévia de vídeo:", err);
+          if (active) setPreviewVideoUrl(open.fileUrl || null);
+        })
+        .finally(() => {
+          if (active) setIsResolvingVideo(false);
+        });
+    } else {
+      setPreviewVideoUrl(null);
+      setIsResolvingVideo(false);
+    }
+
+    return () => {
+      active = false;
+      if (createdBlobUrl) {
+        URL.revokeObjectURL(createdBlobUrl);
+      }
     };
   }, [open]);
 
@@ -234,7 +290,7 @@ function Criativos() {
               description="Aguarde o administrador publicar novas coleções de criativos."
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {creativeFoldersList.map((folder) => {
                 const count = countByFolder[folder.id] || 0;
                 const colorKey = folder.color || "gold";
@@ -251,12 +307,12 @@ function Criativos() {
                       setFilter("Todos");
                     }}
                     className={cn(
-                      "group relative w-full overflow-hidden rounded-2xl border bg-card/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl text-left cursor-pointer",
+                      "group relative w-full overflow-hidden rounded-2xl border bg-card/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gold/20 text-left cursor-pointer flex flex-col justify-between",
                       border
                     )}
                   >
-                    {/* Área 16:9 — Capa Estilo Kiwify */}
-                    <div className="relative aspect-video w-full overflow-hidden">
+                    {/* Área 9:16 — Capa Vertical Nativa (Sem cortes) */}
+                    <div className="relative aspect-[9/16] w-full overflow-hidden bg-muted/80">
                       {folder.coverImage ? (
                         <img
                           src={folder.coverImage}
@@ -271,12 +327,12 @@ function Criativos() {
                           )}
                         />
                       )}
-                      {/* Overlay degradê na base */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                      {/* Overlay degradê na base e topo */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-black/30" />
 
                       {/* Badge de contagem no canto superior direito */}
-                      <div className="absolute right-3 top-3">
-                        <span className="rounded-full border border-white/15 bg-black/60 px-2.5 py-0.5 text-[10px] font-mono font-bold text-white backdrop-blur-md">
+                      <div className="absolute right-2.5 top-2.5">
+                        <span className="rounded-full border border-white/20 bg-black/75 px-2 py-0.5 text-[9px] font-mono font-bold text-white backdrop-blur-md shadow-xs">
                           {count} {count === 1 ? "peça" : "peças"}
                         </span>
                       </div>
@@ -289,12 +345,12 @@ function Criativos() {
                       )}
 
                       {/* Título e descrição sobrepostos na base */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 className="font-display text-base font-bold text-white drop-shadow-sm truncate group-hover:text-gold transition duration-200">
+                      <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <h3 className="font-display text-sm sm:text-base font-bold text-white drop-shadow-md truncate group-hover:text-gold transition duration-200">
                           {folder.name}
                         </h3>
                         {folder.description && (
-                          <p className="mt-0.5 text-xs text-white/75 line-clamp-1">
+                          <p className="mt-0.5 text-[11px] text-white/75 line-clamp-2">
                             {folder.description}
                           </p>
                         )}
@@ -302,12 +358,12 @@ function Criativos() {
                     </div>
 
                     {/* Footer do card */}
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-black/30">
-                      <span className={cn("text-xs font-semibold flex items-center gap-1", colorText)}>
+                    <div className="flex items-center justify-between px-3 py-2.5 border-t border-white/10 bg-black/40">
+                      <span className={cn("text-[11px] font-semibold flex items-center gap-1", colorText)}>
                         Acessar coleção →
                       </span>
-                      <span className="text-[11px] text-muted-foreground font-mono">
-                        {count} {count === 1 ? "peça disponível" : "peças disponíveis"}
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {count} {count === 1 ? "peça" : "peças"}
                       </span>
                     </div>
                   </button>
@@ -525,27 +581,49 @@ function Criativos() {
           onClick={() => setOpen(null)}
         >
           <div
-            className="relative grid max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl md:grid-cols-[1.1fr_1fr] animate-in zoom-in-95"
+            className="relative grid max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl md:grid-cols-[1.1fr_1fr] animate-in zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Visual */}
-            <div className="relative bg-black/95 flex items-center justify-center max-h-[45vh] md:max-h-[88vh] overflow-hidden p-2">
-              {open.image ? (
+            {/* Visual com Player de Vídeo Interativo ou Imagem */}
+            <div className="relative bg-black/95 flex items-center justify-center min-h-[360px] max-h-[50vh] md:max-h-[88vh] overflow-hidden p-2">
+              {previewVideoUrl ? (
+                <video
+                  key={previewVideoUrl}
+                  src={previewVideoUrl}
+                  poster={open.image}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[48vh] md:max-h-[84vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
+                />
+              ) : isResolvingVideo ? (
+                <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-gold border-t-transparent shadow-gold" />
+                  <p className="text-xs font-semibold text-gold">Carregando vídeo para pré-visualização...</p>
+                  {open.image && (
+                    <img
+                      src={open.image}
+                      alt={open.title}
+                      className="max-h-48 w-auto rounded-lg opacity-40 object-contain mt-1"
+                    />
+                  )}
+                </div>
+              ) : open.image ? (
                 <img
                   src={open.image}
                   alt={open.title}
-                  className="max-h-full max-w-full object-contain"
+                  className="max-h-full max-w-full object-contain rounded-xl"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center">
+                <div className="flex h-full w-full items-center justify-center p-8">
                   <ImageIcon className="h-20 w-20 text-muted-foreground/20" />
                 </div>
               )}
-              <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-0.5 text-[10px] font-mono font-bold text-gold backdrop-blur-md border border-white/10">
+              <span className="absolute left-3 top-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-mono font-bold text-gold backdrop-blur-md border border-white/10 z-10">
                 {open.type} · {open.format}
               </span>
               {open.fileSize && (
-                <span className="absolute right-3 top-3 rounded-full bg-black/70 px-2.5 py-0.5 text-[10px] font-mono text-white/70 backdrop-blur-md border border-white/10">
+                <span className="absolute right-3 top-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-mono text-white/70 backdrop-blur-md border border-white/10 z-10">
                   {open.fileSize}
                 </span>
               )}

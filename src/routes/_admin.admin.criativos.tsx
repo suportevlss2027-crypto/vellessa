@@ -1009,7 +1009,7 @@ function AdminCriativosPage() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {creativeFoldersList.map((folder) => {
                 const count = countByFolder[folder.id] || 0;
                 const gradientTheme = COLOR_GRADIENT[folder.color || "gold"] || COLOR_GRADIENT.gold;
@@ -1032,8 +1032,8 @@ function AdminCriativosPage() {
                         : "border-border/70 hover:border-gold/60 hover:shadow-gold"
                     }`}
                   >
-                    {/* Capa 16:9 Estilo Kiwify */}
-                    <div className="relative aspect-video w-full overflow-hidden bg-black/80">
+                    {/* Capa 9:16 Vertical Nativa */}
+                    <div className="relative aspect-[9/16] w-full overflow-hidden bg-black/80">
                       {folder.coverImage ? (
                         <img
                           src={folder.coverImage}
