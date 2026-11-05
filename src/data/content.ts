@@ -40,6 +40,7 @@ export type Creative = {
   image?: string;
   text?: string;
   format: string;
+  folderId?: string;
 };
 
 export const creatives: Creative[] = [];

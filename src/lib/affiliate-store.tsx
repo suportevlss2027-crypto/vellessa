@@ -90,6 +90,15 @@ export interface MaterialFolder {
   createdAt?: string;
 }
 
+export interface CreativeFolder {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  createdAt?: string;
+}
+
 export interface MaterialFileItem {
   id: string;
   name: string;
@@ -187,11 +196,19 @@ interface AffiliateStoreContextType {
   materialsList: DynamicMaterial[];
   linksList: DynamicLink[];
   foldersList: MaterialFolder[];
+  creativeFoldersList: CreativeFolder[];
 
   // Folders Actions
   createFolder: (data: { name: string; description?: string; color?: string; icon?: string }) => Promise<void>;
   updateFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
+
+  // Creative Folders Actions
+  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string }) => Promise<void>;
+  updateCreativeFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => Promise<void>;
+  deleteCreativeFolder: (id: string) => Promise<void>;
+  moveCreativesToFolder: (creativeIds: string[], targetFolderId?: string) => Promise<void>;
+  deleteCreativesBatch: (creativeIds: string[]) => Promise<void>;
 
   // Admin CMS Actions
   createModule: (data: { title: string; subtitle: string; cover?: string }) => Promise<void>;
@@ -200,8 +217,8 @@ interface AffiliateStoreContextType {
   createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string }) => Promise<void>;
   updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string }) => Promise<void>;
   deleteLesson: (lessonId: string) => Promise<void>;
-  createCreative: (data: { title: string; type: "Feed" | "Stories" | "Reels" | "Copy"; format: string; image?: string; text?: string }) => Promise<void>;
-  updateCreative: (id: string, data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string }) => Promise<void>;
+  createCreative: (data: { title: string; type: "Feed" | "Stories" | "Reels" | "Copy"; format: string; image?: string; text?: string; folderId?: string }) => Promise<void>;
+  updateCreative: (id: string, data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string; folderId?: string }) => Promise<void>;
   deleteCreative: (id: string) => Promise<void>;
   createMaterial: (data: {
     title: string;
@@ -290,6 +307,7 @@ const STORAGE_KEYS = {
   MATERIALS: "vellessa_dynamic_materials",
   LINKS: "vellessa_dynamic_links",
   FOLDERS: "vellessa_dynamic_folders",
+  CREATIVE_FOLDERS: "vellessa_creative_folders",
   AFFILIATES_MONITORING: "vellessa_affiliates_monitoring",
   CAMPAIGNS: "vellessa_affiliate_campaigns",
   FEATURE_SETTINGS: "vellessa_feature_settings",
@@ -609,6 +627,20 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     if (typeof window === "undefined") return [];
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FOLDERS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  const [creativeFoldersList, setCreativeFoldersList] = useState<CreativeFolder[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CREATIVE_FOLDERS);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) return parsed;
@@ -1280,6 +1312,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     format: string;
     image?: string;
     text?: string;
+    folderId?: string;
   }) => {
     const newC: Creative = {
       id: `c-${Date.now()}`,
@@ -1288,6 +1321,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       format: data.format,
       image: data.image || "",
       text: data.text,
+      folderId: data.folderId,
     };
     const updated = [newC, ...creativesList];
     setCreativesList(updated);
@@ -1297,7 +1331,14 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
   const updateCreative = async (
     id: string,
-    data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string }
+    data: {
+      title?: string;
+      type?: "Feed" | "Stories" | "Reels" | "Copy";
+      format?: string;
+      image?: string;
+      text?: string;
+      folderId?: string;
+    }
   ) => {
     const updated = creativesList.map((c) => {
       if (c.id !== id) return c;
@@ -1316,6 +1357,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
     toast.success("Criativo removido.");
+  };
+
+  const moveCreativesToFolder = async (creativeIds: string[], targetFolderId?: string) => {
+    const targetSet = new Set(creativeIds);
+    const updated = creativesList.map((c) =>
+      targetSet.has(c.id) ? { ...c, folderId: targetFolderId || undefined } : c
+    );
+    setCreativesList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+    toast.success(`${creativeIds.length} criativo(s) movido(s) com sucesso!`);
+  };
+
+  const deleteCreativesBatch = async (creativeIds: string[]) => {
+    const targetSet = new Set(creativeIds);
+    const updated = creativesList.filter((c) => !targetSet.has(c.id));
+    setCreativesList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+    toast.success(`${creativeIds.length} criativo(s) excluído(s).`);
   };
 
   const createMaterial = async (data: {
@@ -1489,6 +1548,51 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     setFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(updated));
     toast.success("Pasta removida. Os materiais foram movidos para Geral.");
+  };
+
+  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string }) => {
+    const newFolder: CreativeFolder = {
+      id: `cfolder-${Date.now()}`,
+      name: data.name.trim(),
+      description: data.description?.trim(),
+      color: data.color || "gold",
+      icon: data.icon || "Folder",
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...creativeFoldersList, newFolder];
+    setCreativeFoldersList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+    toast.success(`Pasta "${newFolder.name}" criada!`);
+  };
+
+  const updateCreativeFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => {
+    const updated = creativeFoldersList.map((f) => {
+      if (f.id !== id) return f;
+      return {
+        ...f,
+        name: data.name?.trim() ?? f.name,
+        description: data.description?.trim() ?? f.description,
+        color: data.color ?? f.color,
+        icon: data.icon ?? f.icon,
+      };
+    });
+    setCreativeFoldersList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+    toast.success("Pasta atualizada!");
+  };
+
+  const deleteCreativeFolder = async (id: string) => {
+    // Desvincula criativos desta pasta (move para a raiz)
+    const updatedCreatives = creativesList.map((c) =>
+      c.folderId === id ? { ...c, folderId: undefined } : c
+    );
+    setCreativesList(updatedCreatives);
+    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updatedCreatives));
+
+    const updated = creativeFoldersList.filter((f) => f.id !== id);
+    setCreativeFoldersList(updated);
+    localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+    toast.success("Pasta removida. Os criativos foram movidos para a raiz.");
   };
 
   const createAffiliateLink = async (data: { label: string; url: string; note: string }) => {
@@ -1877,9 +1981,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         materialsList,
         linksList,
         foldersList,
+        creativeFoldersList,
         createFolder,
         updateFolder,
         deleteFolder,
+        createCreativeFolder,
+        updateCreativeFolder,
+        deleteCreativeFolder,
+        moveCreativesToFolder,
+        deleteCreativesBatch,
         createModule,
         updateModule,
         deleteModule,

@@ -8,7 +8,9 @@ interface MediaUploadFieldProps {
   description?: string;
   value?: string;
   onChange: (value: string) => void;
+  onFileSelect?: (file: File) => void;
   aspectRatio?: "video" | "square" | "portrait";
+  acceptVideo?: boolean;
 }
 
 const PRESET_GALLERY = [
@@ -21,7 +23,9 @@ export function MediaUploadField({
   description,
   value,
   onChange,
+  onFileSelect,
   aspectRatio = "video",
+  acceptVideo = false,
 }: MediaUploadFieldProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "gallery" | "url">("upload");
   const [urlInput, setUrlInput] = useState("");
@@ -38,25 +42,76 @@ export function MediaUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Por favor, selecione um arquivo de imagem válido (PNG, JPG, WebP).");
+    if (onFileSelect) {
+      onFileSelect(file);
+    }
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && (!acceptVideo || !isVideo)) {
+      toast.error(
+        acceptVideo
+          ? "Selecione uma imagem (PNG, JPG, WebP) ou vídeo (MP4, WebM)."
+          : "Por favor, selecione um arquivo de imagem válido (PNG, JPG, WebP)."
+      );
       return;
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("A imagem selecionada é muito pesada (limite de 8MB).");
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("O arquivo selecionado excede o limite máximo permitido (50MB).");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        onChange(result);
-        toast.success("Foto carregada com sucesso!");
-      }
-    };
-    reader.readAsDataURL(file);
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          onChange(result);
+          toast.success("Foto carregada com sucesso!");
+        }
+      };
+      reader.readAsDataURL(file);
+    } else if (isVideo) {
+      // Gera thumbnail do vídeo usando canvas
+      const videoEl = document.createElement("video");
+      const objUrl = URL.createObjectURL(file);
+      videoEl.src = objUrl;
+      videoEl.muted = true;
+      videoEl.playsInline = true;
+      videoEl.currentTime = 0.5;
+
+      videoEl.onloadeddata = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = videoEl.videoWidth || 640;
+          canvas.height = videoEl.videoHeight || 360;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+            const thumb = canvas.toDataURL("image/jpeg", 0.85);
+            onChange(thumb);
+            toast.success("Capa do vídeo capturada com sucesso!");
+          }
+        } catch {
+          // fallback para dataUrl do arquivo
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const res = ev.target?.result as string;
+            if (res) onChange(res);
+          };
+          reader.readAsDataURL(file);
+        } finally {
+          URL.revokeObjectURL(objUrl);
+        }
+      };
+
+      videoEl.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        toast.info("Vídeo processado. Você pode definir uma capa manual se desejar.");
+      };
+    }
   };
 
   const handleApplyUrl = (e: React.FormEvent) => {
@@ -125,7 +180,7 @@ export function MediaUploadField({
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept="image/*"
+            accept={acceptVideo ? "image/*,video/*" : "image/*"}
             className="hidden"
           />
         </div>
@@ -178,7 +233,7 @@ export function MediaUploadField({
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                accept="image/*"
+                accept={acceptVideo ? "image/*,video/*" : "image/*"}
                 className="hidden"
               />
               <div
@@ -189,10 +244,12 @@ export function MediaUploadField({
                   <Upload className="h-5 w-5" />
                 </div>
                 <p className="mt-2 text-xs font-semibold text-foreground">
-                  Clique ou arraste uma foto do seu computador
+                  Clique ou arraste {acceptVideo ? "uma mídia (foto ou vídeo)" : "uma foto"} do seu computador
                 </p>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  PNG, JPG, WebP de alta resolução (máx. 8MB)
+                  {acceptVideo
+                    ? "PNG, JPG, WebP ou vídeos MP4 / WebM (máx. 50MB)"
+                    : "PNG, JPG, WebP de alta resolução (máx. 8MB)"}
                 </p>
               </div>
             </div>
