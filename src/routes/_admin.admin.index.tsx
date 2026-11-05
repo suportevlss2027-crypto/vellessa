@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { Activity, AlertTriangle, BookOpen, CheckCircle2, Eye, Image, Link2, PlusCircle, SlidersHorizontal, Sparkles, TrendingUp, Users } from "lucide-react";
-import { useAffiliateStore } from "@/lib/affiliate-store";
+import { useMemo, useState } from "react";
+import { Activity, AlertTriangle, BookOpen, CheckCircle2, Eye, Image, Link2, Palette, PlusCircle, SlidersHorizontal, Sparkles, TrendingUp, Tv, Users } from "lucide-react";
+import { useAffiliateStore, BILLBOARD_THEMES } from "@/lib/affiliate-store";
+import { BillboardModal } from "@/components/admin/BillboardModal";
 
 export const Route = createFileRoute("/_admin/admin/")({
   head: () => ({
@@ -20,7 +21,10 @@ function AdminDashboard() {
     affiliatesMonitoring,
     featureSettings,
     toggleFeature,
+    billboardSettings,
   } = useAffiliateStore();
+
+  const [showBillboardModal, setShowBillboardModal] = useState(false);
 
   const monitoringList = useMemo(() => Object.values(affiliatesMonitoring || {}), [affiliatesMonitoring]);
   const activeRecently = useMemo(() => {
@@ -290,6 +294,47 @@ function AdminDashboard() {
           >
             <Eye className="h-3.5 w-3.5" /> Acessar Painel de Afiliados
           </Link>
+        </div>
+      </div>
+
+      {/* Modal de Configuração do Outdoor Oficial */}
+      <BillboardModal
+        open={showBillboardModal}
+        onClose={() => setShowBillboardModal(false)}
+      />
+
+      {/* Outdoor Oficial do Painel & Anúncios */}
+      <div className="rounded-3xl border border-white/10 bg-card p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/10 text-gold shadow-gold shrink-0">
+            <Tv className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-foreground">Outdoor Oficial do Painel</h2>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                billboardSettings.enabled
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  : "bg-muted text-muted-foreground border-white/10"
+              }`}>
+                {billboardSettings.enabled ? "Ativo no Painel" : "Desativado"}
+              </span>
+              <span className="text-[10px] font-semibold text-gold">
+                Tema: {BILLBOARD_THEMES[billboardSettings.theme]?.name}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Personalize título, mensagem, link e cores do banner de topo exibido a todos os afiliados.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setShowBillboardModal(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-2 text-xs font-semibold text-gold hover:bg-gold/20 hover:border-gold transition"
+          >
+            <Palette className="h-3.5 w-3.5" /> Configurar Outdoor
+          </button>
         </div>
       </div>
 

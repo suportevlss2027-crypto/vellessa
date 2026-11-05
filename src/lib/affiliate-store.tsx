@@ -47,6 +47,19 @@ export interface PlatformFeatureSettings {
   communityEnabled: boolean;
 }
 
+export type BillboardTheme = "emerald" | "gold" | "sapphire" | "ruby" | "purple";
+
+export interface BillboardSettings {
+  enabled: boolean;
+  badgeText: string;
+  title: string;
+  subtitle: string;
+  buttonText: string;
+  buttonUrl: string;
+  theme: BillboardTheme;
+  showPulse: boolean;
+}
+
 export interface AnnouncementItem {
   id: string;
   pinned?: boolean;
@@ -228,6 +241,11 @@ interface AffiliateStoreContextType {
   toggleFeature: (key: keyof PlatformFeatureSettings) => void;
   updateFeatureSettings: (settings: Partial<PlatformFeatureSettings>) => void;
 
+  // Outdoor / Billboard do Painel
+  billboardSettings: BillboardSettings;
+  updateBillboardSettings: (settings: Partial<BillboardSettings>) => void;
+  resetBillboardSettings: () => void;
+
   // Community state
   posts: CommunityPost[];
   addPost: (body: string) => void;
@@ -275,11 +293,106 @@ const STORAGE_KEYS = {
   AFFILIATES_MONITORING: "vellessa_affiliates_monitoring",
   CAMPAIGNS: "vellessa_affiliate_campaigns",
   FEATURE_SETTINGS: "vellessa_feature_settings",
+  BILLBOARD_SETTINGS: "vellessa_billboard_settings",
 };
 
 export const DEFAULT_FEATURE_SETTINGS: PlatformFeatureSettings = {
   trafficManagerEnabled: false,
   communityEnabled: false,
+};
+
+export const DEFAULT_BILLBOARD_SETTINGS: BillboardSettings = {
+  enabled: true,
+  badgeText: "LQZZ",
+  title: "Parceria Oficial Logzz COD",
+  subtitle: "Até 60% de comissão via Pix no checkout oficial",
+  buttonText: "Painel Logzz",
+  buttonUrl: "https://app.logzz.com.br",
+  theme: "emerald",
+  showPulse: true,
+};
+
+export const BILLBOARD_THEMES: Record<
+  BillboardTheme,
+  {
+    name: string;
+    border: string;
+    bg: string;
+    text: string;
+    badgeBg: string;
+    badgeText: string;
+    buttonBg: string;
+    buttonBorder: string;
+    buttonText: string;
+    pulseColor: string;
+    glow: string;
+  }
+> = {
+  emerald: {
+    name: "Esmeralda Logzz",
+    border: "border-emerald-500/35 hover:border-emerald-400/60",
+    bg: "bg-zinc-950/85 hover:bg-zinc-950/95",
+    text: "text-emerald-400",
+    badgeBg: "bg-white",
+    badgeText: "text-emerald-950",
+    buttonBg: "bg-emerald-500/15 hover:bg-emerald-500/25",
+    buttonBorder: "border-emerald-500/35",
+    buttonText: "text-emerald-300 hover:text-emerald-200",
+    pulseColor: "bg-emerald-400",
+    glow: "rgba(16, 185, 129, 0.15)",
+  },
+  gold: {
+    name: "Ouro Vellessa",
+    border: "border-gold/40 hover:border-gold",
+    bg: "bg-zinc-950/85 hover:bg-zinc-950/95",
+    text: "text-gold",
+    badgeBg: "bg-gold",
+    badgeText: "text-primary-foreground",
+    buttonBg: "bg-gold/15 hover:bg-gold/25",
+    buttonBorder: "border-gold/40",
+    buttonText: "text-gold hover:text-gold-light",
+    pulseColor: "bg-gold",
+    glow: "rgba(212, 175, 55, 0.20)",
+  },
+  sapphire: {
+    name: "Safira Tecnológico",
+    border: "border-cyan-500/35 hover:border-cyan-400/70",
+    bg: "bg-zinc-950/85 hover:bg-zinc-950/95",
+    text: "text-cyan-400",
+    badgeBg: "bg-cyan-400",
+    badgeText: "text-cyan-950",
+    buttonBg: "bg-cyan-500/15 hover:bg-cyan-500/25",
+    buttonBorder: "border-cyan-500/35",
+    buttonText: "text-cyan-300 hover:text-cyan-200",
+    pulseColor: "bg-cyan-400",
+    glow: "rgba(6, 182, 212, 0.15)",
+  },
+  ruby: {
+    name: "Rubi Urgente",
+    border: "border-rose-500/35 hover:border-rose-400/70",
+    bg: "bg-zinc-950/85 hover:bg-zinc-950/95",
+    text: "text-rose-400",
+    badgeBg: "bg-rose-500",
+    badgeText: "text-white",
+    buttonBg: "bg-rose-500/15 hover:bg-rose-500/25",
+    buttonBorder: "border-rose-500/35",
+    buttonText: "text-rose-300 hover:text-rose-200",
+    pulseColor: "bg-rose-400",
+    glow: "rgba(244, 63, 94, 0.18)",
+  },
+  purple: {
+    name: "Ametista VIP",
+    border: "border-purple-500/35 hover:border-purple-400/70",
+    bg: "bg-zinc-950/85 hover:bg-zinc-950/95",
+    text: "text-purple-400",
+    badgeBg: "bg-purple-400",
+    badgeText: "text-purple-950",
+    buttonBg: "bg-purple-500/15 hover:bg-purple-500/25",
+    buttonBorder: "border-purple-500/35",
+    buttonText: "text-purple-300 hover:text-purple-200",
+    pulseColor: "bg-purple-400",
+    glow: "rgba(168, 85, 247, 0.18)",
+  },
 };
 
 const DEFAULT_EMPTY_PROFILE: AffiliateProfile = {
@@ -1471,6 +1584,43 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
   }, []);
 
+  // 6.6. Billboard / Outdoor Promocional do Painel (Admin Control)
+  const [billboardSettings, setBillboardSettings] = useState<BillboardSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_BILLBOARD_SETTINGS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.BILLBOARD_SETTINGS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_BILLBOARD_SETTINGS,
+          ...parsed,
+        };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_BILLBOARD_SETTINGS;
+  });
+
+  const updateBillboardSettings = useCallback((settings: Partial<BillboardSettings>) => {
+    setBillboardSettings((prev) => {
+      const next = { ...prev, ...settings };
+      try {
+        localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(next));
+      } catch {}
+      toast.success("Outdoor do painel atualizado com sucesso!");
+      return next;
+    });
+  }, []);
+
+  const resetBillboardSettings = useCallback(() => {
+    setBillboardSettings(DEFAULT_BILLBOARD_SETTINGS);
+    try {
+      localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(DEFAULT_BILLBOARD_SETTINGS));
+    } catch {}
+    toast.info("Outdoor restaurado para o padrão Logzz.");
+  }, []);
+
   // 7. Community Posts
   const [posts, setPosts] = useState<CommunityPost[]>(() => {
     if (typeof window === "undefined") return [];
@@ -1691,6 +1841,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         featureSettings,
         toggleFeature,
         updateFeatureSettings,
+        billboardSettings,
+        updateBillboardSettings,
+        resetBillboardSettings,
       }}
     >
       {children}

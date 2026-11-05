@@ -18,11 +18,13 @@ import {
   Link2,
   List,
   Package,
+  Palette,
   Pencil,
   Plus,
   Search,
   Sparkles,
   Trash2,
+  Tv,
   UploadCloud,
   X,
   ZoomIn,
@@ -33,7 +35,9 @@ import {
   type DynamicMaterial,
   type MaterialFileItem,
   type MaterialFolder,
+  BILLBOARD_THEMES,
 } from "@/lib/affiliate-store";
+import { BillboardModal } from "@/components/admin/BillboardModal";
 import {
   formatBytes,
   getRawFile,
@@ -185,7 +189,10 @@ function AdminMateriaisPage() {
     createFolder,
     updateFolder,
     deleteFolder,
+    billboardSettings,
   } = useAffiliateStore();
+
+  const [showBillboardModal, setShowBillboardModal] = useState(false);
 
   const ESTIMATED_SIZES: Record<string, string> = {
     PDF: "2,5 MB",
@@ -865,6 +872,50 @@ function AdminMateriaisPage() {
       {lightboxFiles.length > 0 && (
         <Lightbox files={lightboxFiles} startIndex={lightboxIndex} onClose={closeLightbox} />
       )}
+
+      {/* Modal de Configuração do Outdoor Oficial */}
+      <BillboardModal
+        open={showBillboardModal}
+        onClose={() => setShowBillboardModal(false)}
+      />
+
+      {/* ── SEÇÃO 0: OUTDOOR DINÂMICO DO PAINEL (BANNER DE DESTAQUE) ────────── */}
+      <section className="space-y-4">
+        <div className="rounded-3xl border border-white/10 bg-card p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/10 text-gold border border-gold/20 shadow-gold shrink-0">
+              <Tv className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-base sm:text-lg text-foreground">Outdoor Oficial do Painel</h3>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                  billboardSettings.enabled
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : "bg-muted text-muted-foreground border-white/10"
+                }`}>
+                  {billboardSettings.enabled ? "Ativo no Painel" : "Desativado"}
+                </span>
+                <span className="text-[10px] font-semibold text-gold">
+                  Tema: {BILLBOARD_THEMES[billboardSettings.theme]?.name}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Banner interativo de alta visibilidade posicionado no topo da home de todos os afiliados.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => setShowBillboardModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+            >
+              <Palette className="h-4 w-4" /> Configurar Outdoor
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* ── SEÇÃO 1: LINKS OFICIAIS & LOGZZ ────────────────────────────────── */}
       <section className="space-y-4">

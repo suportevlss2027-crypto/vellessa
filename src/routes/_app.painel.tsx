@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { ArrowUpRight, BookOpen, CheckCircle, CheckCircle2, Image, Link2, Pin, Play, ShieldCheck, Sparkles, TrendingUp, Users } from "lucide-react";
 import { ProgressBar } from "@/components/AppShell";
-import { useAffiliateStore } from "@/lib/affiliate-store";
+import { useAffiliateStore, BILLBOARD_THEMES } from "@/lib/affiliate-store";
 
 export const Route = createFileRoute("/_app/painel")({
   head: () => ({
@@ -29,9 +29,13 @@ function Dashboard() {
     campaignsList,
     featureSettings,
     isAdmin,
+    billboardSettings,
   } = useAffiliateStore();
 
   const isCompletedAll = totalLessonsCount > 0 && completedCount === totalLessonsCount;
+
+  const billboardTheme =
+    BILLBOARD_THEMES[billboardSettings?.theme || "emerald"] || BILLBOARD_THEMES.emerald;
 
   const shortcuts = useMemo(
     () => [
@@ -65,10 +69,10 @@ function Dashboard() {
         <div className="pointer-events-none absolute -right-10 top-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-gold/15 blur-3xl" />
         <div className="pointer-events-none absolute right-1/4 -top-10 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-        {/* Layout Flex: Conteúdo (Esquerda) e Vitrine de Vídeo Cinematográfico (Direita) */}
+        {/* Layout Flex: Conteúdo & Outdoor (Esquerda) e Vitrine de Vídeo Cinematográfico 100% Desobstruída (Direita) */}
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 lg:gap-8">
-          {/* Coluna Esquerda: Boas-vindas, Progresso e Ação */}
-          <div className="max-w-xl">
+          {/* Coluna Esquerda: Boas-vindas, Outdoor Dinâmico, Progresso e Ação */}
+          <div className="max-w-xl flex-1">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-[10px] font-bold text-gold shadow-xs">
               <Sparkles className="h-2.5 w-2.5 text-gold" />
               <span>{profile.level || "Afiliado Oficial"}</span>
@@ -85,6 +89,53 @@ function Dashboard() {
                 ? "Parabéns! Você concluiu 100% da Academia Vellessa e está no ponto ideal para escalar suas vendas com autoridade."
                 : `Você concluiu ${progressPercentage}% da jornada oficial. Continue de onde parou e prepare suas próximas campanhas.`}
             </p>
+
+            {/* Outdoor Promocional Dinâmico (Configurável no Painel Admin) */}
+            {billboardSettings?.enabled && (
+              <div
+                className={`mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-3.5 backdrop-blur-md shadow-lg transition-all duration-300 max-w-lg ${billboardTheme.border} ${billboardTheme.bg}`}
+                style={{ boxShadow: `0 8px 24px -6px ${billboardTheme.glow}` }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl shadow-xs font-display text-[9px] font-black tracking-tight ${billboardTheme.badgeBg} ${billboardTheme.badgeText}`}
+                  >
+                    {billboardSettings.badgeText || "AVISO"}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-white tracking-tight truncate">
+                        {billboardSettings.title}
+                      </p>
+                      {billboardSettings.showPulse && (
+                        <span className="relative flex h-2 w-2 shrink-0">
+                          <span
+                            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${billboardTheme.pulseColor}`}
+                          />
+                          <span
+                            className={`relative inline-flex rounded-full h-2 w-2 ${billboardTheme.pulseColor}`}
+                          />
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-[11px] font-medium truncate ${billboardTheme.text}`}>
+                      {billboardSettings.subtitle}
+                    </p>
+                  </div>
+                </div>
+                {billboardSettings.buttonUrl && (
+                  <a
+                    href={billboardSettings.buttonUrl}
+                    target={billboardSettings.buttonUrl.startsWith("http") ? "_blank" : undefined}
+                    rel={billboardSettings.buttonUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition shrink-0 self-start sm:self-auto ${billboardTheme.buttonBg} ${billboardTheme.buttonBorder} ${billboardTheme.buttonText}`}
+                  >
+                    <span>{billboardSettings.buttonText}</span>
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
 
             {totalLessonsCount > 0 && (
               <div className="mt-4 flex items-center gap-2.5 max-w-xs">
@@ -114,7 +165,7 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Coluna Direita: Vitrine Cinematográfica em Vídeo HD (16:9) + Pílula Flutuante Logzz */}
+          {/* Coluna Direita: Vitrine Cinematográfica em Vídeo HD (16:9) — 100% Desobstruída */}
           <div className="relative shrink-0 flex flex-col items-center lg:items-end justify-center w-full lg:w-[46%] xl:w-[48%] max-w-[460px] mx-auto lg:mx-0">
             <div className="group relative w-full aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/70 shadow-2xl transition duration-500 hover:border-gold/30">
               {/* Glow áureo de fundo */}
@@ -132,38 +183,8 @@ function Dashboard() {
                 <source src="/videos/vellessa-painel-hero.mp4" type="video/mp4" />
               </video>
 
-              {/* Vinheta suave nos cantos para fusão orgânica */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
-
-              {/* Pílula Glassmorphism Flutuante Logzz Oficial */}
-              <div className="absolute inset-x-2.5 bottom-2.5 z-20 flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-zinc-950/85 p-2.5 backdrop-blur-md shadow-lg transition-all duration-300 hover:border-emerald-400/60 hover:bg-zinc-950/95">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-white shadow-xs">
-                    <span className="font-display text-[8px] font-black tracking-tighter text-emerald-900">
-                      LQZZ
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-[11px] font-bold text-white tracking-tight truncate">Parceria Oficial Logzz COD</p>
-                      <span className="relative flex h-1.5 w-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-emerald-400 font-medium truncate">Até 60% de comissão via Pix</p>
-                  </div>
-                </div>
-                <a
-                  href="https://app.logzz.com.br"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-2.5 py-1 text-[10px] font-bold text-emerald-300 hover:text-emerald-200 transition shrink-0"
-                >
-                  <span>Painel Logzz</span>
-                  <ArrowUpRight className="h-3 w-3" />
-                </a>
-              </div>
+              {/* Vinheta suave nos cantos para fusão orgânica (100% livre e limpo de qualquer sobreposição) */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
             </div>
           </div>
         </div>
