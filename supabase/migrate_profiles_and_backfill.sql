@@ -166,7 +166,62 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- ==============================================================================
--- 9. RPC SEGURA PARA EXCLUSÃO DEFINITIVA DE USUÁRIO (PERFIL + AUTH.USERS)
+-- 9. PROVISIONAMENTO DO BUCKET PÚBLICO DE CRIATIVOS E VÍDEOS (SUPABASE STORAGE)
+-- Garante que vídeos e imagens de alta resolução subam para a nuvem CDN
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('criativos', 'criativos', true, 524288000, null)
+ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 524288000;
+
+DROP POLICY IF EXISTS "criativos_public_select" ON storage.objects;
+DROP POLICY IF EXISTS "criativos_public_insert" ON storage.objects;
+DROP POLICY IF EXISTS "criativos_public_update" ON storage.objects;
+DROP POLICY IF EXISTS "criativos_public_delete" ON storage.objects;
+
+CREATE POLICY "criativos_public_select" 
+  ON storage.objects FOR SELECT 
+  TO authenticated, anon 
+  USING (bucket_id = 'criativos');
+
+CREATE POLICY "criativos_public_insert" 
+  ON storage.objects FOR INSERT 
+  TO authenticated, anon 
+  WITH CHECK (bucket_id = 'criativos');
+
+CREATE POLICY "criativos_public_update" 
+  ON storage.objects FOR UPDATE 
+  TO authenticated, anon 
+  USING (bucket_id = 'criativos');
+
+CREATE POLICY "criativos_public_delete" 
+  ON storage.objects FOR DELETE 
+  TO authenticated, anon 
+  USING (bucket_id = 'criativos');
+
+-- ==============================================================================
+-- 10. TABELA DE PROGRESSO DE AULAS SINCRONIZADA NA NUVEM (public.lesson_progress)
+-- Garante que o progresso persista entre celular, computador e múltiplos dispositivos
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.lesson_progress (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  lesson_id text NOT NULL,
+  completed boolean DEFAULT true NOT NULL,
+  completed_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(user_id, lesson_id)
+);
+
+ALTER TABLE public.lesson_progress ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "lesson_progress_all" ON public.lesson_progress;
+CREATE POLICY "lesson_progress_all" 
+  ON public.lesson_progress FOR ALL 
+  TO authenticated, anon 
+  USING (true) 
+  WITH CHECK (true);
+
+-- ==============================================================================
+-- 11. RPC SEGURA PARA EXCLUSÃO DEFINITIVA DE USUÁRIO (PERFIL + AUTH.USERS)
 -- Permite que o administrador exclua a conta sem precisar da Service Role Key
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.delete_user_by_admin(target_user_id uuid)
@@ -176,9 +231,11 @@ SECURITY DEFINER
 SET search_path = public, auth
 AS $$
 BEGIN
-  -- 1. Remove dependências e perfil
+  -- 1. Remove progresso de aulas
+  DELETE FROM public.lesson_progress WHERE user_id = target_user_id;
+  -- 2. Remove dependências e perfil
   DELETE FROM public.profiles WHERE id = target_user_id;
-  -- 2. Remove credencial do Auth
+  -- 3. Remove credencial do Auth
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
@@ -186,7 +243,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.delete_user_by_admin(uuid) TO authenticated, anon;
 
 -- ==============================================================================
--- 10. RELATÓRIO DIAGNÓSTICO IMEDIATO (RESULTADOS VISÍVEIS NA ABA RESULTS)
+-- 12. RELATÓRIO DIAGNÓSTICO IMEDIATO (RESULTADOS VISÍVEIS NA ABA RESULTS)
 -- ==============================================================================
 SELECT 
   'auth.users (Contas Registradas no Auth)' AS tabela, 

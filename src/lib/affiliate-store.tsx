@@ -874,8 +874,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   const isLessonDone = (id: string) => completedLessonIds.includes(id);
 
   const toggleLessonDone = (id: string) => {
+    let isRemoving = false;
     setCompletedLessonIds((prev) => {
-      const isRemoving = prev.includes(id);
+      isRemoving = prev.includes(id);
       const next = isRemoving ? prev.filter((item) => item !== id) : [...prev, id];
       try {
         localStorage.setItem(STORAGE_KEYS.COMPLETED_LESSONS, JSON.stringify(next));
@@ -884,6 +885,35 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       }
       return next;
     });
+
+    // Sincronização em tempo real com o banco de dados Supabase (Cross-device)
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) {
+          if (isRemoving) {
+            supabase
+              .from("lesson_progress")
+              .delete()
+              .eq("user_id", session.user.id)
+              .eq("lesson_id", id)
+              .then(() => {});
+          } else {
+            supabase
+              .from("lesson_progress")
+              .upsert(
+                {
+                  user_id: session.user.id,
+                  lesson_id: id,
+                  completed: true,
+                  completed_at: new Date().toISOString(),
+                },
+                { onConflict: "user_id,lesson_id" }
+              )
+              .then(() => {});
+          }
+        }
+      }).catch(() => {});
+    }
 
     if (profile.id || profile.email) {
       recordAffiliateActivity({
@@ -906,6 +936,26 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       }
       return next;
     });
+
+    // Sincronização em tempo real com o banco de dados Supabase (Cross-device)
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) {
+          supabase
+            .from("lesson_progress")
+            .upsert(
+              {
+                user_id: session.user.id,
+                lesson_id: id,
+                completed: true,
+                completed_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id,lesson_id" }
+            )
+            .then(() => {});
+        }
+      }).catch(() => {});
+    }
 
     if (profile.id || profile.email) {
       recordAffiliateActivity({
@@ -1038,6 +1088,27 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
               level: "Afiliado(a) Ouro",
             }, { onConflict: "id" });
           } catch { /* silencia falhas de upsert no auto-heal */ }
+        }
+
+        // Sincronização de Progresso de Aulas da Nuvem (Cross-device sync)
+        try {
+          const { data: progressRows } = await supabase
+            .from("lesson_progress")
+            .select("lesson_id")
+            .eq("user_id", session.user.id);
+
+          if (progressRows && progressRows.length > 0) {
+            const dbDoneIds = progressRows.map((r: any) => r.lesson_id);
+            setCompletedLessonIds((prev) => {
+              const merged = Array.from(new Set([...prev, ...dbDoneIds]));
+              try {
+                localStorage.setItem(STORAGE_KEYS.COMPLETED_LESSONS, JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+        } catch (progErr) {
+          console.warn("[AffiliateStore] Aviso ao carregar lesson_progress:", progErr);
         }
       }
     } catch (e) {
@@ -1508,8 +1579,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             name: rawName,
             first,
             email: email.trim(),
+            phone: "",
+            instagram: "",
             level: "Afiliado(a) Ouro",
             role: userRole,
+            status: "active",
           };
           recordAffiliateAccess(newProf);
 
@@ -1518,6 +1592,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           return true;
         }
       }
+
+      // Offline / Demo fallback
+      const cleanEmail = email.trim();
+      const rawName = name.trim();
+      const first = rawName.split(" ")[0] || rawName;
+      const selfAffiliateCode = `VLS-${cleanEmail.slice(0, 5).toUpperCase()}`;
+      const fallbackProf: AffiliateProfile = {
+        id: selfAffiliateCode,
+        name: rawName,
+        first,
+        email: cleanEmail,
+        phone: "",
+        instagram: "",
+        level: "Afiliado(a) Ouro",
+        role: isSuperAdmin(cleanEmail) ? "admin" : "affiliate",
+        status: "active",
+      };
+      recordAffiliateAccess(fallbackProf);
 
       toast.success("Cadastro realizado com sucesso!");
       setAuthLoading(false);
