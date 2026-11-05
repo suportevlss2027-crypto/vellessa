@@ -963,16 +963,18 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           recordAffiliateAccess(fallbackProf);
 
           // Persiste na public.profiles imediatamente
-          await supabase.from("profiles").upsert({
-            id: session.user.id,
-            email: session.user.email,
-            name: rawName,
-            first_name: fallbackProf.first,
-            role: userRole,
-            affiliate_code: selfAffiliateCode,
-            status: "active",
-            level: "Afiliado(a) Ouro",
-          }, { onConflict: "id" }).catch(() => {});
+          try {
+            await supabase.from("profiles").upsert({
+              id: session.user.id,
+              email: session.user.email,
+              name: rawName,
+              first_name: fallbackProf.first,
+              role: userRole,
+              affiliate_code: selfAffiliateCode,
+              status: "active",
+              level: "Afiliado(a) Ouro",
+            }, { onConflict: "id" });
+          } catch { /* silencia falhas de upsert no auto-heal */ }
         }
       }
     } catch (e) {
@@ -1295,16 +1297,18 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
         if (authData.user) {
           // Auto-provisionamento imediato do perfil no banco
-          await supabase.from("profiles").upsert({
-            id: authData.user.id,
-            email: trimmedEmail,
-            name: trimmedName,
-            first_name: trimmedName.split(" ")[0] || "Admin",
-            role: "admin",
-            affiliate_code: `VLS-${authData.user.id.slice(0, 5).toUpperCase()}`,
-            status: "active",
-            level: "Administrador Geral",
-          }, { onConflict: "id" }).catch(() => {});
+          try {
+            await supabase.from("profiles").upsert({
+              id: authData.user.id,
+              email: trimmedEmail,
+              name: trimmedName,
+              first_name: trimmedName.split(" ")[0] || "Admin",
+              role: "admin",
+              affiliate_code: `VLS-${authData.user.id.slice(0, 5).toUpperCase()}`,
+              status: "active",
+              level: "Administrador Geral",
+            }, { onConflict: "id" });
+          } catch { /* silencia falhas de upsert */ }
 
           // Tentar autenticar diretamente
           const { error: signInErr } = await supabase.auth.signInWithPassword({
@@ -1392,18 +1396,20 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           const userRole = isSuperAdmin(email) ? "admin" : "affiliate";
 
           // Auto-provisionamento imediato do perfil no banco
-          await supabase.from("profiles").upsert({
-            id: data.user.id,
-            email: email.trim(),
-            name: rawName,
-            first_name: first,
-            role: userRole,
-            affiliate_code: selfAffiliateCode,
-            status: "active",
-            level: "Afiliado(a) Ouro",
-          }, { onConflict: "id" }).catch((err) => {
+          try {
+            await supabase.from("profiles").upsert({
+              id: data.user.id,
+              email: email.trim(),
+              name: rawName,
+              first_name: first,
+              role: userRole,
+              affiliate_code: selfAffiliateCode,
+              status: "active",
+              level: "Afiliado(a) Ouro",
+            }, { onConflict: "id" });
+          } catch (err) {
             console.warn("Aviso ao auto-provisionar perfil:", err);
-          });
+          }
 
           // Registra na telemetria local
           const newProf: AffiliateProfile = {
