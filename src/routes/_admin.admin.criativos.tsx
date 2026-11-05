@@ -307,18 +307,20 @@ function AdminCriativosPage() {
     [creativeFoldersList, currentFolderId]
   );
 
-  // Contagem de peças por grupo
+  // Contagem de peças por grupo (com fallback de legados para o primeiro grupo)
   const countByFolder = useMemo(() => {
     const map: Record<string, number> = {};
+    const firstFolderId = creativeFoldersList[0]?.id;
     for (const c of creativesList) {
-      if (c.folderId) {
-        map[c.folderId] = (map[c.folderId] || 0) + 1;
+      const fId = c.folderId || firstFolderId;
+      if (fId) {
+        map[fId] = (map[fId] || 0) + 1;
       }
     }
     return map;
-  }, [creativesList]);
+  }, [creativesList, creativeFoldersList]);
 
-  // Criativos exibidos
+  // Criativos exibidos (apenas se dentro de pasta ou em busca ativa)
   const displayedCreatives = useMemo(() => {
     return creativesList.filter((c) => {
       if (filterType !== "all" && c.type !== filterType) {
@@ -336,12 +338,13 @@ function AdminCriativosPage() {
       }
 
       if (currentFolderId) {
-        return c.folderId === currentFolderId;
+        const isFirstFolder = creativeFoldersList[0]?.id === currentFolderId;
+        return c.folderId === currentFolderId || (isFirstFolder && !c.folderId);
       }
 
-      return !c.folderId;
+      return false; // Na raiz, exibimos apenas as coleções
     });
-  }, [creativesList, currentFolderId, searchQuery, filterType]);
+  }, [creativesList, currentFolderId, searchQuery, filterType, creativeFoldersList]);
 
   // ── SELEÇÃO EM MASSA HANDLERS ─────────────────────────────────────────────
   const toggleSelectOne = (id: string) => {
@@ -504,7 +507,7 @@ function AdminCriativosPage() {
               type: item.type,
               format: item.format,
               image: item.thumbnailUrl || undefined,
-              folderId: selectedFolderId || undefined,
+              folderId: selectedFolderId || currentFolderId || creativeFoldersList[0]?.id || undefined,
               fileUrl: uploadRes.fileUrl,
               storageType: uploadRes.storageType,
               storagePath: uploadRes.storagePath,
@@ -661,7 +664,7 @@ function AdminCriativosPage() {
     setFormat("1080×1080");
     setImageUrl("");
     setCopyBody("");
-    setSelectedFolderId(currentFolderId || "");
+    setSelectedFolderId(currentFolderId || creativeFoldersList[0]?.id || "");
     setFileUrl("");
     setExternalDownloadUrl("");
     setFileType("");
@@ -715,7 +718,7 @@ function AdminCriativosPage() {
       format: format.trim(),
       image: imageUrl || undefined,
       text: copyBody.trim() || undefined,
-      folderId: selectedFolderId || undefined,
+      folderId: selectedFolderId || currentFolderId || creativeFoldersList[0]?.id || undefined,
       fileUrl: finalFileUrl,
       externalDownloadUrl: externalDownloadUrl.trim() || undefined,
       fileType: fileType || undefined,
@@ -736,7 +739,7 @@ function AdminCriativosPage() {
     setEditFormat(c.format);
     setEditImageUrl(c.image ?? "");
     setEditCopyBody(c.text ?? "");
-    setEditSelectedFolderId(c.folderId || "");
+    setEditSelectedFolderId(c.folderId || creativeFoldersList[0]?.id || "");
     setEditFileUrl(c.fileUrl || "");
     setEditExternalDownloadUrl(c.externalDownloadUrl || "");
     setEditFileType(c.fileType || "");
@@ -774,7 +777,7 @@ function AdminCriativosPage() {
       format: editFormat.trim(),
       image: editImageUrl || undefined,
       text: editCopyBody.trim() || undefined,
-      folderId: editSelectedFolderId || undefined,
+      folderId: editSelectedFolderId || currentFolderId || creativeFoldersList[0]?.id || undefined,
       fileUrl: finalFileUrl,
       externalDownloadUrl: editExternalDownloadUrl.trim() || undefined,
       fileType: editFileType || undefined,
@@ -970,210 +973,230 @@ function AdminCriativosPage() {
         </div>
       </div>
 
-      {/* ── SEÇÃO DE GRUPOS ESTILO KIWIFY (APARECE SE EXISTIREM GRUPOS E ESTIVER NA RAIZ) ── */}
-      {!currentFolderId && !searchQuery && creativeFoldersList.length > 0 && (
+      {/* ── SEÇÃO DE GRUPOS ESTILO KIWIFY (NA RAIZ) ── */}
+      {!currentFolderId && !searchQuery && (
         <section className="space-y-3">
           <div className="flex items-center justify-between border-b border-border/30 pb-2">
             <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-gold" />
-              <span>Grupos & Coleções de Criativos (Estilo Kiwify)</span>
+              <span>Coleções de Criativos (Estilo Kiwify)</span>
               <span className="text-xs text-muted-foreground font-normal">
                 ({creativeFoldersList.length})
               </span>
             </h2>
             <button
               onClick={openNewFolderModal}
-              className="text-xs text-gold hover:underline font-semibold inline-flex items-center gap-1"
+              className="text-xs text-gold hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
             >
-              <Plus className="h-3 w-3" /> Criar novo grupo
+              <Plus className="h-3 w-3" /> Criar nova coleção
             </button>
           </div>
 
-          {/* Grid de Cards 16:9 Estilo Kiwify */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {creativeFoldersList.map((folder) => {
-              const count = countByFolder[folder.id] || 0;
-              const gradientTheme = COLOR_GRADIENT[folder.color || "gold"] || COLOR_GRADIENT.gold;
-              const dotColor = COLOR_DOT[folder.color || "gold"] || COLOR_DOT.gold;
-              const isDropTarget = selectedIds.size > 0;
+          {creativeFoldersList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 py-16 text-center bg-card/30 p-6">
+              <Folder className="mx-auto h-12 w-12 text-gold/40 mb-3" />
+              <h3 className="text-base font-semibold text-foreground">
+                Nenhuma coleção de criativos cadastrada.
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                Crie coleções (ex: &quot;Feed&quot;, &quot;Reels Virais&quot;, &quot;Stories&quot;) para organizar os criativos com capas 16:9 de alto impacto.
+              </p>
+              <button
+                onClick={openNewFolderModal}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition cursor-pointer"
+              >
+                <Plus className="h-4 w-4" /> Criar Primeira Coleção
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {creativeFoldersList.map((folder) => {
+                const count = countByFolder[folder.id] || 0;
+                const gradientTheme = COLOR_GRADIENT[folder.color || "gold"] || COLOR_GRADIENT.gold;
+                const dotColor = COLOR_DOT[folder.color || "gold"] || COLOR_DOT.gold;
+                const isDropTarget = selectedIds.size > 0;
 
-              return (
-                <div
-                  key={folder.id}
-                  onClick={() => {
-                    if (isDropTarget) {
-                      handleBatchMove(folder.id);
-                    } else {
-                      setCurrentFolderId(folder.id);
-                    }
-                  }}
-                  className={`group relative cursor-pointer overflow-hidden rounded-2xl border bg-card/70 transition-all duration-300 flex flex-col justify-between backdrop-blur-sm ${
-                    isDropTarget
-                      ? "border-gold/80 shadow-gold ring-2 ring-gold/30 scale-[1.01]"
-                      : "border-border/70 hover:border-gold/60 hover:shadow-gold"
-                  }`}
-                >
-                  {/* Capa 16:9 Estilo Kiwify */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-black/80">
-                    {folder.coverImage ? (
-                      <img
-                        src={folder.coverImage}
-                        alt={folder.name}
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div
-                        className={`h-full w-full bg-gradient-to-br ${gradientTheme} flex flex-col items-center justify-center p-4 text-center`}
-                      >
-                        <Folder className="h-10 w-10 text-gold mb-1 opacity-80" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-white/90">
-                          Coleção Oficial
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-                    {/* ── DROP-ZONE OVERLAY (Escopo B) ── aparece quando criativos estão selecionados */}
-                    {isDropTarget && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-sm animate-in fade-in">
-                        <div className="grid h-12 w-12 place-items-center rounded-full border-2 border-gold bg-gold/20 shadow-gold">
-                          <FolderInput className="h-6 w-6 text-gold" />
-                        </div>
-                        <p className="text-sm font-bold text-gold drop-shadow-lg text-center px-2">
-                          Mover {selectedIds.size} criativo{selectedIds.size !== 1 ? "s" : ""} aqui
-                        </p>
-                        <p className="text-[11px] text-white/70 text-center px-3 leading-tight">
-                          {folder.name}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Badge de Contagem */}
-                    {!isDropTarget && (
-                      <span className="absolute top-3 left-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-bold text-gold border border-gold/40 backdrop-blur-md">
-                        {count} {count === 1 ? "criativo" : "criativos"}
-                      </span>
-                    )}
-
-                    {/* Ações Rápidas no Hover (apenas quando NÃO está em modo seleção) */}
-                    {!isDropTarget && (
-                      <div
-                        className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() => openEditFolderModal(folder)}
-                          className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-gold border border-white/20 transition backdrop-blur-md"
-                          title="Editar grupo"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFolder(folder.id, folder.name)}
-                          className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-red-400 border border-white/20 transition backdrop-blur-md"
-                          title="Excluir grupo"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Título sobreposto na base da imagem */}
-                    {!isDropTarget && (
-                      <div className="absolute bottom-3 left-3 right-3">
-                        <h3 className="font-display text-base font-bold text-white tracking-tight drop-shadow-md truncate group-hover:text-gold transition">
-                          {folder.name}
-                        </h3>
-                        {folder.description && (
-                          <p className="text-[11px] text-white/80 line-clamp-1 mt-0.5">
-                            {folder.description}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Rodapé do Card */}
-                  <div className="flex items-center justify-between p-3 border-t border-border/40 bg-card/60 text-xs">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-                      <span>{isDropTarget ? "Clique para mover aqui" : "Acessar Coleção"}</span>
-                    </div>
-                    <span className={`text-[11px] font-medium flex items-center gap-0.5 transition ${isDropTarget ? "text-gold" : "text-gold group-hover:translate-x-0.5"}`}>
-                      {isDropTarget ? (
-                        <><FolderInput className="h-3 w-3" /> Mover</>
+                return (
+                  <div
+                    key={folder.id}
+                    onClick={() => {
+                      if (isDropTarget) {
+                        handleBatchMove(folder.id);
+                      } else {
+                        setCurrentFolderId(folder.id);
+                      }
+                    }}
+                    className={`group relative cursor-pointer overflow-hidden rounded-2xl border bg-card/70 transition-all duration-300 flex flex-col justify-between backdrop-blur-sm ${
+                      isDropTarget
+                        ? "border-gold/80 shadow-gold ring-2 ring-gold/30 scale-[1.01]"
+                        : "border-border/70 hover:border-gold/60 hover:shadow-gold"
+                    }`}
+                  >
+                    {/* Capa 16:9 Estilo Kiwify */}
+                    <div className="relative aspect-video w-full overflow-hidden bg-black/80">
+                      {folder.coverImage ? (
+                        <img
+                          src={folder.coverImage}
+                          alt={folder.name}
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        />
                       ) : (
-                        <>Explorar <ChevronRight className="h-3 w-3" /></>
+                        <div
+                          className={`h-full w-full bg-gradient-to-br ${gradientTheme} flex flex-col items-center justify-center p-4 text-center`}
+                        >
+                          <Folder className="h-10 w-10 text-gold mb-1 opacity-80" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-white/90">
+                            Coleção Oficial
+                          </span>
+                        </div>
                       )}
-                    </span>
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+                      {/* ── DROP-ZONE OVERLAY (Escopo B) ── aparece quando criativos estão selecionados */}
+                      {isDropTarget && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-sm animate-in fade-in">
+                          <div className="grid h-12 w-12 place-items-center rounded-full border-2 border-gold bg-gold/20 shadow-gold">
+                            <FolderInput className="h-6 w-6 text-gold" />
+                          </div>
+                          <p className="text-sm font-bold text-gold drop-shadow-lg text-center px-2">
+                            Mover {selectedIds.size} criativo{selectedIds.size !== 1 ? "s" : ""} aqui
+                          </p>
+                          <p className="text-[11px] text-white/70 text-center px-3 leading-tight">
+                            {folder.name}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Badge de Contagem */}
+                      {!isDropTarget && (
+                        <span className="absolute top-3 left-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-bold text-gold border border-gold/40 backdrop-blur-md">
+                          {count} {count === 1 ? "criativo" : "criativos"}
+                        </span>
+                      )}
+
+                      {/* Ações Rápidas no Hover (apenas quando NÃO está em modo seleção) */}
+                      {!isDropTarget && (
+                        <div
+                          className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => openEditFolderModal(folder)}
+                            className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-gold border border-white/20 transition backdrop-blur-md cursor-pointer"
+                            title="Editar grupo"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                            className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-red-400 border border-white/20 transition backdrop-blur-md cursor-pointer"
+                            title="Excluir grupo"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Título sobreposto na base da imagem */}
+                      {!isDropTarget && (
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <h3 className="font-display text-base font-bold text-white tracking-tight drop-shadow-md truncate group-hover:text-gold transition">
+                            {folder.name}
+                          </h3>
+                          {folder.description && (
+                            <p className="text-[11px] text-white/80 line-clamp-1 mt-0.5">
+                              {folder.description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rodapé do Card */}
+                    <div className="flex items-center justify-between p-3 border-t border-border/40 bg-card/60 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+                        <span>{isDropTarget ? "Clique para mover aqui" : "Acessar Coleção"}</span>
+                      </div>
+                      <span className={`text-[11px] font-medium flex items-center gap-0.5 transition ${isDropTarget ? "text-gold" : "text-gold group-hover:translate-x-0.5"}`}>
+                        {isDropTarget ? (
+                          <><FolderInput className="h-3 w-3" /> Mover</>
+                        ) : (
+                          <>Explorar <ChevronRight className="h-3 w-3" /></>
+                        )}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
-      {/* ── BARRA DE SELEÇÃO & CONTAGEM ─────────────────────────────────── */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-3">
-          {selectionMode && (
-            <button
-              onClick={handleSelectAll}
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition font-medium"
-            >
-              <CheckSquare className="h-3.5 w-3.5 text-gold" />
-              <span>
-                {selectedIds.size === displayedCreatives.length && displayedCreatives.length > 0
-                  ? "Desmarcar todos"
-                  : "Selecionar todos"}
+      {/* ── BARRA DE SELEÇÃO & CONTAGEM (APENAS DENTRO DE UMA COLEÇÃO OU EM BUSCA) ── */}
+      {(currentFolderId || searchQuery.trim()) && (
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-3">
+            {selectionMode && (
+              <button
+                onClick={handleSelectAll}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition font-medium cursor-pointer"
+              >
+                <CheckSquare className="h-3.5 w-3.5 text-gold" />
+                <span>
+                  {selectedIds.size === displayedCreatives.length && displayedCreatives.length > 0
+                    ? "Desmarcar todos"
+                    : "Selecionar todos"}
+                </span>
+              </button>
+            )}
+
+            {selectedIds.size > 0 && (
+              <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[11px] font-semibold text-gold border border-gold/30">
+                {selectedIds.size} selecionado(s)
               </span>
+            )}
+
+            {selectionMode && selectedIds.size === 0 && (
+              <span className="text-xs text-muted-foreground">
+                Clique nos criativos para selecionar
+              </span>
+            )}
+          </div>
+
+          <span className="text-xs text-muted-foreground font-mono">
+            {displayedCreatives.length} {displayedCreatives.length === 1 ? "criativo" : "criativos"}
+          </span>
+        </div>
+      )}
+
+      {/* ── GRID / LISTA DE CRIATIVOS (APENAS DENTRO DE UMA COLEÇÃO OU EM BUSCA) ── */}
+      {(currentFolderId || searchQuery.trim()) && (
+        displayedCreatives.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 py-16 text-center bg-card/30 p-6">
+            <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/30 mb-3" />
+            <h3 className="text-base font-semibold text-foreground">
+              {searchQuery
+                ? "Nenhum criativo encontrado para esta busca."
+                : currentFolder
+                ? `A coleção "${currentFolder.name}" ainda não possui criativos cadastrados.`
+                : "Nenhum criativo cadastrado."}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md">
+              {searchQuery
+                ? "Tente buscar por outro termo ou limpe o campo de busca."
+                : "Adicione peças em vídeo (MP4), imagens (PNG/JPG), roteiros em PDF ou copys persuasivas para seus afiliados."}
+            </p>
+            <button
+              onClick={openCreateModal}
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition cursor-pointer"
+            >
+              <Plus className="h-4 w-4" /> Cadastrar Primeiro Criativo
             </button>
-          )}
-
-          {selectedIds.size > 0 && (
-            <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[11px] font-semibold text-gold border border-gold/30">
-              {selectedIds.size} selecionado(s)
-            </span>
-          )}
-
-          {selectionMode && selectedIds.size === 0 && (
-            <span className="text-xs text-muted-foreground">
-              Clique nos criativos para selecionar, depois arraste para um grupo
-            </span>
-          )}
-        </div>
-
-        <span className="text-xs text-muted-foreground font-mono">
-          {displayedCreatives.length} {displayedCreatives.length === 1 ? "criativo" : "criativos"}
-        </span>
-      </div>
-
-      {/* ── GRID / LISTA DE CRIATIVOS ──────────────────────────────────── */}
-      {displayedCreatives.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 py-16 text-center bg-card/30 p-6">
-          <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/30 mb-3" />
-          <h3 className="text-base font-semibold text-foreground">
-            {searchQuery
-              ? "Nenhum criativo encontrado para esta busca."
-              : currentFolder
-              ? `O grupo "${currentFolder.name}" ainda não possui criativos cadastrados.`
-              : "Nenhum criativo avulso cadastrado."}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-md">
-            {searchQuery
-              ? "Tente buscar por outro termo ou limpe o campo de busca."
-              : "Adicione peças em vídeo (MP4), imagens (PNG/JPG), roteiros em PDF ou copys persuasivas para seus afiliados."}
-          </p>
-          <button
-            onClick={openCreateModal}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
-          >
-            <Plus className="h-4 w-4" /> Cadastrar Primeiro Criativo
-          </button>
-        </div>
-      ) : viewMode === "grid" ? (
+          </div>
+        ) : viewMode === "grid" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayedCreatives.map((c) => {
             const isSelected = selectedIds.has(c.id);
@@ -1431,7 +1454,7 @@ function AdminCriativosPage() {
             );
           })}
         </div>
-      )}
+      ))}
 
       {/* ── BARRA FLUTUANTE DE SELEÇÃO EM MASSA ──────────────────────────── */}
       {selectedIds.size > 0 && (
@@ -1661,7 +1684,9 @@ function AdminCriativosPage() {
                   onChange={(e) => setSelectedFolderId(e.target.value)}
                   className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold"
                 >
-                  <option value="">Raiz Geral (Sem grupo)</option>
+                  {creativeFoldersList.length === 0 && (
+                    <option value="">Nenhuma coleção cadastrada</option>
+                  )}
                   {creativeFoldersList.map((f) => (
                     <option key={f.id} value={f.id}>
                       ✨ {f.name}
@@ -1980,7 +2005,9 @@ function AdminCriativosPage() {
                   onChange={(e) => setEditSelectedFolderId(e.target.value)}
                   className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold"
                 >
-                  <option value="">Raiz Geral (Sem grupo)</option>
+                  {creativeFoldersList.length === 0 && (
+                    <option value="">Nenhuma coleção cadastrada</option>
+                  )}
                   {creativeFoldersList.map((f) => (
                     <option key={f.id} value={f.id}>
                       ✨ {f.name}
