@@ -206,10 +206,17 @@ export async function generateVideoThumbnail(file: File | Blob): Promise<string 
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(video, 0, 0, w, h);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
-          cleanup();
-          resolve(dataUrl);
-          return;
+          try {
+            const dataUrl = canvas.toDataURL("image/webp", 0.75);
+            cleanup();
+            resolve(dataUrl);
+            return;
+          } catch {
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+            cleanup();
+            resolve(dataUrl);
+            return;
+          }
         }
       } catch (e) {
         console.warn("Falha ao gerar frame de vídeo:", e);

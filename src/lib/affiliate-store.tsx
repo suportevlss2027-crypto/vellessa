@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
 // ─── RBAC: Super Admin Authority ──────────────────────────────────────────────
@@ -950,9 +950,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
-  // ── Sincronização Inteligente de Criativos com Supabase (Zero-Data-Loss) ──
-  const syncCreativesWithSupabase = useCallback(async () => {
+  const hasSyncedCreativesRef = useRef(false);
+
+  // ── Sincronização Inteligente de Criativos com Supabase (Zero-Data-Loss & Single-Flight) ──
+  const syncCreativesWithSupabase = useCallback(async (force = false) => {
     if (!isSupabaseConfigured || !supabase) return;
+    if (hasSyncedCreativesRef.current && !force) return;
+    hasSyncedCreativesRef.current = true;
 
     try {
       // 1. Sincronização de Pastas / Grupos Kiwify
@@ -964,9 +968,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       if (!foldersErr && dbFolders) {
         const dbFolderMap = new Map(dbFolders.map((f: any) => [f.id, f]));
         // Identifica pastas locais que ainda não estão no banco para migrar (Zero Loss)
-        const localFoldersToSync = creativeFoldersList.filter((f) => !dbFolderMap.has(f.id));
+        const currentLocalFolders = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.CREATIVE_FOLDERS);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+        const localFoldersToSync = Array.isArray(currentLocalFolders)
+          ? currentLocalFolders.filter((f: any) => !dbFolderMap.has(f.id))
+          : [];
+
         if (localFoldersToSync.length > 0) {
-          const rowsToInsert = localFoldersToSync.map((f) => ({
+          const rowsToInsert = localFoldersToSync.map((f: any) => ({
             id: f.id,
             name: f.name,
             description: f.description || null,
@@ -984,24 +1000,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           coverImage: f.cover_image || undefined,
         }));
 
-        localFoldersToSync.forEach((lf) => {
+        localFoldersToSync.forEach((lf: any) => {
           if (!formattedFolders.some((f) => f.id === lf.id)) {
             formattedFolders.push(lf);
           }
         });
 
         setCreativeFoldersList(formattedFolders);
-        localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(formattedFolders));
-      } else if (foldersErr && creativeFoldersList.length > 0) {
         try {
-          const rowsToInsert = creativeFoldersList.map((f) => ({
-            id: f.id,
-            name: f.name,
-            description: f.description || null,
-            color: f.color || "gold",
-            cover_image: f.coverImage || null,
-          }));
-          await supabase.from("creative_folders").upsert(rowsToInsert);
+          localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(formattedFolders));
         } catch {}
       }
 
@@ -1013,10 +1020,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
       if (!creativesErr && dbCreatives) {
         const dbCreativeMap = new Map(dbCreatives.map((c: any) => [c.id, c]));
-        // Auto-migração: itens do localStorage que ainda não estão na nuvem
-        const localCreativesToSync = creativesList.filter((c) => !dbCreativeMap.has(c.id));
+        const currentLocalCreatives = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.CREATIVES);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+        const localCreativesToSync = Array.isArray(currentLocalCreatives)
+          ? currentLocalCreatives.filter((c: any) => !dbCreativeMap.has(c.id))
+          : [];
+
         if (localCreativesToSync.length > 0) {
-          const rowsToInsert = localCreativesToSync.map((c) => ({
+          const rowsToInsert = localCreativesToSync.map((c: any) => ({
             id: c.id,
             title: c.title,
             type: c.type,
@@ -1050,38 +1068,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           storagePath: c.storage_path || undefined,
         }));
 
-        localCreativesToSync.forEach((lc) => {
+        localCreativesToSync.forEach((lc: any) => {
           if (!formattedCreatives.some((c) => c.id === lc.id)) {
             formattedCreatives.push(lc);
           }
         });
 
         setCreativesList(formattedCreatives);
-        localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(formattedCreatives));
-      } else if (creativesErr && creativesList.length > 0) {
         try {
-          const rowsToInsert = creativesList.map((c) => ({
-            id: c.id,
-            title: c.title,
-            type: c.type,
-            format: c.format,
-            image: c.image || null,
-            text: c.text || null,
-            folder_id: c.folderId || null,
-            file_url: c.fileUrl || null,
-            external_download_url: c.externalDownloadUrl || null,
-            file_type: c.fileType || null,
-            file_size: c.fileSize || null,
-            storage_type: c.storageType || "supabase",
-            storage_path: c.storagePath || null,
-          }));
-          await supabase.from("creatives").upsert(rowsToInsert);
+          localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(formattedCreatives));
         } catch {}
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização com Supabase:", err);
     }
-  }, [creativesList, creativeFoldersList]);
+  }, []);
 
   useEffect(() => {
     checkSupabaseSession();

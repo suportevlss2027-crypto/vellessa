@@ -156,33 +156,11 @@ async function detectCreativeMetadata(file: File): Promise<{
         const ratio = w && h ? w / h : 0.5625;
         const suggestedType: CreativeType = ratio < 0.75 ? "Reels" : "Reels";
 
-        // Tenta capturar uma thumbnail do vídeo
-        video.currentTime = Math.min(1, dur / 2);
-        video.onseeked = () => {
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = w || 640;
-            canvas.height = h || 360;
-            const ctx = canvas.getContext("2d");
-            let thumb: string | undefined = undefined;
-            if (ctx) {
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              thumb = canvas.toDataURL("image/jpeg", 0.85);
-            }
-            URL.revokeObjectURL(objUrl);
-            resolve({
-              detectedFormat: formatStr,
-              suggestedType,
-              thumbnailUrl: thumb,
-            });
-          } catch {
-            URL.revokeObjectURL(objUrl);
-            resolve({
-              detectedFormat: formatStr,
-              suggestedType,
-            });
-          }
-        };
+        URL.revokeObjectURL(objUrl);
+        resolve({
+          detectedFormat: formatStr,
+          suggestedType,
+        });
       };
 
       video.onerror = () => {
@@ -1038,6 +1016,8 @@ function AdminCriativosPage() {
                         <img
                           src={folder.coverImage}
                           alt={folder.name}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         />
                       ) : (
@@ -1055,7 +1035,7 @@ function AdminCriativosPage() {
 
                       {/* ── DROP-ZONE OVERLAY (Escopo B) ── aparece quando criativos estão selecionados */}
                       {isDropTarget && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-sm animate-in fade-in">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/85 animate-in fade-in">
                           <div className="grid h-12 w-12 place-items-center rounded-full border-2 border-gold bg-gold/20 shadow-gold">
                             <FolderInput className="h-6 w-6 text-gold" />
                           </div>
@@ -1070,7 +1050,7 @@ function AdminCriativosPage() {
 
                       {/* Badge de Contagem */}
                       {!isDropTarget && (
-                        <span className="absolute top-3 left-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-bold text-gold border border-gold/40 backdrop-blur-md">
+                        <span className="absolute top-3 left-3 rounded-full bg-black/85 px-2.5 py-0.5 text-[10px] font-bold text-gold border border-gold/40 shadow-xs">
                           {count} {count === 1 ? "criativo" : "criativos"}
                         </span>
                       )}
@@ -1206,7 +1186,7 @@ function AdminCriativosPage() {
             return (
               <div
                 key={c.id}
-                className={`group relative rounded-2xl border bg-card/70 shadow-xs flex flex-col overflow-hidden transition-all duration-200 backdrop-blur-sm ${
+                className={`group relative rounded-2xl border bg-card shadow-xs flex flex-col overflow-hidden transition-all duration-200 ${
                   isSelected
                     ? "border-gold ring-2 ring-gold/40 shadow-gold"
                     : "border-border/70 hover:border-gold/40 hover:shadow-md"
@@ -1222,8 +1202,8 @@ function AdminCriativosPage() {
                     isSelected
                       ? "bg-gold text-primary-foreground border-gold shadow-xs"
                       : selectionMode
-                      ? "bg-black/60 text-transparent border-white/50 backdrop-blur-md hover:border-white"
-                      : "bg-black/60 text-transparent border-white/30 backdrop-blur-md opacity-0 group-hover:opacity-100 hover:border-white"
+                      ? "bg-black/85 text-transparent border-white/50 hover:border-white"
+                      : "bg-black/85 text-transparent border-white/30 opacity-0 group-hover:opacity-100 hover:border-white"
                   }`}
                   title={isSelected ? "Desmarcar" : "Selecionar"}
                 >
@@ -1236,13 +1216,15 @@ function AdminCriativosPage() {
                     <img
                       src={c.image}
                       alt={c.title}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-70" />
 
                     {/* Selo do Tipo */}
                     <span
-                      className={`absolute top-2.5 right-2.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-md ${
+                      className={`absolute top-2.5 right-2.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-xs ${
                         typeBadge[c.type as CreativeType] || "bg-accent text-gold"
                       }`}
                     >
@@ -1250,7 +1232,7 @@ function AdminCriativosPage() {
                     </span>
 
                     {/* Badge de Formato / Duração */}
-                    <span className="absolute bottom-2 left-2 rounded-lg bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-white border border-white/20 backdrop-blur-md font-mono">
+                    <span className="absolute bottom-2 left-2 rounded-lg bg-black/85 px-2 py-0.5 text-[10px] font-semibold text-white border border-white/20 font-mono">
                       {c.format}
                     </span>
                   </div>
@@ -1749,6 +1731,8 @@ function AdminCriativosPage() {
                             <img
                               src={item.thumbnailUrl}
                               alt={item.title}
+                              loading="lazy"
+                              decoding="async"
                               className="h-full w-full object-cover"
                             />
                           ) : item.fileType.startsWith("video/") ? (
