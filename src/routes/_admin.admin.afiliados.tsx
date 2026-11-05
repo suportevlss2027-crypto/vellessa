@@ -39,18 +39,22 @@ function AdminAfiliadosPage() {
   const [selectedAffiliate, setSelectedAffiliate] = useState<any | null>(null);
 
   const fetchAffiliates = async () => {
-    if (!isSupabaseConfigured || !supabase) return;
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(0, 99);
+    setLoading(true);
+    let supabaseItems: any[] = [];
 
-      if (data && !error && data.length > 0) {
-        setDbAffiliates(
-          data.map((p) => ({
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(0, 99);
+
+        if (error) {
+          console.warn("[AdminAfiliados] Erro ao buscar perfis do Supabase:", error);
+          toast.error(`Aviso Supabase: ${error.message}`);
+        } else if (data) {
+          supabaseItems = data.map((p) => ({
             id: p.affiliate_code || p.id.slice(0, 8),
             rawId: p.id,
             name: p.name,
@@ -62,14 +66,40 @@ function AdminAfiliadosPage() {
             role: p.role,
             date: new Date(p.created_at).toLocaleDateString("pt-BR"),
             createdAt: p.created_at,
-          }))
-        );
+          }));
+        }
+      } catch (e: any) {
+        console.warn("Could not fetch profiles from Supabase:", e);
       }
-    } catch (e) {
-      console.warn("Could not fetch profiles from Supabase:", e);
-    } finally {
-      setLoading(false);
     }
+
+    // Mescla inteligente com telemetria local (fallback para contas locais/offline)
+    const mapByEmail = new Map<string, any>();
+    supabaseItems.forEach((item) => {
+      if (item.email) mapByEmail.set(item.email.toLowerCase(), item);
+    });
+
+    Object.values(affiliatesMonitoring).forEach((mon) => {
+      const email = mon.email?.toLowerCase();
+      if (email && !mapByEmail.has(email)) {
+        mapByEmail.set(email, {
+          id: mon.affiliateId || `VLS-${email.slice(0, 5).toUpperCase()}`,
+          rawId: mon.affiliateId,
+          name: mon.name || email.split("@")[0],
+          email: mon.email,
+          level: mon.level || "Afiliado Oficial",
+          status: "Ativo",
+          phone: mon.phone || "",
+          instagram: mon.instagram || "",
+          role: mon.role || "affiliate",
+          date: new Date(mon.createdAt || Date.now()).toLocaleDateString("pt-BR"),
+          createdAt: mon.createdAt || new Date().toISOString(),
+        });
+      }
+    });
+
+    setDbAffiliates(Array.from(mapByEmail.values()));
+    setLoading(false);
   };
 
   useEffect(() => {

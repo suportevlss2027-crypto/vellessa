@@ -943,6 +943,35 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           };
           setProfile(loadedProf);
           recordAffiliateAccess(loadedProf);
+        } else {
+          // Auto-cura: Usuário autenticado órfão (sem linha em public.profiles)
+          const selfAffiliateCode = `VLS-${session.user.id.slice(0, 5).toUpperCase()}`;
+          const rawName = (session.user.user_metadata?.name as string) || session.user.email?.split("@")[0] || "Afiliado";
+          const userRole = isSuperAdmin(session.user.email) ? "admin" : "affiliate";
+          const fallbackProf: AffiliateProfile = {
+            id: selfAffiliateCode,
+            name: rawName,
+            first: rawName.split(" ")[0] || rawName,
+            email: session.user.email || "",
+            level: "Afiliado(a) Ouro",
+            phone: "",
+            instagram: "",
+            role: userRole,
+          };
+          setProfile(fallbackProf);
+          recordAffiliateAccess(fallbackProf);
+
+          // Persiste na public.profiles imediatamente
+          await supabase.from("profiles").upsert({
+            id: session.user.id,
+            email: session.user.email,
+            name: rawName,
+            first_name: fallbackProf.first,
+            role: userRole,
+            affiliate_code: selfAffiliateCode,
+            status: "active",
+            level: "Afiliado(a) Ouro",
+          }, { onConflict: "id" }).catch(() => {});
         }
       }
     } catch (e) {
@@ -1264,6 +1293,18 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         }
 
         if (authData.user) {
+          // Auto-provisionamento imediato do perfil no banco
+          await supabase.from("profiles").upsert({
+            id: authData.user.id,
+            email: trimmedEmail,
+            name: trimmedName,
+            first_name: trimmedName.split(" ")[0] || "Admin",
+            role: "admin",
+            affiliate_code: `VLS-${authData.user.id.slice(0, 5).toUpperCase()}`,
+            status: "active",
+            level: "Administrador Geral",
+          }, { onConflict: "id" }).catch(() => {});
+
           // Tentar autenticar diretamente
           const { error: signInErr } = await supabase.auth.signInWithPassword({
             email: trimmedEmail,
@@ -1344,6 +1385,36 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         }
 
         if (data.user) {
+          const selfAffiliateCode = `VLS-${data.user.id.slice(0, 5).toUpperCase()}`;
+          const rawName = name.trim();
+          const first = rawName.split(" ")[0] || rawName;
+          const userRole = isSuperAdmin(email) ? "admin" : "affiliate";
+
+          // Auto-provisionamento imediato do perfil no banco
+          await supabase.from("profiles").upsert({
+            id: data.user.id,
+            email: email.trim(),
+            name: rawName,
+            first_name: first,
+            role: userRole,
+            affiliate_code: selfAffiliateCode,
+            status: "active",
+            level: "Afiliado(a) Ouro",
+          }, { onConflict: "id" }).catch((err) => {
+            console.warn("Aviso ao auto-provisionar perfil:", err);
+          });
+
+          // Registra na telemetria local
+          const newProf: AffiliateProfile = {
+            id: selfAffiliateCode,
+            name: rawName,
+            first,
+            email: email.trim(),
+            level: "Afiliado(a) Ouro",
+            role: userRole,
+          };
+          recordAffiliateAccess(newProf);
+
           toast.success("Conta criada! Você já pode acessar a plataforma.");
           setAuthLoading(false);
           return true;
