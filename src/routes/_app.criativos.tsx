@@ -290,7 +290,7 @@ function Criativos() {
               description="Aguarde o administrador publicar novas coleções de criativos."
             />
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5">
               {creativeFoldersList.map((folder) => {
                 const count = countByFolder[folder.id] || 0;
                 const colorKey = folder.color || "gold";
@@ -405,7 +405,7 @@ function Criativos() {
                 <span className="text-[11px] font-mono text-muted-foreground">{filteredVisualItems.length} peças</span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {filteredVisualItems.map((c) => (
                   <div
                     key={c.id}

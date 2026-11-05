@@ -1009,7 +1009,7 @@ function AdminCriativosPage() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5">
               {creativeFoldersList.map((folder) => {
                 const count = countByFolder[folder.id] || 0;
                 const gradientTheme = COLOR_GRADIENT[folder.color || "gold"] || COLOR_GRADIENT.gold;
@@ -1197,7 +1197,7 @@ function AdminCriativosPage() {
             </button>
           </div>
         ) : viewMode === "grid" ? (
-        <div className="grid gap-3.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {displayedCreatives.map((c) => {
             const isSelected = selectedIds.has(c.id);
             const folderOfItem = creativeFoldersList.find((f) => f.id === c.folderId);
