@@ -1197,7 +1197,7 @@ function AdminCriativosPage() {
             </button>
           </div>
         ) : viewMode === "grid" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {displayedCreatives.map((c) => {
             const isSelected = selectedIds.has(c.id);
             const folderOfItem = creativeFoldersList.find((f) => f.id === c.folderId);
@@ -1230,9 +1230,9 @@ function AdminCriativosPage() {
                   <Check className="h-3.5 w-3.5" />
                 </div>
 
-                {/* Capa / Imagem da Peça */}
+                {/* Capa / Imagem da Peça em 9:16 Vertical */}
                 {c.image ? (
-                  <div className="relative aspect-video w-full overflow-hidden bg-muted/60">
+                  <div className="relative aspect-[9/16] w-full overflow-hidden bg-muted/60">
                     <img
                       src={c.image}
                       alt={c.title}

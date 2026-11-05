@@ -349,17 +349,17 @@ function Criativos() {
                 <span className="text-[11px] font-mono text-muted-foreground">{filteredVisualItems.length} peças</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
                 {filteredVisualItems.map((c) => (
                   <div
                     key={c.id}
-                    className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-card/60 transition-all duration-300 hover:border-gold/40 hover:-translate-y-0.5 shadow-xs backdrop-blur-sm"
+                    className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-card/60 transition-all duration-300 hover:border-gold/40 hover:-translate-y-1 shadow-md hover:shadow-gold/20 backdrop-blur-sm"
                   >
-                    {/* Janela Visual 16:9 (aspect-video) */}
+                    {/* Janela Visual 9:16 Vertical (dimensão de tela de smartphone) */}
                     <button
                       type="button"
                       onClick={() => setOpen(c)}
-                      className="relative aspect-video w-full overflow-hidden bg-muted/80 text-left block cursor-pointer"
+                      className="relative aspect-[9/16] w-full overflow-hidden bg-muted/80 text-left block cursor-pointer"
                     >
                       {/* Capa: thumbnail do arquivo ou imagem estática */}
                       {c.image ? (
@@ -374,15 +374,15 @@ function Criativos() {
                           <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-black/40" />
 
                       {/* Badges de Formato / Tipo */}
-                      <div className="absolute left-2.5 top-2.5 flex flex-wrap items-center gap-1">
-                        <span className="rounded-full border border-white/10 bg-black/70 px-2 py-0.5 text-[9px] font-mono font-bold text-gold backdrop-blur-md">
+                      <div className="absolute left-2 top-2 flex flex-wrap items-center gap-1">
+                        <span className="rounded-full border border-white/10 bg-black/75 px-2 py-0.5 text-[9px] font-mono font-bold text-gold backdrop-blur-md">
                           {c.type}
                         </span>
                         {c.format && (
-                          <span className="rounded-full border border-white/10 bg-black/60 px-2 py-0.5 text-[9px] font-mono text-white/80 backdrop-blur-md">
+                          <span className="rounded-full border border-white/10 bg-black/60 px-1.5 py-0.5 text-[8px] font-mono text-white/80 backdrop-blur-md hidden sm:inline-block">
                             {c.format}
                           </span>
                         )}
@@ -390,8 +390,8 @@ function Criativos() {
 
                       {/* Badge de tamanho do arquivo */}
                       {c.fileSize && (
-                        <div className="absolute right-2.5 top-2.5">
-                          <span className="rounded-full border border-white/10 bg-black/60 px-2 py-0.5 text-[9px] font-mono text-white/70 backdrop-blur-md">
+                        <div className="absolute right-2 top-2">
+                          <span className="rounded-full border border-white/10 bg-black/60 px-1.5 py-0.5 text-[8px] font-mono text-white/70 backdrop-blur-md">
                             {c.fileSize}
                           </span>
                         </div>
@@ -400,23 +400,23 @@ function Criativos() {
                       {/* Ícone de Play para Reels/Vídeos */}
                       {(c.type === "Reels" || c.fileType?.startsWith("video/")) && (
                         <div className="absolute inset-0 grid place-items-center">
-                          <span className="grid h-10 w-10 place-items-center rounded-full border border-gold/40 bg-black/60 text-gold shadow-gold backdrop-blur-md transition group-hover:scale-110">
-                            <Play className="h-4 w-4 fill-current ml-0.5" />
+                          <span className="grid h-11 w-11 place-items-center rounded-full border border-gold/40 bg-black/60 text-gold shadow-gold backdrop-blur-md transition group-hover:scale-110">
+                            <Play className="h-4.5 w-4.5 fill-current ml-0.5" />
                           </span>
                         </div>
                       )}
 
                       {/* Título sobreposto na base */}
-                      <div className="absolute bottom-2.5 left-2.5 right-2.5">
-                        <p className="font-display text-xs sm:text-sm font-bold text-white tracking-tight drop-shadow-sm truncate">
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <p className="font-display text-xs font-bold text-white tracking-tight drop-shadow-md line-clamp-2">
                           {c.title}
                         </p>
                       </div>
                     </button>
 
                     {/* Rodapé com ações */}
-                    <div className="flex items-center justify-between p-3 border-t border-border/30 bg-card/40 gap-1.5">
-                      <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[80px]">
+                    <div className="flex items-center justify-between p-2 sm:p-2.5 border-t border-border/30 bg-card/50 gap-1">
+                      <span className="text-[9px] font-mono text-muted-foreground truncate max-w-[50px]">
                         {c.fileType ? c.fileType.split("/")[1]?.toUpperCase() : c.format}
                       </span>
                       <div className="flex items-center gap-1 shrink-0">
@@ -424,9 +424,9 @@ function Criativos() {
                           onClick={() => copyText(getCreativeCopy(c), "Copy do criativo copiada!")}
                           title="Copiar texto sugerido deste criativo"
                           aria-label="Copiar texto"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/40 bg-card/60 text-muted-foreground hover:border-gold hover:text-gold transition cursor-pointer"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-card/60 text-muted-foreground hover:border-gold hover:text-gold transition cursor-pointer"
                         >
-                          <Copy className="h-3.5 w-3.5" />
+                          <Copy className="h-3 w-3" />
                         </button>
 
                         {/* Link externo (Google Drive / Canva) */}
@@ -436,10 +436,9 @@ function Criativos() {
                             target="_blank"
                             rel="noopener noreferrer"
                             title="Acessar link externo"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/40 bg-card/60 px-2 text-[11px] font-semibold text-muted-foreground hover:border-gold hover:text-gold transition"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-card/60 text-muted-foreground hover:border-gold hover:text-gold transition"
                           >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            <span>Link</span>
+                            <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
 
@@ -448,10 +447,10 @@ function Criativos() {
                           onClick={() => handleDownload(c)}
                           title="Baixar peça em alta resolução"
                           aria-label="Baixar peça"
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gold/30 bg-gold/10 px-2.5 text-[11px] font-semibold text-gold hover:bg-gold/20 transition shadow-xs cursor-pointer"
+                          className="inline-flex h-7 items-center gap-1 rounded-lg border border-gold/30 bg-gold/10 px-2 text-[10px] font-semibold text-gold hover:bg-gold/20 transition shadow-xs cursor-pointer"
                         >
-                          <Download className="h-3.5 w-3.5" />
-                          <span>Baixar</span>
+                          <Download className="h-3 w-3" />
+                          <span className="hidden sm:inline">Baixar</span>
                         </button>
                       </div>
                     </div>
