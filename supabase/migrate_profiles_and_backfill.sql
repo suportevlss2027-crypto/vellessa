@@ -1,40 +1,39 @@
 -- ==============================================================================
--- VELLESSA - DESBLOQUEIO DE RLS, CONFIRMAÇÃO DE CONTAS E BACKFILL GERAL
--- Execute este script no SQL Editor do seu Supabase Dashboard para:
--- 1. Confirmar automaticamente todos os e-mails pendentes no Auth
--- 2. Garantir a tabela public.profiles sem travas de chave estrangeira
--- 3. Remover políticas restritivas de RLS (que ocultavam afiliados)
--- 4. Transferir (Backfill) todos os usuários cadastrados para a tabela profiles
--- 5. Ativar o trigger permanente para todo futuro cadastro
+-- VELLESSA - SCRIPT DEFINITIVO DE ADIÇÃO DE COLUNAS, RLS E BACKFILL
+-- Este script adiciona as colunas faltantes (role, affiliate_code, etc)
+-- na tabela profiles que já existia no seu banco, desbloqueia o RLS
+-- e importa todos os usuários cadastrados no Auth na mesma hora.
 -- ==============================================================================
 
--- 1. Libera confirmação de e-mail para todas as contas criadas (sócio e testes)
+-- 1. Garante a existência da tabela public.profiles caso ainda não exista
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY
+);
+
+-- 2. Adiciona todas as colunas necessárias na tabela existente (resolve o erro 42703)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role text DEFAULT 'affiliate';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS first_name text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS instagram text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS affiliate_code text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS level text DEFAULT 'Afiliado(a) Ouro';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS commission_rate numeric(5,2) DEFAULT 0.60;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT timezone('utc'::text, now());
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT timezone('utc'::text, now());
+
+-- Remove qualquer trava antiga que causava erro de chave estrangeira
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_tenant_id_fkey;
+
+-- 3. Confirma o e-mail de todas as contas no Auth (desbloqueia o sócio e testes)
 UPDATE auth.users 
 SET email_confirmed_at = coalesce(email_confirmed_at, now())
 WHERE email_confirmed_at IS NULL;
 
--- 2. Garante a tabela public.profiles sem dependências externas impeditivas
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  role text DEFAULT 'affiliate' NOT NULL CHECK (role IN ('admin', 'affiliate', 'manager')),
-  name text NOT NULL,
-  first_name text,
-  email text UNIQUE NOT NULL,
-  phone text,
-  instagram text,
-  affiliate_code text UNIQUE,
-  level text DEFAULT 'Afiliado(a) Ouro' NOT NULL,
-  commission_rate numeric(5,2) DEFAULT 0.60 NOT NULL,
-  avatar_url text,
-  status text DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'suspended', 'pending')),
-  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Remove qualquer constraint antiga com a tabela tenants que causava erro 42P01
-ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_tenant_id_fkey;
-
--- 3. REMOVE TODAS AS POLÍTICAS ANTIGAS E RESTRITIVAS DE RLS
+-- 4. Desbloqueia o RLS para que administradores vejam todos os afiliados
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow authenticated users to read all profiles" ON public.profiles;
@@ -44,20 +43,18 @@ DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "profiles_select_policy" ON public.profiles;
 
--- Cria política aberta: Qualquer usuário autenticado (incluindo o admin) pode ver todos os perfis
 CREATE POLICY "Allow authenticated users to read all profiles" 
   ON public.profiles FOR SELECT 
   to authenticated 
   USING (true);
 
--- Permite gravação e atualização (upsert)
 CREATE POLICY "Allow users and admins to manage profiles" 
   ON public.profiles FOR ALL 
   to authenticated 
   USING (true)
   WITH CHECK (true);
 
--- 4. BACKFILL GERAL: Transfere todas as contas do auth.users para public.profiles
+-- 5. BACKFILL: Transfere todas as contas do auth.users para public.profiles
 INSERT INTO public.profiles (
   id,
   email,
@@ -90,9 +87,13 @@ FROM auth.users u
 ON CONFLICT (id) DO UPDATE SET
   email = excluded.email,
   name = coalesce(public.profiles.name, excluded.name),
+  role = CASE 
+    WHEN lower(trim(coalesce(excluded.email, ''))) LIKE '%ymarssico%' THEN 'admin'
+    ELSE coalesce(public.profiles.role, excluded.role, 'affiliate')
+  END,
   status = 'active';
 
--- 5. Trigger definitivo para novos cadastros
+-- 6. Trigger para automatizar todo cadastro futuro
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 DECLARE
