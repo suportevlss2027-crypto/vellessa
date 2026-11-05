@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 const rawUrl = import.meta.env.VITE_SUPABASE_URL || "";
 // Normalize URL to remove any trailing slash or rest endpoints
 const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export { supabaseUrl };
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -15,6 +16,19 @@ export const isSupabaseConfigured = Boolean(
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : (null as unknown as ReturnType<typeof createClient>);
+
+// Cliente isolado (sem persistência de sessão em localStorage) para operações de admin
+// como criar contas de usuários sem deslogar o administrador atual
+export function createIsolatedSupabaseClient() {
+  if (!isSupabaseConfigured || !supabaseUrl || !supabaseAnonKey) return null;
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
 
 export interface DatabaseTenant {
   id: string;

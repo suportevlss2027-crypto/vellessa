@@ -192,6 +192,7 @@ interface AffiliateStoreContextType {
   // Telemetria & Monitoramento de Afiliados
   affiliatesMonitoring: Record<string, AffiliateMonitoringData>;
   recordAffiliateActivity: (data: { affiliateId: string; name?: string; email?: string; completedLessonId?: string; lessonTitle?: string }) => void;
+  recordAffiliateAccess: (prof: AffiliateProfile) => void;
 
   // Dynamic Creatives, Materials, Links, Folders
   creativesList: Creative[];
@@ -2446,6 +2447,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         nextLesson,
         affiliatesMonitoring,
         recordAffiliateActivity,
+        recordAffiliateAccess,
         campaignsList,
         createCampaign,
         updateCampaign,

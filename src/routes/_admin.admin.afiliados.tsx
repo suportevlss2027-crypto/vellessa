@@ -23,7 +23,7 @@ import {
   Key,
 } from "lucide-react";
 import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured, createIsolatedSupabaseClient } from "@/lib/supabase";
 import { toast } from "sonner";
 import { AffiliateDetailModal, formatRelativeTime } from "@/components/admin/AffiliateDetailModal";
 
@@ -37,8 +37,14 @@ export const Route = createFileRoute("/_admin/admin/afiliados")({
 type FilterTab = "all" | "active" | "complete" | "inactive";
 
 function AdminAfiliadosPage() {
-  const { profile, isTitular, affiliatesMonitoring, modulesList, allLessonsList } =
-    useAffiliateStore();
+  const {
+    profile,
+    isTitular,
+    affiliatesMonitoring,
+    recordAffiliateAccess,
+    modulesList,
+    allLessonsList,
+  } = useAffiliateStore();
   const [search, setSearch] = useState("");
   const [dbAffiliates, setDbAffiliates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -209,6 +215,18 @@ function AdminAfiliadosPage() {
     }
   };
 
+  // Helper para gerar UUID v4 compatível 100% com a coluna uuid do PostgreSQL
+  const generateUUID = () => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
   const handleCreateAffiliate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAffiliate.name.trim() || !newAffiliate.email.trim()) {
@@ -224,41 +242,43 @@ function AdminAfiliadosPage() {
     const trimmedEmail = newAffiliate.email.trim().toLowerCase();
     const trimmedName = newAffiliate.name.trim();
     const first = trimmedName.split(" ")[0] || trimmedName;
-    const affiliateCode = `VLS-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    let profileUuid = generateUUID();
+    const affiliateCode = `VLS-${profileUuid.replace(/-/g, "").substring(0, 6).toUpperCase()}`;
 
     try {
-      let createdUserId: string | null = null;
-
-      // 1. Cria usuário no Supabase Auth se houver senha fornecida
-      if (isSupabaseConfigured && supabase && newAffiliate.password.trim().length >= 6) {
-        try {
-          const { data: authData, error: authErr } = await supabase.auth.signUp({
-            email: trimmedEmail,
-            password: newAffiliate.password.trim(),
-            options: {
-              data: {
-                name: trimmedName,
-                role: newAffiliate.role,
-                phone: newAffiliate.phone.trim() || undefined,
-                instagram: newAffiliate.instagram.trim() || undefined,
+      // 1. Se fornecida senha >= 6 dígitos, registra a conta no Auth usando cliente isolado
+      // (evita sobrescrever ou deslogar a sessão do administrador titular)
+      if (newAffiliate.password.trim().length >= 6) {
+        const isolatedClient = createIsolatedSupabaseClient();
+        if (isolatedClient) {
+          try {
+            const { data: authData, error: authErr } = await isolatedClient.auth.signUp({
+              email: trimmedEmail,
+              password: newAffiliate.password.trim(),
+              options: {
+                data: {
+                  name: trimmedName,
+                  role: newAffiliate.role,
+                  phone: newAffiliate.phone.trim() || undefined,
+                  instagram: newAffiliate.instagram.trim() || undefined,
+                },
               },
-            },
-          });
-          if (authData?.user) {
-            createdUserId = authData.user.id;
-          } else if (authErr) {
-            console.warn("Auth signup notice:", authErr.message);
+            });
+            if (authData?.user) {
+              profileUuid = authData.user.id;
+            } else if (authErr) {
+              console.warn("Auth signup aviso:", authErr.message);
+            }
+          } catch (err: any) {
+            console.warn("Auth signup isolado erro:", err);
           }
-        } catch (err) {
-          console.warn("Auth signup error:", err);
         }
       }
 
-      // 2. Garante o perfil em public.profiles
-      const profileId = createdUserId || `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      // 2. Garante o perfil em public.profiles com UUID estritamente válido
       if (isSupabaseConfigured && supabase) {
         const { error: profileErr } = await supabase.from("profiles").upsert({
-          id: profileId,
+          id: profileUuid,
           email: trimmedEmail,
           name: trimmedName,
           first_name: first,
@@ -272,14 +292,26 @@ function AdminAfiliadosPage() {
         }, { onConflict: "id" });
 
         if (profileErr) {
-          console.warn("Profile upsert warning:", profileErr);
+          console.error("Profile upsert aviso/erro:", profileErr);
+          toast.error(`Aviso banco: ${profileErr.message}`);
         }
       }
 
-      // 3. Registra na telemetria local para visualização imediata em qualquer condição
+      // 3. Registra na telemetria local e monitoramento persistente
+      recordAffiliateAccess({
+        id: affiliateCode,
+        name: trimmedName,
+        first,
+        email: trimmedEmail,
+        phone: newAffiliate.phone.trim(),
+        instagram: newAffiliate.instagram.trim(),
+        role: newAffiliate.role,
+        level: newAffiliate.level,
+      });
+
       const newProf = {
         id: affiliateCode,
-        rawId: profileId,
+        rawId: profileUuid,
         name: trimmedName,
         first,
         email: trimmedEmail,
@@ -304,7 +336,7 @@ function AdminAfiliadosPage() {
         level: "Afiliado(a) Ouro",
         role: "affiliate",
       });
-      fetchAffiliates();
+      await fetchAffiliates();
     } catch (e: any) {
       toast.error(`Erro ao cadastrar: ${e?.message || "Tente novamente."}`);
     } finally {
