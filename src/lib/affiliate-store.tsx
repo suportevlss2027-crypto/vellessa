@@ -96,6 +96,7 @@ export interface CreativeFolder {
   description?: string;
   icon?: string;
   color?: string;
+  coverImage?: string; // Capa 16:9 estilo Kiwify (1920x1080)
   createdAt?: string;
 }
 
@@ -203,9 +204,9 @@ interface AffiliateStoreContextType {
   updateFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
 
-  // Creative Folders Actions
-  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string }) => Promise<void>;
-  updateCreativeFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => Promise<void>;
+  // Creative Folders Actions (Grupos / Coleções Estilo Kiwify)
+  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<void>;
+  updateCreativeFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<void>;
   deleteCreativeFolder: (id: string) => Promise<void>;
   moveCreativesToFolder: (creativeIds: string[], targetFolderId?: string) => Promise<void>;
   deleteCreativesBatch: (creativeIds: string[]) => Promise<void>;
@@ -217,8 +218,33 @@ interface AffiliateStoreContextType {
   createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string }) => Promise<void>;
   updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string }) => Promise<void>;
   deleteLesson: (lessonId: string) => Promise<void>;
-  createCreative: (data: { title: string; type: "Feed" | "Stories" | "Reels" | "Copy"; format: string; image?: string; text?: string; folderId?: string }) => Promise<void>;
-  updateCreative: (id: string, data: { title?: string; type?: "Feed" | "Stories" | "Reels" | "Copy"; format?: string; image?: string; text?: string; folderId?: string }) => Promise<void>;
+  createCreative: (data: {
+    title: string;
+    type: "Feed" | "Stories" | "Reels" | "Copy";
+    format: string;
+    image?: string;
+    text?: string;
+    folderId?: string;
+    fileUrl?: string;
+    externalDownloadUrl?: string;
+    fileType?: string;
+    fileSize?: string;
+  }) => Promise<void>;
+  updateCreative: (
+    id: string,
+    data: {
+      title?: string;
+      type?: "Feed" | "Stories" | "Reels" | "Copy";
+      format?: string;
+      image?: string;
+      text?: string;
+      folderId?: string;
+      fileUrl?: string;
+      externalDownloadUrl?: string;
+      fileType?: string;
+      fileSize?: string;
+    }
+  ) => Promise<void>;
   deleteCreative: (id: string) => Promise<void>;
   createMaterial: (data: {
     title: string;
@@ -1313,6 +1339,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     image?: string;
     text?: string;
     folderId?: string;
+    fileUrl?: string;
+    externalDownloadUrl?: string;
+    fileType?: string;
+    fileSize?: string;
   }) => {
     const newC: Creative = {
       id: `c-${Date.now()}`,
@@ -1322,6 +1352,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       image: data.image || "",
       text: data.text,
       folderId: data.folderId,
+      fileUrl: data.fileUrl,
+      externalDownloadUrl: data.externalDownloadUrl,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
     };
     const updated = [newC, ...creativesList];
     setCreativesList(updated);
@@ -1338,6 +1372,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       image?: string;
       text?: string;
       folderId?: string;
+      fileUrl?: string;
+      externalDownloadUrl?: string;
+      fileType?: string;
+      fileSize?: string;
     }
   ) => {
     const updated = creativesList.map((c) => {
@@ -1550,22 +1588,23 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Pasta removida. Os materiais foram movidos para Geral.");
   };
 
-  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string }) => {
+  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }) => {
     const newFolder: CreativeFolder = {
       id: `cfolder-${Date.now()}`,
       name: data.name.trim(),
       description: data.description?.trim(),
       color: data.color || "gold",
       icon: data.icon || "Folder",
+      coverImage: data.coverImage?.trim(),
       createdAt: new Date().toISOString(),
     };
     const updated = [...creativeFoldersList, newFolder];
     setCreativeFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
-    toast.success(`Pasta "${newFolder.name}" criada!`);
+    toast.success(`Grupo "${newFolder.name}" criado com sucesso!`);
   };
 
-  const updateCreativeFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string }) => {
+  const updateCreativeFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string }) => {
     const updated = creativeFoldersList.map((f) => {
       if (f.id !== id) return f;
       return {
@@ -1574,11 +1613,12 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         description: data.description?.trim() ?? f.description,
         color: data.color ?? f.color,
         icon: data.icon ?? f.icon,
+        coverImage: data.coverImage !== undefined ? data.coverImage?.trim() : f.coverImage,
       };
     });
     setCreativeFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
-    toast.success("Pasta atualizada!");
+    toast.success("Grupo atualizado!");
   };
 
   const deleteCreativeFolder = async (id: string) => {

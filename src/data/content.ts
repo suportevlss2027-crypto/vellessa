@@ -41,6 +41,10 @@ export type Creative = {
   text?: string;
   format: string;
   folderId?: string;
+  fileUrl?: string;
+  externalDownloadUrl?: string;
+  fileType?: string;
+  fileSize?: string;
 };
 
 export const creatives: Creative[] = [];
