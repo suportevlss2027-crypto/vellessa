@@ -68,14 +68,34 @@ export interface DatabaseLesson {
   created_at: string;
 }
 
+export interface DatabaseCreativeFolder {
+  id: string;
+  tenant_id?: string;
+  name: string;
+  description?: string;
+  color?: string;
+  cover_image?: string;
+  order_index?: number;
+  created_at?: string;
+}
+
 export interface DatabaseCreative {
   id: string;
   tenant_id?: string;
   title: string;
   type: "Feed" | "Stories" | "Reels" | "Copy";
   format: string;
+  image?: string;
   media_url?: string;
   suggested_copy?: string;
+  text?: string;
+  folder_id?: string;
+  file_url?: string;
+  external_download_url?: string;
+  file_type?: string;
+  file_size?: string;
+  storage_type?: string;
+  storage_path?: string;
   order_index: number;
   created_at: string;
 }

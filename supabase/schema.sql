@@ -81,20 +81,40 @@ create table if not exists public.lesson_materials (
   created_at timestamptz default timezone('utc'::text, now()) not null
 );
 
+-- 6.5 CREATIVE FOLDERS TABLE (Grupos Kiwify 16:9 de Criativos)
+create table if not exists public.creative_folders (
+  id text primary key,
+  tenant_id uuid references public.tenants(id) on delete cascade,
+  name text not null,
+  description text,
+  color text default 'gold',
+  cover_image text,
+  order_index integer default 0,
+  created_at timestamptz default timezone('utc'::text, now()) not null
+);
+
 -- 7. CREATIVES TABLE (Central de Criativos: Feed, Stories, Reels, Copy)
 create table if not exists public.creatives (
-  id uuid default gen_random_uuid() primary key,
+  id text primary key,
   tenant_id uuid references public.tenants(id) on delete cascade,
   title text not null,
   type text not null check (type in ('Feed', 'Stories', 'Reels', 'Copy')),
   format text not null default '1080×1080',
-  media_url text,
-  suggested_copy text,
+  image text,
+  text text,
+  folder_id text references public.creative_folders(id) on delete set null,
+  file_url text,
+  external_download_url text,
+  file_type text,
+  file_size text,
+  storage_type text default 'supabase',
+  storage_path text,
   order_index integer default 0 not null,
   created_at timestamptz default timezone('utc'::text, now()) not null
 );
 
 create index if not exists idx_creatives_type on public.creatives(type);
+create index if not exists idx_creatives_folder on public.creatives(folder_id);
 
 -- 8. MATERIALS TABLE (Arquivos Oficiais: Manuais, PDFs, ZIPs)
 create table if not exists public.materials (

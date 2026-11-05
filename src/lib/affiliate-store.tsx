@@ -935,9 +935,143 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
+  // ── Sincronização Inteligente de Criativos com Supabase (Zero-Data-Loss) ──
+  const syncCreativesWithSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    try {
+      // 1. Sincronização de Pastas / Grupos Kiwify
+      const { data: dbFolders, error: foldersErr } = await supabase
+        .from("creative_folders")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (!foldersErr && dbFolders) {
+        const dbFolderMap = new Map(dbFolders.map((f: any) => [f.id, f]));
+        // Identifica pastas locais que ainda não estão no banco para migrar (Zero Loss)
+        const localFoldersToSync = creativeFoldersList.filter((f) => !dbFolderMap.has(f.id));
+        if (localFoldersToSync.length > 0) {
+          const rowsToInsert = localFoldersToSync.map((f) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description || null,
+            color: f.color || "gold",
+            cover_image: f.coverImage || null,
+          }));
+          await supabase.from("creative_folders").upsert(rowsToInsert);
+        }
+
+        const formattedFolders: CreativeFolder[] = dbFolders.map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          description: f.description || "",
+          color: f.color || "gold",
+          coverImage: f.cover_image || undefined,
+        }));
+
+        localFoldersToSync.forEach((lf) => {
+          if (!formattedFolders.some((f) => f.id === lf.id)) {
+            formattedFolders.push(lf);
+          }
+        });
+
+        setCreativeFoldersList(formattedFolders);
+        localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(formattedFolders));
+      } else if (foldersErr && creativeFoldersList.length > 0) {
+        try {
+          const rowsToInsert = creativeFoldersList.map((f) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description || null,
+            color: f.color || "gold",
+            cover_image: f.coverImage || null,
+          }));
+          await supabase.from("creative_folders").upsert(rowsToInsert);
+        } catch {}
+      }
+
+      // 2. Sincronização de Criativos
+      const { data: dbCreatives, error: creativesErr } = await supabase
+        .from("creatives")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!creativesErr && dbCreatives) {
+        const dbCreativeMap = new Map(dbCreatives.map((c: any) => [c.id, c]));
+        // Auto-migração: itens do localStorage que ainda não estão na nuvem
+        const localCreativesToSync = creativesList.filter((c) => !dbCreativeMap.has(c.id));
+        if (localCreativesToSync.length > 0) {
+          const rowsToInsert = localCreativesToSync.map((c) => ({
+            id: c.id,
+            title: c.title,
+            type: c.type,
+            format: c.format,
+            image: c.image || null,
+            text: c.text || null,
+            folder_id: c.folderId || null,
+            file_url: c.fileUrl || null,
+            external_download_url: c.externalDownloadUrl || null,
+            file_type: c.fileType || null,
+            file_size: c.fileSize || null,
+            storage_type: c.storageType || "supabase",
+            storage_path: c.storagePath || null,
+          }));
+          await supabase.from("creatives").upsert(rowsToInsert);
+        }
+
+        const formattedCreatives: Creative[] = dbCreatives.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          type: c.type,
+          format: c.format,
+          image: c.image || c.media_url || undefined,
+          text: c.text || c.suggested_copy || undefined,
+          folderId: c.folder_id || undefined,
+          fileUrl: c.file_url || undefined,
+          externalDownloadUrl: c.external_download_url || undefined,
+          fileType: c.file_type || undefined,
+          fileSize: c.file_size || undefined,
+          storageType: c.storage_type || undefined,
+          storagePath: c.storage_path || undefined,
+        }));
+
+        localCreativesToSync.forEach((lc) => {
+          if (!formattedCreatives.some((c) => c.id === lc.id)) {
+            formattedCreatives.push(lc);
+          }
+        });
+
+        setCreativesList(formattedCreatives);
+        localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(formattedCreatives));
+      } else if (creativesErr && creativesList.length > 0) {
+        try {
+          const rowsToInsert = creativesList.map((c) => ({
+            id: c.id,
+            title: c.title,
+            type: c.type,
+            format: c.format,
+            image: c.image || null,
+            text: c.text || null,
+            folder_id: c.folderId || null,
+            file_url: c.fileUrl || null,
+            external_download_url: c.externalDownloadUrl || null,
+            file_type: c.fileType || null,
+            file_size: c.fileSize || null,
+            storage_type: c.storageType || "supabase",
+            storage_path: c.storagePath || null,
+          }));
+          await supabase.from("creatives").upsert(rowsToInsert);
+        } catch {}
+      }
+    } catch (err) {
+      console.warn("[AffiliateStore] Aviso na sincronização com Supabase:", err);
+    }
+  }, [creativesList, creativeFoldersList]);
+
   useEffect(() => {
     checkSupabaseSession();
-  }, [checkSupabaseSession]);
+    syncCreativesWithSupabase();
+  }, [checkSupabaseSession, syncCreativesWithSupabase]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     setAuthLoading(true);
@@ -1371,6 +1505,29 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const updated = [newC, ...creativesList];
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("creatives").upsert({
+          id: newC.id,
+          title: newC.title,
+          type: newC.type,
+          format: newC.format,
+          image: newC.image || null,
+          text: newC.text || null,
+          folder_id: newC.folderId || null,
+          file_url: newC.fileUrl || null,
+          external_download_url: newC.externalDownloadUrl || null,
+          file_type: newC.fileType || null,
+          file_size: newC.fileSize || null,
+          storage_type: newC.storageType || "supabase",
+          storage_path: newC.storagePath || null,
+        });
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao sincronizar criação com Supabase:", err);
+      }
+    }
+
     toast.success("Criativo adicionado à biblioteca de afiliados!");
   };
 
@@ -1400,6 +1557,28 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const patch: any = {};
+        if (data.title !== undefined) patch.title = data.title;
+        if (data.type !== undefined) patch.type = data.type;
+        if (data.format !== undefined) patch.format = data.format;
+        if (data.image !== undefined) patch.image = data.image || null;
+        if (data.text !== undefined) patch.text = data.text || null;
+        if (data.folderId !== undefined) patch.folder_id = data.folderId || null;
+        if (data.fileUrl !== undefined) patch.file_url = data.fileUrl || null;
+        if (data.externalDownloadUrl !== undefined) patch.external_download_url = data.externalDownloadUrl || null;
+        if (data.fileType !== undefined) patch.file_type = data.fileType || null;
+        if (data.fileSize !== undefined) patch.file_size = data.fileSize || null;
+        if (data.storageType !== undefined) patch.storage_type = data.storageType || null;
+        if (data.storagePath !== undefined) patch.storage_path = data.storagePath || null;
+        await supabase.from("creatives").update(patch).eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao sincronizar update com Supabase:", err);
+      }
+    }
+
     toast.success("Criativo atualizado com sucesso!");
   };
 
@@ -1411,6 +1590,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const updated = creativesList.filter((c) => c.id !== id);
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("creatives").delete().eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao deletar criativo no Supabase:", err);
+      }
+    }
+
     toast.success("Criativo removido.");
   };
 
@@ -1421,6 +1609,18 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     );
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from("creatives")
+          .update({ folder_id: targetFolderId || null })
+          .in("id", creativeIds);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao sincronizar mover criativos com Supabase:", err);
+      }
+    }
+
     toast.success(`${creativeIds.length} criativo(s) movido(s) com sucesso!`);
   };
 
@@ -1433,6 +1633,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const updated = creativesList.filter((c) => !targetSet.has(c.id));
     setCreativesList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("creatives").delete().in("id", creativeIds);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao deletar criativos em lote no Supabase:", err);
+      }
+    }
+
     toast.success(`${creativeIds.length} criativo(s) excluído(s).`);
   };
 
@@ -1622,6 +1831,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const updated = [...creativeFoldersList, newFolder];
     setCreativeFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("creative_folders").upsert({
+          id: newFolder.id,
+          name: newFolder.name,
+          description: newFolder.description || null,
+          color: newFolder.color || "gold",
+          cover_image: newFolder.coverImage || null,
+        });
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao sincronizar grupo com Supabase:", err);
+      }
+    }
+
     toast.success(`Grupo "${newFolder.name}" criado com sucesso!`);
   };
 
@@ -1639,6 +1863,20 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
     setCreativeFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const patch: any = {};
+        if (data.name !== undefined) patch.name = data.name.trim();
+        if (data.description !== undefined) patch.description = data.description.trim() || null;
+        if (data.color !== undefined) patch.color = data.color;
+        if (data.coverImage !== undefined) patch.cover_image = data.coverImage.trim() || null;
+        await supabase.from("creative_folders").update(patch).eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao atualizar grupo no Supabase:", err);
+      }
+    }
+
     toast.success("Grupo atualizado!");
   };
 
@@ -1653,6 +1891,16 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const updated = creativeFoldersList.filter((f) => f.id !== id);
     setCreativeFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("creatives").update({ folder_id: null }).eq("folder_id", id);
+        await supabase.from("creative_folders").delete().eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao excluir grupo no Supabase:", err);
+      }
+    }
+
     toast.success("Pasta removida. Os criativos foram movidos para a raiz.");
   };
 
