@@ -216,6 +216,7 @@ function AdminCriativosPage() {
   // ── SELEÇÃO EM MASSA ──────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showMoveDropdown, setShowMoveDropdown] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // ── MODAL DE GRUPO (ESTILO KIWIFY) ────────────────────────────────────────
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -240,6 +241,22 @@ function AdminCriativosPage() {
   const [fileName, setFileName] = useState("");
   const [isAutoDetected, setIsAutoDetected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── UPLOAD EM LOTE (Escopo C) ─────────────────────────────────────────────
+  interface BatchFile {
+    file: File;
+    title: string;
+    type: CreativeType;
+    format: string;
+    fileUrl: string;
+    fileType: string;
+    fileSize: string;
+    thumbnailUrl: string;
+    isDetected: boolean;
+  }
+  const [batchFiles, setBatchFiles] = useState<BatchFile[]>([]);
+  const [isBatchPublishing, setIsBatchPublishing] = useState(false);
+  const batchInputRef = useRef<HTMLInputElement>(null);
 
   // ── MODAL EDITAR CRIATIVO ─────────────────────────────────────────────────
   const [editId, setEditId] = useState<string | null>(null);
@@ -273,6 +290,7 @@ function AdminCriativosPage() {
   useEffect(() => {
     setSelectedIds(new Set());
     setShowMoveDropdown(false);
+    setSelectionMode(false);
   }, [currentFolderId]);
 
   // Pasta/Grupo atual
@@ -356,6 +374,110 @@ function AdminCriativosPage() {
     );
     setSelectedIds(new Set());
     setShowMoveDropdown(false);
+    setSelectionMode(false);
+    toast.success(
+      `${selectedIds.size} criativo(s) movidos com sucesso!`,
+      { icon: "📁" }
+    );
+  };
+
+  // ── UPLOAD EM LOTE — processa múltiplos arquivos ──────────────────────────
+  const handleBatchFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const oversized = files.filter((f) => f.size > 100 * 1024 * 1024);
+    if (oversized.length > 0) {
+      toast.error(`${oversized.length} arquivo(s) excedem 100MB e foram ignorados.`);
+    }
+
+    const valid = files.filter((f) => f.size <= 100 * 1024 * 1024);
+    if (valid.length === 0) return;
+
+    toast.loading(`Processando ${valid.length} arquivo(s)...`, { id: "batch-load" });
+
+    const processed: BatchFile[] = await Promise.all(
+      valid.map(async (file) => {
+        const sizeStr = formatFileSize(file.size);
+        const mime = file.type || "application/octet-stream";
+        const baseName = file.name.replace(/\.[^.]+$/, "");
+
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+
+        let detectedFormat = "Arquivo de Apoio";
+        let suggestedType: CreativeType = "Copy";
+        let thumbnailUrl = "";
+
+        try {
+          const meta = await detectCreativeMetadata(file);
+          detectedFormat = meta.detectedFormat;
+          suggestedType = meta.suggestedType;
+          thumbnailUrl = meta.thumbnailUrl || "";
+        } catch {}
+
+        return {
+          file,
+          title: baseName,
+          type: suggestedType,
+          format: detectedFormat,
+          fileUrl: dataUrl,
+          fileType: mime,
+          fileSize: sizeStr,
+          thumbnailUrl,
+          isDetected: true,
+        };
+      })
+    );
+
+    toast.dismiss("batch-load");
+    toast.success(`${processed.length} arquivo(s) prontos para publicar!`, { icon: "⚡" });
+    setBatchFiles(processed);
+    // reset input so same files can be re-selected if needed
+    if (batchInputRef.current) batchInputRef.current.value = "";
+  };
+
+  const updateBatchItem = (idx: number, patch: Partial<BatchFile>) => {
+    setBatchFiles((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, ...patch } : item))
+    );
+  };
+
+  const removeBatchItem = (idx: number) => {
+    setBatchFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handlePublishBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (batchFiles.length === 0) return;
+    setIsBatchPublishing(true);
+
+    for (let i = 0; i < batchFiles.length; i++) {
+      const item = batchFiles[i];
+      toast.loading(`Publicando ${i + 1} de ${batchFiles.length}…`, { id: "pub-batch" });
+      await createCreative({
+        title: item.title.trim() || `Criativo ${i + 1}`,
+        type: item.type,
+        format: item.format,
+        image: item.thumbnailUrl || undefined,
+        folderId: selectedFolderId || undefined,
+        fileUrl: item.fileUrl || undefined,
+        fileType: item.fileType || undefined,
+        fileSize: item.fileSize || undefined,
+      });
+    }
+
+    toast.dismiss("pub-batch");
+    toast.success(
+      `${batchFiles.length} criativo(s) publicados com sucesso!`,
+      { icon: "🎉" }
+    );
+    setBatchFiles([]);
+    setIsBatchPublishing(false);
+    setShowCreateModal(false);
   };
 
   // ── UPLOAD DE ARQUIVO REAL DA PEÇA (VÍDEO, PNG, PDF, ZIP) ────────────────
@@ -491,6 +613,7 @@ function AdminCriativosPage() {
     setFileSize("");
     setFileName("");
     setIsAutoDetected(false);
+    setBatchFiles([]);
     setShowCreateModal(true);
   };
 
@@ -710,6 +833,26 @@ function AdminCriativosPage() {
               <List className="h-3.5 w-3.5" />
             </button>
           </div>
+
+          {/* ── BOTÃO MODO SELEÇÃO (Escopo A) ── */}
+          <button
+            onClick={() => {
+              const next = !selectionMode;
+              setSelectionMode(next);
+              if (!next) setSelectedIds(new Set());
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+              selectionMode
+                ? "border-gold bg-gold/15 text-gold"
+                : "border-border/60 bg-background/60 text-muted-foreground hover:border-gold/50 hover:text-foreground"
+            }`}
+            title={selectionMode ? "Desativar seleção múltipla" : "Ativar seleção múltipla"}
+          >
+            <CheckSquare className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">
+              {selectionMode ? "Cancelar Seleção" : "Selecionar"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -738,12 +881,23 @@ function AdminCriativosPage() {
               const count = countByFolder[folder.id] || 0;
               const gradientTheme = COLOR_GRADIENT[folder.color || "gold"] || COLOR_GRADIENT.gold;
               const dotColor = COLOR_DOT[folder.color || "gold"] || COLOR_DOT.gold;
+              const isDropTarget = selectedIds.size > 0;
 
               return (
                 <div
                   key={folder.id}
-                  onClick={() => setCurrentFolderId(folder.id)}
-                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-border/70 bg-card/70 transition-all duration-300 hover:border-gold/60 hover:shadow-gold flex flex-col justify-between backdrop-blur-sm"
+                  onClick={() => {
+                    if (isDropTarget) {
+                      handleBatchMove(folder.id);
+                    } else {
+                      setCurrentFolderId(folder.id);
+                    }
+                  }}
+                  className={`group relative cursor-pointer overflow-hidden rounded-2xl border bg-card/70 transition-all duration-300 flex flex-col justify-between backdrop-blur-sm ${
+                    isDropTarget
+                      ? "border-gold/80 shadow-gold ring-2 ring-gold/30 scale-[1.01]"
+                      : "border-border/70 hover:border-gold/60 hover:shadow-gold"
+                  }`}
                 >
                   {/* Capa 16:9 Estilo Kiwify */}
                   <div className="relative aspect-video w-full overflow-hidden bg-black/80">
@@ -766,53 +920,78 @@ function AdminCriativosPage() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                    {/* Badge de Contagem */}
-                    <span className="absolute top-3 left-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-bold text-gold border border-gold/40 backdrop-blur-md">
-                      {count} {count === 1 ? "criativo" : "criativos"}
-                    </span>
+                    {/* ── DROP-ZONE OVERLAY (Escopo B) ── aparece quando criativos estão selecionados */}
+                    {isDropTarget && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-sm animate-in fade-in">
+                        <div className="grid h-12 w-12 place-items-center rounded-full border-2 border-gold bg-gold/20 shadow-gold">
+                          <FolderInput className="h-6 w-6 text-gold" />
+                        </div>
+                        <p className="text-sm font-bold text-gold drop-shadow-lg text-center px-2">
+                          Mover {selectedIds.size} criativo{selectedIds.size !== 1 ? "s" : ""} aqui
+                        </p>
+                        <p className="text-[11px] text-white/70 text-center px-3 leading-tight">
+                          {folder.name}
+                        </p>
+                      </div>
+                    )}
 
-                    {/* Ações Rápidas no Hover */}
-                    <div
-                      className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => openEditFolderModal(folder)}
-                        className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-gold border border-white/20 transition backdrop-blur-md"
-                        title="Editar grupo"
+                    {/* Badge de Contagem */}
+                    {!isDropTarget && (
+                      <span className="absolute top-3 left-3 rounded-full bg-black/75 px-2.5 py-0.5 text-[10px] font-bold text-gold border border-gold/40 backdrop-blur-md">
+                        {count} {count === 1 ? "criativo" : "criativos"}
+                      </span>
+                    )}
+
+                    {/* Ações Rápidas no Hover (apenas quando NÃO está em modo seleção) */}
+                    {!isDropTarget && (
+                      <div
+                        className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFolder(folder.id, folder.name)}
-                        className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-red-400 border border-white/20 transition backdrop-blur-md"
-                        title="Excluir grupo"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => openEditFolderModal(folder)}
+                          className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-gold border border-white/20 transition backdrop-blur-md"
+                          title="Editar grupo"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                          className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-red-400 border border-white/20 transition backdrop-blur-md"
+                          title="Excluir grupo"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
 
                     {/* Título sobreposto na base da imagem */}
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <h3 className="font-display text-base font-bold text-white tracking-tight drop-shadow-md truncate group-hover:text-gold transition">
-                        {folder.name}
-                      </h3>
-                      {folder.description && (
-                        <p className="text-[11px] text-white/80 line-clamp-1 mt-0.5">
-                          {folder.description}
-                        </p>
-                      )}
-                    </div>
+                    {!isDropTarget && (
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <h3 className="font-display text-base font-bold text-white tracking-tight drop-shadow-md truncate group-hover:text-gold transition">
+                          {folder.name}
+                        </h3>
+                        {folder.description && (
+                          <p className="text-[11px] text-white/80 line-clamp-1 mt-0.5">
+                            {folder.description}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Rodapé do Card */}
                   <div className="flex items-center justify-between p-3 border-t border-border/40 bg-card/60 text-xs">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-                      <span>Acessar Coleção</span>
+                      <span>{isDropTarget ? "Clique para mover aqui" : "Acessar Coleção"}</span>
                     </div>
-                    <span className="text-[11px] text-gold font-medium flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
-                      Explorar <ChevronRight className="h-3 w-3" />
+                    <span className={`text-[11px] font-medium flex items-center gap-0.5 transition ${isDropTarget ? "text-gold" : "text-gold group-hover:translate-x-0.5"}`}>
+                      {isDropTarget ? (
+                        <><FolderInput className="h-3 w-3" /> Mover</>
+                      ) : (
+                        <>Explorar <ChevronRight className="h-3 w-3" /></>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -825,21 +1004,29 @@ function AdminCriativosPage() {
       {/* ── BARRA DE SELEÇÃO & CONTAGEM ─────────────────────────────────── */}
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleSelectAll}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition font-medium"
-          >
-            <CheckSquare className="h-3.5 w-3.5 text-gold" />
-            <span>
-              {selectedIds.size === displayedCreatives.length && displayedCreatives.length > 0
-                ? "Desmarcar todos"
-                : "Selecionar todos nesta visualização"}
-            </span>
-          </button>
+          {selectionMode && (
+            <button
+              onClick={handleSelectAll}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition font-medium"
+            >
+              <CheckSquare className="h-3.5 w-3.5 text-gold" />
+              <span>
+                {selectedIds.size === displayedCreatives.length && displayedCreatives.length > 0
+                  ? "Desmarcar todos"
+                  : "Selecionar todos"}
+              </span>
+            </button>
+          )}
 
           {selectedIds.size > 0 && (
             <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[11px] font-semibold text-gold border border-gold/30">
               {selectedIds.size} selecionado(s)
+            </span>
+          )}
+
+          {selectionMode && selectedIds.size === 0 && (
+            <span className="text-xs text-muted-foreground">
+              Clique nos criativos para selecionar, depois arraste para um grupo
             </span>
           )}
         </div>
@@ -897,6 +1084,8 @@ function AdminCriativosPage() {
                   className={`absolute top-2.5 left-2.5 z-20 cursor-pointer grid h-6 w-6 place-items-center rounded-lg border transition ${
                     isSelected
                       ? "bg-gold text-primary-foreground border-gold shadow-xs"
+                      : selectionMode
+                      ? "bg-black/60 text-transparent border-white/50 backdrop-blur-md hover:border-white"
                       : "bg-black/60 text-transparent border-white/30 backdrop-blur-md opacity-0 group-hover:opacity-100 hover:border-white"
                   }`}
                   title={isSelected ? "Desmarcar" : "Selecionar"}
@@ -1322,14 +1511,18 @@ function AdminCriativosPage() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-sm animate-in fade-in">
           <form
-            onSubmit={handleCreate}
+            onSubmit={batchFiles.length > 0 ? handlePublishBatch : handleCreate}
             className="w-full max-w-xl flex flex-col max-h-[92vh] rounded-3xl border border-white/10 bg-card shadow-2xl animate-in zoom-in-95"
           >
             {/* Header fixo */}
             <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <div className="flex items-center gap-2">
                 <Plus className="h-5 w-5 text-gold" />
-                <h3 className="text-xl font-semibold text-foreground">Novo Criativo Publicitário</h3>
+                <h3 className="text-xl font-semibold text-foreground">
+                  {batchFiles.length > 1
+                    ? `Publicar ${batchFiles.length} Criativos em Lote`
+                    : "Novo Criativo Publicitário"}
+                </h3>
               </div>
               <button
                 type="button"
@@ -1341,8 +1534,9 @@ function AdminCriativosPage() {
             </div>
 
             {/* Corpo rolável */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4.5 custom-scrollbar overscroll-contain">
-              {/* Grupo Organizador */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar overscroll-contain">
+
+              {/* Grupo Organizador — SEMPRE visível, aplica-se a todos */}
               <label className="block">
                 <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
                   <Folder className="h-3.5 w-3.5 text-gold" />
@@ -1362,135 +1556,128 @@ function AdminCriativosPage() {
                 </select>
               </label>
 
-              {/* Tipo e Formato */}
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="text-xs font-medium text-foreground">Tipo de Peça</span>
-                  <select
-                    value={type}
-                    onChange={(e) => {
-                      const t = e.target.value as CreativeType;
-                      setType(t);
-                      if (!isAutoDetected) {
-                        setFormat(
-                          t === "Stories"
-                            ? "1080×1920"
-                            : t === "Reels"
-                            ? "1080×1920 · 0:30"
-                            : t === "Feed"
-                            ? "1080×1080"
-                            : "Texto"
-                        );
-                      }
-                    }}
-                    className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold"
-                  >
-                    <option value="Feed">Feed (1:1 Quadrado)</option>
-                    <option value="Stories">Stories (9:16 Vertical)</option>
-                    <option value="Reels">Reels / TikTok (9:16 Vídeo)</option>
-                    <option value="Copy">Texto / Copy Persuasiva</option>
-                  </select>
-                </label>
-
-                <label className="block">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground">Formato / Duração</span>
-                    {isAutoDetected && (
-                      <span className="text-[10px] text-gold font-semibold flex items-center gap-0.5">
-                        <Zap className="h-3 w-3 fill-gold" /> Auto
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    value={format}
-                    onChange={(e) => {
-                      setFormat(e.target.value);
-                      setIsAutoDetected(false);
-                    }}
-                    placeholder="1080×1080 ou 0:30"
-                    className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold font-mono"
-                    required
-                  />
-                </label>
-              </div>
-
-              {/* Título da Peça */}
-              <label className="block">
-                <span className="text-xs font-medium text-foreground">Título da Peça</span>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex: Vídeo Gancho Dourado — Pele Perfeita em 30 Dias"
-                  className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold"
-                  required
-                />
-              </label>
-
-              {/* ── ARQUIVO ORIGINAL DA PEÇA (O QUE O AFILIADO VAI BAIXAR) ── */}
-              {type !== "Copy" && (
-                <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-gold font-semibold text-xs">
-                      <UploadCloud className="h-4 w-4" />
-                      <span>Arquivo Original da Peça (Para Download pelo Afiliado)</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      MP4, PNG, JPG, PDF, ZIP (máx. 100MB)
+              {/* ── SEÇÃO UPLOAD EM LOTE (Escopo C) ───────────────────────── */}
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-gold font-semibold text-xs">
+                    <UploadCloud className="h-4 w-4" />
+                    <span>
+                      {batchFiles.length > 0
+                        ? `${batchFiles.length} arquivo(s) prontos para publicar`
+                        : "Selecionar Arquivo(s) — Upload em Lote"}
                     </span>
                   </div>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    MP4, PNG, JPG, PDF, ZIP (máx. 100MB cada)
+                  </span>
+                </div>
 
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={(e) => handlePrimaryFileUpload(e, false)}
-                    accept="video/*,image/*,application/pdf,application/zip"
-                    className="hidden"
-                  />
+                {/* Input oculto para múltiplos arquivos */}
+                <input
+                  type="file"
+                  ref={batchInputRef}
+                  onChange={handleBatchFileSelect}
+                  accept="video/*,image/*,application/pdf,application/zip"
+                  multiple
+                  className="hidden"
+                />
 
-                  {fileUrl ? (
-                    <div className="flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/20 text-emerald-400 shrink-0">
-                          <Check className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-emerald-400 truncate">
-                            {fileName || "Arquivo carregado com sucesso"}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {fileSize} · Pronto para download dos afiliados
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFileUrl("");
-                          setFileName("");
-                          setFileSize("");
-                          setFileType("");
-                        }}
-                        className="text-xs text-red-400 hover:underline shrink-0 ml-2"
+                {batchFiles.length === 0 ? (
+                  /* Zona de drop / clique */
+                  <div
+                    onClick={() => batchInputRef.current?.click()}
+                    className="cursor-pointer border-2 border-dashed border-gold/40 hover:border-gold rounded-xl p-5 text-center transition group bg-card/60 hover:bg-card/90"
+                  >
+                    <Upload className="mx-auto h-7 w-7 text-gold group-hover:scale-110 transition mb-2" />
+                    <p className="text-xs font-semibold text-foreground">
+                      Clique para selecionar um ou mais arquivos
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Segure <kbd className="rounded bg-muted px-1 font-mono">Ctrl</kbd> para selecionar múltiplos · Formato e duração detectados automaticamente
+                    </p>
+                  </div>
+                ) : (
+                  /* Lista de arquivos em lote */
+                  <div className="space-y-2">
+                    {batchFiles.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/70 p-2.5"
                       >
-                        Substituir
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="cursor-pointer border-2 border-dashed border-gold/40 hover:border-gold rounded-xl p-4 text-center transition group bg-card/60 hover:bg-card/90"
-                    >
-                      <Upload className="mx-auto h-6 w-6 text-gold group-hover:scale-110 transition mb-1" />
-                      <p className="text-xs font-semibold text-foreground">
-                        Clique para anexar o Vídeo (MP4), Imagem (PNG/JPG), Roteiro (PDF) ou ZIP
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Detecta automaticamente a resolução e duração do arquivo
-                      </p>
-                    </div>
-                  )}
+                        {/* Thumbnail */}
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted/60 flex items-center justify-center">
+                          {item.thumbnailUrl ? (
+                            <img
+                              src={item.thumbnailUrl}
+                              alt={item.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : item.fileType.startsWith("video/") ? (
+                            <Film className="h-5 w-5 text-muted-foreground/60" />
+                          ) : item.fileType === "application/pdf" ? (
+                            <FileText className="h-5 w-5 text-muted-foreground/60" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-muted-foreground/60" />
+                          )}
+                        </div>
 
-                  {/* Link Externo de Nuvem (Google Drive / Canva) */}
+                        {/* Título (editável) */}
+                        <div className="flex-1 min-w-0">
+                          <input
+                            value={item.title}
+                            onChange={(e) => updateBatchItem(idx, { title: e.target.value })}
+                            className="w-full rounded-lg border border-border/60 bg-background px-2 py-1 text-xs font-medium outline-none focus:border-gold transition"
+                            placeholder="Título do criativo"
+                          />
+                          <div className="flex items-center gap-2 mt-1">
+                            <select
+                              value={item.type}
+                              onChange={(e) =>
+                                updateBatchItem(idx, { type: e.target.value as CreativeType })
+                              }
+                              className="rounded-lg border border-border/60 bg-background px-1.5 py-0.5 text-[10px] outline-none focus:border-gold"
+                            >
+                              <option value="Feed">Feed</option>
+                              <option value="Stories">Stories</option>
+                              <option value="Reels">Reels</option>
+                              <option value="Copy">Copy</option>
+                            </select>
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                              {item.format} · {item.fileSize}
+                            </span>
+                            {item.isDetected && (
+                              <span className="text-[10px] text-gold flex items-center gap-0.5">
+                                <Zap className="h-2.5 w-2.5 fill-gold" /> Auto
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Remover */}
+                        <button
+                          type="button"
+                          onClick={() => removeBatchItem(idx)}
+                          className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition"
+                          title="Remover este arquivo"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Adicionar mais arquivos */}
+                    <button
+                      type="button"
+                      onClick={() => batchInputRef.current?.click()}
+                      className="w-full rounded-xl border border-dashed border-border/60 py-2 text-xs text-muted-foreground hover:border-gold/50 hover:text-gold transition flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Adicionar mais arquivos
+                    </button>
+                  </div>
+                )}
+
+                {/* Link Externo — só exibe se for criativo único */}
+                {batchFiles.length <= 1 && (
                   <label className="block pt-1">
                     <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
                       <Link2 className="h-3 w-3 text-gold" />
@@ -1504,40 +1691,109 @@ function AdminCriativosPage() {
                       className="mt-1 h-9 w-full rounded-xl border border-border/80 bg-background px-3 text-xs outline-none focus:border-gold font-mono"
                     />
                   </label>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* ── CAPA / PRÉVIA VISUAL DA PEÇA ────────────────────────── */}
-              {type !== "Copy" && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground block">
-                      Capa / Prévia Visual da Peça
-                    </span>
-                    <span className="text-[10px] text-gold font-mono font-semibold">
-                      📐 {getRecommendedCoverResolution(type)}
-                    </span>
+              {/* ── CAMPOS INDIVIDUAIS (só aparecem se criativo único) ───── */}
+              {batchFiles.length <= 1 && (
+                <>
+                  {/* Tipo e Formato */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs font-medium text-foreground">Tipo de Peça</span>
+                      <select
+                        value={type}
+                        onChange={(e) => {
+                          const t = e.target.value as CreativeType;
+                          setType(t);
+                          if (!isAutoDetected) {
+                            setFormat(
+                              t === "Stories"
+                                ? "1080×1920"
+                                : t === "Reels"
+                                ? "1080×1920 · 0:30"
+                                : t === "Feed"
+                                ? "1080×1080"
+                                : "Texto"
+                            );
+                          }
+                        }}
+                        className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold"
+                      >
+                        <option value="Feed">Feed (1:1 Quadrado)</option>
+                        <option value="Stories">Stories (9:16 Vertical)</option>
+                        <option value="Reels">Reels / TikTok (9:16 Vídeo)</option>
+                        <option value="Copy">Texto / Copy Persuasiva</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">Formato / Duração</span>
+                        {isAutoDetected && (
+                          <span className="text-[10px] text-gold font-semibold flex items-center gap-0.5">
+                            <Zap className="h-3 w-3 fill-gold" /> Auto
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        value={format}
+                        onChange={(e) => {
+                          setFormat(e.target.value);
+                          setIsAutoDetected(false);
+                        }}
+                        placeholder="1080×1080 ou 0:30"
+                        className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold font-mono"
+                        required
+                      />
+                    </label>
                   </div>
-                  <MediaUploadField
-                    value={imageUrl}
-                    onChange={setImageUrl}
-                    aspectRatio={type === "Stories" || type === "Reels" ? "portrait" : "square"}
-                    description={`Miniatura visual que o afiliado verá na galeria. Dimensão recomendada: ${getRecommendedCoverResolution(type)}.`}
-                  />
-                </div>
-              )}
 
-              {/* Copy Sugerida */}
-              <label className="block">
-                <span className="text-xs font-medium text-foreground">Texto da Copy Sugerida (Legenda do Anúncio)</span>
-                <textarea
-                  value={copyBody}
-                  onChange={(e) => setCopyBody(e.target.value)}
-                  rows={3}
-                  placeholder="Texto persuasivo para a legenda ou locução do anúncio pronto para o afiliado copiar..."
-                  className="mt-1 w-full rounded-xl border border-border/80 bg-background p-3 text-sm outline-none focus:border-gold"
-                />
-              </label>
+                  {/* Título da Peça */}
+                  <label className="block">
+                    <span className="text-xs font-medium text-foreground">Título da Peça</span>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Ex: Vídeo Gancho Dourado — Pele Perfeita em 30 Dias"
+                      className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold"
+                      required={batchFiles.length === 0}
+                    />
+                  </label>
+
+                  {/* Capa / Prévia Visual */}
+                  {type !== "Copy" && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground block">
+                          Capa / Prévia Visual da Peça
+                        </span>
+                        <span className="text-[10px] text-gold font-mono font-semibold">
+                          📐 {getRecommendedCoverResolution(type)}
+                        </span>
+                      </div>
+                      <MediaUploadField
+                        value={imageUrl}
+                        onChange={setImageUrl}
+                        aspectRatio={type === "Stories" || type === "Reels" ? "portrait" : "square"}
+                        description={`Miniatura visual que o afiliado verá na galeria. Dimensão recomendada: ${getRecommendedCoverResolution(type)}.`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Copy Sugerida */}
+                  <label className="block">
+                    <span className="text-xs font-medium text-foreground">Texto da Copy Sugerida (Legenda do Anúncio)</span>
+                    <textarea
+                      value={copyBody}
+                      onChange={(e) => setCopyBody(e.target.value)}
+                      rows={3}
+                      placeholder="Texto persuasivo para a legenda ou locução do anúncio pronto para o afiliado copiar..."
+                      className="mt-1 w-full rounded-xl border border-border/80 bg-background p-3 text-sm outline-none focus:border-gold"
+                    />
+                  </label>
+                </>
+              )}
             </div>
 
             {/* Footer fixo */}
@@ -1551,9 +1807,14 @@ function AdminCriativosPage() {
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+                disabled={isBatchPublishing}
+                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Publicar Criativo
+                {isBatchPublishing
+                  ? "Publicando…"
+                  : batchFiles.length > 1
+                  ? `Publicar ${batchFiles.length} Criativos`
+                  : "Publicar Criativo"}
               </button>
             </div>
           </form>
