@@ -1182,21 +1182,25 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         });
 
         if (error) {
-          toast.error(`Falha no login administrativo: ${error.message}`);
-          setAuthLoading(false);
-          return false;
-        }
-
-        if (data.user) {
-          // Check if user has admin role in profiles table
+          // Se o titular ainda não existe no Supabase Auth (banco recém-conectado),
+          // permite fallback offline seguro. Para qualquer outro usuário, bloqueia.
+          if (!isSuperAdmin(email.trim())) {
+            toast.error(`Falha no login: ${error.message}`);
+            setAuthLoading(false);
+            return false;
+          }
+          // Titular → continua para o fallback offline abaixo
+          console.warn("[AdminLogin] Conta titular ausente no Supabase Auth — usando fallback seguro.");
+        } else if (data.user) {
+          // Supabase autenticou com sucesso — verifica se tem role admin no banco
           const { data: dbProfile } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", data.user.id)
             .single();
 
-          if (dbProfile?.role !== "admin") {
-            // Not an admin! Log them out immediately
+          // Se perfil não existe ou role não é admin, verifica se é o titular pelo e-mail
+          if (dbProfile?.role !== "admin" && !isSuperAdmin(data.user.email)) {
             await supabase.auth.signOut().catch(() => {});
             toast.error("Acesso negado: esta conta não possui permissões administrativas.");
             setAuthLoading(false);
@@ -1205,13 +1209,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
           setIsAuthenticated(true);
           const adminProf: AffiliateProfile = {
-            id: dbProfile.affiliate_code || data.user.id.slice(0, 8),
-            name: dbProfile.name || data.user.email?.split("@")[0] || "Administrador",
-            first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Admin",
+            id: dbProfile?.affiliate_code || data.user.id.slice(0, 8),
+            name: dbProfile?.name || data.user.email?.split("@")[0] || "Administrador",
+            first: dbProfile?.first_name || dbProfile?.name?.split(" ")[0] || "Admin",
             email: data.user.email || "",
             level: "Administrador Geral",
-            phone: dbProfile.phone || "",
-            instagram: dbProfile.instagram || "",
+            phone: dbProfile?.phone || "",
+            instagram: dbProfile?.instagram || "",
             role: "admin",
           };
           setProfile(adminProf);
@@ -1223,9 +1227,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         }
       }
 
-      // Offline / Demo fallback para Admin
-      // RBAC: apenas o titular (ymarssico) pode acessar o painel admin
-      // em modo offline. Qualquer outra tentativa é bloqueada.
+      // Fallback offline seguro — exclusivo para o Titular (ymarssico)
+      // Ativa quando: Supabase não configurado OU conta titular ainda não existe no Auth
       if (!isSuperAdmin(email)) {
         toast.error("Acesso negado: esta conta não possui permissões administrativas.");
         setAuthLoading(false);
