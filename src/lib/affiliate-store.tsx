@@ -234,6 +234,21 @@ interface AffiliateStoreContextType {
     storageType?: "supabase" | "indexeddb" | "external";
     storagePath?: string;
   }) => Promise<void>;
+  createCreativesBatch: (items: {
+    id?: string;
+    title: string;
+    type: "Feed" | "Stories" | "Reels" | "Copy";
+    format: string;
+    image?: string;
+    text?: string;
+    folderId?: string;
+    fileUrl?: string;
+    externalDownloadUrl?: string;
+    fileType?: string;
+    fileSize?: string;
+    storageType?: "supabase" | "indexeddb" | "external";
+    storagePath?: string;
+  }[]) => Promise<void>;
   updateCreative: (
     id: string,
     data: {
@@ -1531,6 +1546,84 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Criativo adicionado à biblioteca de afiliados!");
   };
 
+  const createCreativesBatch = async (
+    items: {
+      id?: string;
+      title: string;
+      type: "Feed" | "Stories" | "Reels" | "Copy";
+      format: string;
+      image?: string;
+      text?: string;
+      folderId?: string;
+      fileUrl?: string;
+      externalDownloadUrl?: string;
+      fileType?: string;
+      fileSize?: string;
+      storageType?: "supabase" | "indexeddb" | "external";
+      storagePath?: string;
+    }[]
+  ) => {
+    if (!items || items.length === 0) return;
+
+    const newCreatives: Creative[] = items.map((item, idx) => ({
+      id: item.id || `c-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+      title: item.title,
+      type: item.type,
+      format: item.format,
+      image: item.image || "",
+      text: item.text,
+      folderId: item.folderId,
+      fileUrl: item.fileUrl,
+      externalDownloadUrl: item.externalDownloadUrl,
+      fileType: item.fileType,
+      fileSize: item.fileSize,
+      storageType: item.storageType,
+      storagePath: item.storagePath,
+    }));
+
+    // 1. Atualização Funcional do Estado React (imune a Stale Closure)
+    setCreativesList((prev) => {
+      const updated = [...newCreatives, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
+      } catch (err) {
+        console.error("Erro ao salvar lote de criativos no localStorage:", err);
+      }
+      return updated;
+    });
+
+    // 2. Persistência em Lote no Supabase (chunks de 50 para evitar limites de payload)
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const rowsToInsert = newCreatives.map((c) => ({
+          id: c.id,
+          title: c.title,
+          type: c.type,
+          format: c.format,
+          image: c.image || null,
+          text: c.text || null,
+          folder_id: c.folderId || null,
+          file_url: c.fileUrl || null,
+          external_download_url: c.externalDownloadUrl || null,
+          file_type: c.fileType || null,
+          file_size: c.fileSize || null,
+          storage_type: c.storageType || "supabase",
+          storage_path: c.storagePath || null,
+        }));
+
+        const chunkSize = 50;
+        for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+          const chunk = rowsToInsert.slice(i, i + chunkSize);
+          await supabase.from("creatives").upsert(chunk);
+        }
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao sincronizar lote com Supabase:", err);
+      }
+    }
+
+    toast.success(`${newCreatives.length} criativos publicados com sucesso!`, { icon: "🎉" });
+  };
+
   const updateCreative = async (
     id: string,
     data: {
@@ -2306,6 +2399,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         updateLesson,
         deleteLesson,
         createCreative,
+        createCreativesBatch,
         updateCreative,
         deleteCreative,
         createMaterial,

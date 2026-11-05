@@ -202,6 +202,7 @@ function AdminCriativosPage() {
     creativesList,
     creativeFoldersList,
     createCreative,
+    createCreativesBatch,
     updateCreative,
     deleteCreative,
     createCreativeFolder,
@@ -401,41 +402,52 @@ function AdminCriativosPage() {
     const valid = files.filter((f) => f.size <= 500 * 1024 * 1024);
     if (valid.length === 0) return;
 
-    toast.loading(`Gerando prévias de ${valid.length} arquivo(s)...`, { id: "batch-load" });
+    // Processamento em lotes de 10 para não sobrecarregar a memória do navegador
+    const chunkSize = 10;
+    const processed: BatchFile[] = [];
 
-    const processed: BatchFile[] = await Promise.all(
-      valid.map(async (file, idx) => {
-        const sizeStr = formatFileSize(file.size);
-        const mime = file.type || "application/octet-stream";
-        const baseName = file.name.replace(/\.[^.]+$/, "");
-        const tempId = `temp-${Date.now()}-${idx}`;
+    for (let i = 0; i < valid.length; i += chunkSize) {
+      const chunk = valid.slice(i, i + chunkSize);
+      const currentCount = Math.min(i + chunkSize, valid.length);
+      toast.loading(`Gerando prévias: ${currentCount} de ${valid.length} arquivo(s)...`, { id: "batch-load" });
 
-        let detectedFormat = "Arquivo de Apoio";
-        let suggestedType: CreativeType = "Copy";
-        let thumbnailUrl = "";
+      const chunkResults = await Promise.all(
+        chunk.map(async (file, cIdx) => {
+          const globalIdx = i + cIdx;
+          const sizeStr = formatFileSize(file.size);
+          const mime = file.type || "application/octet-stream";
+          const baseName = file.name.replace(/\.[^.]+$/, "");
+          const tempId = `temp-${Date.now()}-${globalIdx}`;
 
-        try {
-          const meta = await detectCreativeMetadata(file);
-          detectedFormat = meta.detectedFormat;
-          suggestedType = meta.suggestedType;
-          thumbnailUrl = await processCreativeThumbnail(tempId, file);
-          if (!thumbnailUrl && meta.thumbnailUrl) {
-            thumbnailUrl = meta.thumbnailUrl;
-          }
-        } catch {}
+          let detectedFormat = "Arquivo de Apoio";
+          let suggestedType: CreativeType = "Copy";
+          let thumbnailUrl = "";
 
-        return {
-          file,
-          title: baseName,
-          type: suggestedType,
-          format: detectedFormat,
-          fileType: mime,
-          fileSize: sizeStr,
-          thumbnailUrl,
-          isDetected: true,
-        };
-      })
-    );
+          try {
+            const meta = await detectCreativeMetadata(file);
+            detectedFormat = meta.detectedFormat;
+            suggestedType = meta.suggestedType;
+            thumbnailUrl = await processCreativeThumbnail(tempId, file);
+            if (!thumbnailUrl && meta.thumbnailUrl) {
+              thumbnailUrl = meta.thumbnailUrl;
+            }
+          } catch {}
+
+          return {
+            file,
+            title: baseName,
+            type: suggestedType,
+            format: detectedFormat,
+            fileType: mime,
+            fileSize: sizeStr,
+            thumbnailUrl,
+            isDetected: true,
+          };
+        })
+      );
+
+      processed.push(...chunkResults);
+    }
 
     toast.dismiss("batch-load");
     toast.success(`${processed.length} arquivo(s) prontos para publicar!`, { icon: "⚡" });
@@ -458,37 +470,66 @@ function AdminCriativosPage() {
     if (batchFiles.length === 0) return;
     setIsBatchPublishing(true);
 
-    let successCount = 0;
-    for (let i = 0; i < batchFiles.length; i++) {
-      const item = batchFiles[i];
-      const creativeId = `c-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`;
-      toast.loading(`Enviando ${i + 1} de ${batchFiles.length}: "${item.title}"…`, { id: "pub-batch" });
+    const total = batchFiles.length;
+    const collectedToInsert: {
+      id: string;
+      title: string;
+      type: CreativeType;
+      format: string;
+      image?: string;
+      folderId?: string;
+      fileUrl?: string;
+      storageType?: "supabase" | "indexeddb" | "external";
+      storagePath?: string;
+      fileType?: string;
+      fileSize?: string;
+    }[] = [];
 
-      try {
-        const uploadRes = await uploadCreativeFile(creativeId, item.file);
+    // Fila com concorrência controlada (3 uploads simultâneos) para máxima estabilidade
+    const concurrency = 3;
+    let completed = 0;
 
-        await createCreative({
-          id: creativeId,
-          title: item.title.trim() || `Criativo ${i + 1}`,
-          type: item.type,
-          format: item.format,
-          image: item.thumbnailUrl || undefined,
-          folderId: selectedFolderId || undefined,
-          fileUrl: uploadRes.fileUrl,
-          storageType: uploadRes.storageType,
-          storagePath: uploadRes.storagePath,
-          fileType: item.fileType || undefined,
-          fileSize: item.fileSize || undefined,
-        });
-        successCount++;
-      } catch (err) {
-        console.error("Erro ao subir arquivo em lote:", err);
-      }
+    for (let i = 0; i < total; i += concurrency) {
+      const slice = batchFiles.slice(i, i + concurrency);
+
+      await Promise.all(
+        slice.map(async (item, sliceIdx) => {
+          const index = i + sliceIdx;
+          const creativeId = `c-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`;
+          try {
+            const uploadRes = await uploadCreativeFile(creativeId, item.file);
+            collectedToInsert.push({
+              id: creativeId,
+              title: item.title.trim() || `Criativo ${index + 1}`,
+              type: item.type,
+              format: item.format,
+              image: item.thumbnailUrl || undefined,
+              folderId: selectedFolderId || undefined,
+              fileUrl: uploadRes.fileUrl,
+              storageType: uploadRes.storageType,
+              storagePath: uploadRes.storagePath,
+              fileType: item.fileType || undefined,
+              fileSize: item.fileSize || undefined,
+            });
+          } catch (err) {
+            console.error("Erro ao subir arquivo em lote:", err);
+          } finally {
+            completed++;
+            const pct = Math.round((completed / total) * 100);
+            toast.loading(`Enviando arquivos: ${completed}/${total} (${pct}%)…`, { id: "pub-batch" });
+          }
+        })
+      );
+    }
+
+    // 💥 INSERÇÃO ATÔMICA EM LOTE: Publica TODOS os criativos de uma só vez sem sobrescrita
+    if (collectedToInsert.length > 0) {
+      await createCreativesBatch(collectedToInsert);
     }
 
     toast.dismiss("pub-batch");
     toast.success(
-      `${successCount} de ${batchFiles.length} criativo(s) publicados com sucesso!`,
+      `${collectedToInsert.length} de ${total} criativo(s) publicados com sucesso!`,
       { icon: "🎉" }
     );
     setBatchFiles([]);
