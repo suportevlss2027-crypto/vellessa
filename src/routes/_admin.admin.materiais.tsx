@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import {
+  ArrowLeft,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -14,10 +14,13 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  LayoutGrid,
   Link2,
+  List,
   Package,
   Pencil,
   Plus,
+  Search,
   Sparkles,
   Trash2,
   UploadCloud,
@@ -193,6 +196,11 @@ function AdminMateriaisPage() {
     DOC: "1,2 MB",
   };
 
+  // ── ESTADO DE NAVEGAÇÃO ESPACIAL (FINDER / GOOGLE DRIVE) ────────────────────
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
   // ── ESTADO DO LIGHTBOX ─────────────────────────────────────────────────────
   const [lightboxFiles, setLightboxFiles] = useState<MaterialFileItem[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -201,12 +209,6 @@ function AdminMateriaisPage() {
     setLightboxIndex(idx);
   };
   const closeLightbox = () => setLightboxFiles([]);
-
-  // ── PASTAS EXPANDIDAS (ACCORDION NATIVO) ────────────────────────────────────
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
-  const toggleFolder = (folderId: string) => {
-    setExpandedFolders((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
-  };
 
   // ── MODAL DE PASTA (NOVA OU EDITAR) ────────────────────────────────────────
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -225,12 +227,12 @@ function AdminMateriaisPage() {
   ];
 
   const COLOR_MAP: Record<string, string> = {
-    gold: "text-gold bg-gold/15 border-gold/30",
-    emerald: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30",
-    rose: "text-rose-400 bg-rose-500/15 border-rose-500/30",
-    violet: "text-violet-400 bg-violet-500/15 border-violet-500/30",
-    sky: "text-sky-400 bg-sky-500/15 border-sky-500/30",
-    amber: "text-amber-400 bg-amber-500/15 border-amber-500/30",
+    gold: "text-gold bg-gold/15 border-gold/30 group-hover:border-gold/60",
+    emerald: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30 group-hover:border-emerald-500/60",
+    rose: "text-rose-400 bg-rose-500/15 border-rose-500/30 group-hover:border-rose-500/60",
+    violet: "text-violet-400 bg-violet-500/15 border-violet-500/30 group-hover:border-violet-500/60",
+    sky: "text-sky-400 bg-sky-500/15 border-sky-500/30 group-hover:border-sky-500/60",
+    amber: "text-amber-400 bg-amber-500/15 border-amber-500/30 group-hover:border-amber-500/60",
   };
 
   const COLOR_DOT: Record<string, string> = {
@@ -280,10 +282,11 @@ function AdminMateriaisPage() {
   const handleDeleteFolder = (id: string, name: string) => {
     if (
       window.confirm(
-        `Excluir a pasta "${name}"? Os arquivos dentro dela não serão apagados, apenas movidos para a lista geral.`
+        `Excluir a pasta "${name}"? Os arquivos dentro dela não serão apagados, apenas movidos para a raiz geral.`
       )
     ) {
       deleteFolder(id);
+      if (currentFolderId === id) setCurrentFolderId(null);
     }
   };
 
@@ -370,7 +373,7 @@ function AdminMateriaisPage() {
     setMatRawFileName("");
     setMatFiles([]);
     setMatSourceType("upload");
-    setMatFolderId(preselectedFolderId);
+    setMatFolderId(preselectedFolderId || currentFolderId || "");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setShowMaterialModal(true);
   };
@@ -545,10 +548,6 @@ function AdminMateriaisPage() {
       folderId: matFolderId || undefined,
     });
 
-    if (matFolderId) {
-      setExpandedFolders((prev) => ({ ...prev, [matFolderId]: true }));
-    }
-
     setMatTitle("");
     setMatKind("PDF");
     setMatSize("");
@@ -597,10 +596,6 @@ function AdminMateriaisPage() {
       files: editMatFiles.length > 0 ? editMatFiles : undefined,
       folderId: editMatFolderId || undefined,
     });
-
-    if (editMatFolderId) {
-      setExpandedFolders((prev) => ({ ...prev, [editMatFolderId]: true }));
-    }
 
     setEditMatId(null);
     setEditMatRawFile(null);
@@ -661,31 +656,144 @@ function AdminMateriaisPage() {
     }
   };
 
-  // Separação lógica: materiais dentro de pastas x materiais avulsos
-  const rootMaterials = materialsList.filter((m) => !m.folderId);
+  // ── FILTROS E CONTEXTO DE DIRETÓRIO ATUAL ──────────────────────────────────
+  const currentFolder = foldersList.find((f) => f.id === currentFolderId);
 
-  // Renderizador unificado de linha de material (usado dentro de pastas e na raiz)
-  const renderMaterialRow = (m: DynamicMaterial, isInsideFolder = false) => {
+  // Arquivos visíveis de acordo com a pasta atual ou busca
+  const displayedMaterials = materialsList.filter((m) => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        m.title.toLowerCase().includes(q) ||
+        m.kind.toLowerCase().includes(q) ||
+        (m.rawFileName && m.rawFileName.toLowerCase().includes(q))
+      );
+    }
+    if (currentFolderId) {
+      return m.folderId === currentFolderId;
+    }
+    return !m.folderId; // Na raiz, somente arquivos avulsos
+  });
+
+  // ── RENDERIZADOR DE CARD DE MATERIAL (ESTILO APPLE HIG) ───────────────────
+  const renderMaterialCard = (m: DynamicMaterial) => {
     const matKey = m.id || m.title;
-    const previewFiles: MaterialFileItem[] = m.files
-      ? m.files.filter((f) => f.thumbnailUrl)
-      : [];
+    const previewFiles = m.files ? m.files.filter((f) => f.thumbnailUrl) : [];
+    const hasThumb = previewFiles.length > 0;
+    const singleThumb = hasThumb ? previewFiles[0].thumbnailUrl : null;
 
     return (
       <div
         key={matKey}
-        className={`flex items-center justify-between p-3.5 transition rounded-xl ${
-          isInsideFolder
-            ? "hover:bg-accent/40 bg-card/40 border border-border/40"
-            : "hover:bg-muted/30"
-        }`}
+        className="group relative rounded-2xl border border-border/70 bg-card/70 p-4 shadow-xs hover:border-gold/40 hover:shadow-gold transition-all flex flex-col justify-between backdrop-blur-md"
+      >
+        <div>
+          {/* Topo do Card: Prévia ou Ícone de Formato Nobre */}
+          <div className="relative mb-3 aspect-[16/9] w-full overflow-hidden rounded-xl bg-muted/40 border border-border/40 flex items-center justify-center">
+            {singleThumb ? (
+              <>
+                <img
+                  src={singleThumb}
+                  alt={m.title}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <button
+                  type="button"
+                  onClick={() => openLightbox(previewFiles, 0)}
+                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1 text-white text-xs font-semibold backdrop-blur-xs"
+                >
+                  <Eye className="h-4 w-4" />
+                  <span>Ver Prévia</span>
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-1 text-gold">
+                <span className="text-xl font-bold tracking-wider">{m.kind}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">Arquivo de Apoio</span>
+              </div>
+            )}
+
+            {/* Selo de Pacote ou Formato */}
+            <div className="absolute top-2 left-2 flex items-center gap-1">
+              <span className="rounded-lg bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white border border-white/20 backdrop-blur-md">
+                {m.kind}
+              </span>
+              {m.files && m.files.length > 1 && (
+                <span className="rounded-lg bg-gold/90 px-2 py-0.5 text-[10px] font-bold text-primary-foreground border border-gold/40">
+                  {m.files.length} arquivos
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Título e Metadados */}
+          <h4 className="font-semibold text-sm text-foreground line-clamp-1 group-hover:text-gold transition">
+            {m.title}
+          </h4>
+          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+            <span>{m.size}</span>
+            <span>·</span>
+            {m.sourceType === "upload" || m.rawFileName ? (
+              <span className="inline-flex items-center gap-0.5 text-gold text-[11px]">
+                <FileUp className="h-3 w-3" /> Bruto
+              </span>
+            ) : m.file_url ? (
+              <span className="inline-flex items-center gap-0.5 text-emerald-400 text-[11px]">
+                <ExternalLink className="h-3 w-3" /> Link
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Rodapé de Ações do Card */}
+        <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-1">
+          <button
+            type="button"
+            onClick={() => handleTestDownload(m)}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gold/15 hover:bg-gold/25 border border-gold/30 text-gold py-1.5 px-3 text-xs font-semibold transition"
+            title="Baixar ou abrir para teste"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Baixar</span>
+          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => openEditMaterial(m)}
+              className="p-1.5 text-muted-foreground hover:text-gold transition rounded-lg hover:bg-muted"
+              title="Editar material"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteMaterial(matKey)}
+              className="p-1.5 text-muted-foreground hover:text-red-400 transition rounded-lg hover:bg-red-500/10"
+              title="Excluir material"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── RENDERIZADOR DE LINHA (MODO LISTA COMPACTA) ───────────────────────────
+  const renderMaterialRow = (m: DynamicMaterial) => {
+    const matKey = m.id || m.title;
+    const previewFiles = m.files ? m.files.filter((f) => f.thumbnailUrl) : [];
+
+    return (
+      <div
+        key={matKey}
+        className="flex items-center justify-between p-3.5 hover:bg-muted/30 transition rounded-xl border border-border/50 bg-card/60"
       >
         <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
           {previewFiles.length > 0 ? (
             <div
               className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-border/60 bg-muted cursor-pointer group"
               onClick={() => openLightbox(previewFiles, 0)}
-              title="Clique para ver prévia"
             >
               <img
                 src={previewFiles[0].thumbnailUrl!}
@@ -697,50 +805,27 @@ function AdminMateriaisPage() {
               </div>
             </div>
           ) : (
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent text-xs font-bold text-gold">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gold/15 text-gold font-bold text-xs">
               {m.kind}
             </div>
           )}
 
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-sm text-foreground truncate">{m.title}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-              <span>{m.kind}</span>
-              <span>·</span>
-              <span>{m.size}</span>
-              {m.files && m.files.length > 1 ? (
-                <>
-                  <span>·</span>
-                  <span className="text-gold text-[11px] font-medium inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 border border-gold/20">
-                    <Package className="h-3 w-3" /> Pacote com {m.files.length} arquivos
-                  </span>
-                </>
-              ) : m.sourceType === "upload" || m.rawFileName ? (
-                <>
-                  <span>·</span>
-                  <span className="text-gold text-[11px] font-medium inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 border border-gold/20">
-                    <FileUp className="h-3 w-3" /> Arquivo Bruto
-                  </span>
-                </>
-              ) : m.file_url ? (
-                <>
-                  <span>·</span>
-                  <span className="text-emerald-400 text-[11px] font-medium inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20">
-                    <ExternalLink className="h-3 w-3" /> Link Externo
-                  </span>
-                </>
-              ) : null}
-            </div>
+            <p className="font-semibold text-sm text-foreground truncate">{m.title}</p>
+            <p className="text-xs text-muted-foreground">
+              {m.kind} · {m.size}{" "}
+              {m.files && m.files.length > 1 && `· Pacote com ${m.files.length} arquivos`}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {previewFiles.length > 0 && (
             <button
               type="button"
               onClick={() => openLightbox(previewFiles, 0)}
               className="p-2 text-muted-foreground hover:text-gold transition rounded-lg hover:bg-gold/10"
-              title="Visualizar prévia em alta definição"
+              title="Ver prévia"
             >
               <Eye className="h-4 w-4" />
             </button>
@@ -749,21 +834,23 @@ function AdminMateriaisPage() {
             type="button"
             onClick={() => handleTestDownload(m)}
             className="p-2 text-muted-foreground hover:text-foreground transition rounded-lg hover:bg-muted"
-            title="Testar Download / Abrir"
+            title="Download de teste"
           >
             <Download className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={() => openEditMaterial(m)}
             className="p-2 text-muted-foreground hover:text-gold transition rounded-lg hover:bg-gold/10"
-            title="Editar material"
+            title="Editar"
           >
             <Pencil className="h-4 w-4" />
           </button>
           <button
+            type="button"
             onClick={() => handleDeleteMaterial(matKey)}
-            className="p-2 text-muted-foreground hover:text-red-500 transition rounded-lg hover:bg-red-500/10"
-            title="Excluir material"
+            className="p-2 text-muted-foreground hover:text-red-400 transition rounded-lg hover:bg-red-500/10"
+            title="Excluir"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -860,15 +947,17 @@ function AdminMateriaisPage() {
         )}
       </section>
 
-      {/* ── SEÇÃO 2: ARQUIVOS, PDFS E MANUAIS (COM PASTAS INTEGRADAS) ──────── */}
-      <section className="space-y-4 pt-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
+      {/* ── SEÇÃO 2: COFRE DE MATERIAIS & PASTAS (VELLESSA VAULT) ──────────── */}
+      <section className="space-y-5 pt-4">
+        {/* Barra Superior de Controles e Ações */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
           <div>
             <h2 className="text-2xl font-semibold">Arquivos, PDFs e Manuais</h2>
-            <p className="text-xs text-muted-foreground">
-              Materiais de apoio oficiais liberados para download na aba de Materiais dos afiliados.
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Organize ativos em pastas temáticas ou compartilhe manuais avulsos de apoio.
             </p>
           </div>
+
           <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
             <button
               onClick={openNewFolderModal}
@@ -877,7 +966,7 @@ function AdminMateriaisPage() {
               <FolderPlus className="h-4 w-4" /> Nova Pasta
             </button>
             <button
-              onClick={() => openNewMaterialModal()}
+              onClick={() => openNewMaterialModal(currentFolderId || "")}
               className="inline-flex items-center gap-1.5 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
             >
               <Plus className="h-4 w-4" /> Novo Material
@@ -885,159 +974,260 @@ function AdminMateriaisPage() {
           </div>
         </div>
 
-        {foldersList.length === 0 && materialsList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-14 text-center">
-            <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-semibold text-foreground">Nenhum material ou pasta cadastrada ainda</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Crie pastas temáticas para organizar criativos e fotos ou adicione arquivos individuais diretamente.
-            </p>
-            <div className="mt-4 flex items-center gap-2">
+        {/* Barra de Filtro, Busca e Alternância de Visualização */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card/60 p-3 rounded-2xl border border-border/50 backdrop-blur-md">
+          {/* Campo de Busca Rápida */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar materiais por nome ou formato..."
+              className="h-9 w-full rounded-xl bg-background/80 pl-9 pr-4 text-xs outline-none border border-border/60 focus:border-gold transition"
+            />
+            {searchQuery && (
               <button
-                onClick={openNewFolderModal}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gold/40 bg-card px-4 py-2 text-xs font-semibold text-gold hover:bg-gold/10 transition"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
-                <FolderPlus className="h-3.5 w-3.5" /> Criar Pasta
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Alternador de Visualização (Grade vs Lista) */}
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/50 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded-lg transition ${
+                viewMode === "grid" ? "bg-card text-gold shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Visualização em Grade"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded-lg transition ${
+                viewMode === "list" ? "bg-card text-gold shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── NAVEGAÇÃO POR BREADCRUMB (QUANDO DENTRO DE UMA PASTA) ─────────── */}
+        {currentFolder && (
+          <div className="flex items-center justify-between gap-3 bg-gold/10 border border-gold/30 p-4 rounded-2xl backdrop-blur-md animate-in fade-in">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => setCurrentFolderId(null)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-gold/30 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/15 transition shadow-xs"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Voltar à Raiz</span>
+              </button>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="hidden sm:inline">Materiais</span>
+                <ChevronRight className="h-3.5 w-3.5 text-gold" />
+                <span className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                  <FolderOpen className="h-4 w-4 text-gold" /> {currentFolder.name}
+                </span>
+                <span className="text-[11px] font-mono text-gold ml-1">
+                  ({displayedMaterials.length} itens)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => openEditFolderModal(currentFolder)}
+                className="p-1.5 text-muted-foreground hover:text-gold transition rounded-lg hover:bg-muted"
+                title="Renomear / Editar Pasta"
+              >
+                <Pencil className="h-4 w-4" />
               </button>
               <button
-                onClick={() => openNewMaterialModal()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
+                type="button"
+                onClick={() => handleDeleteFolder(currentFolder.id, currentFolder.name)}
+                className="p-1.5 text-muted-foreground hover:text-red-400 transition rounded-lg hover:bg-red-500/10"
+                title="Excluir Pasta"
               >
-                <Plus className="h-3.5 w-3.5" /> Adicionar Material
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* 1. PASTAS TEMÁTICAS COMO ITENS DE DIRETÓRIO COM EXPANSÃO ACCORDION */}
-            {foldersList.map((folder) => {
-              const isOpen = !!expandedFolders[folder.id];
-              const folderMaterials = materialsList.filter((m) => m.folderId === folder.id);
-              const colorCls = COLOR_MAP[folder.color || "gold"] || COLOR_MAP.gold;
+        )}
 
-              return (
-                <div
-                  key={folder.id}
-                  className="rounded-2xl border border-border/70 bg-card overflow-hidden shadow-xs transition-all"
+        {/* ── CONTEÚDO PRINCIPAL (RAIZ OU DENTRO DA PASTA) ───────────────────── */}
+        {searchQuery ? (
+          /* MODO BUSCA ATIVA */
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Resultados da Busca para "{searchQuery}" ({displayedMaterials.length})
+            </p>
+            {displayedMaterials.length === 0 ? (
+              <div className="py-12 text-center text-xs text-muted-foreground">
+                Nenhum material encontrado com esse nome ou formato.
+              </div>
+            ) : viewMode === "grid" ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {displayedMaterials.map((m) => renderMaterialCard(m))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {displayedMaterials.map((m) => renderMaterialRow(m))}
+              </div>
+            )}
+          </div>
+        ) : currentFolder ? (
+          /* MODO DENTRO DA PASTA SELECIONADA */
+          <div>
+            {displayedMaterials.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-14 text-center bg-card/30">
+                <FolderOpen className="h-10 w-10 text-muted-foreground/30 mb-2" />
+                <p className="text-sm font-semibold text-foreground">Esta pasta está vazia</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Adicione fotos, criativos ou PDFs diretamente para esta pasta temática.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openNewMaterialModal(currentFolder.id)}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold"
                 >
-                  {/* Cabeçalho da Pasta (Clicável para expandir/recolher) */}
-                  <div
-                    onClick={() => toggleFolder(folder.id)}
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition select-none"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      {/* Chevron animado */}
-                      <div className="text-muted-foreground transition-transform">
-                        {isOpen ? (
-                          <ChevronDown className="h-5 w-5 text-gold" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5" />
-                        )}
-                      </div>
+                  <Plus className="h-3.5 w-3.5" /> Adicionar Primeiro Arquivo
+                </button>
+              </div>
+            ) : viewMode === "grid" ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in">
+                {displayedMaterials.map((m) => renderMaterialCard(m))}
+              </div>
+            ) : (
+              <div className="space-y-2 animate-in fade-in">
+                {displayedMaterials.map((m) => renderMaterialRow(m))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* MODO RAIZ: PASTAS EM CARDS TÁTEIS + ARQUIVOS AVULSOS */
+          <div className="space-y-8 animate-in fade-in">
+            {/* 1. SEÇÃO DE PASTAS TEMÁTICAS EM CARDS TÁTEIS */}
+            {foldersList.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Pastas Temáticas ({foldersList.length})
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Clique no card para abrir o diretório
+                  </span>
+                </div>
 
-                      {/* Ícone de Pasta Estilizado */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {foldersList.map((folder) => {
+                    const colorCls = COLOR_MAP[folder.color || "gold"] || COLOR_MAP.gold;
+                    const folderItems = materialsList.filter((m) => m.folderId === folder.id);
+
+                    return (
                       <div
-                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${colorCls}`}
+                        key={folder.id}
+                        onClick={() => setCurrentFolderId(folder.id)}
+                        className="group relative cursor-pointer rounded-2xl border border-border/70 bg-card/80 p-5 shadow-xs hover:border-gold/50 hover:shadow-gold transition-all duration-300 flex flex-col justify-between backdrop-blur-md"
                       >
-                        {isOpen ? (
-                          <FolderOpen className="h-5 w-5" />
-                        ) : (
-                          <Folder className="h-5 w-5" />
-                        )}
-                      </div>
+                        <div>
+                          {/* Topo do Card da Pasta */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div
+                              className={`grid h-12 w-12 place-items-center rounded-2xl border ${colorCls} transition-transform duration-300 group-hover:scale-105 shadow-xs`}
+                            >
+                              <Folder className="h-6 w-6" />
+                            </div>
 
-                      {/* Nome e Contador */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-sm sm:text-base text-foreground truncate">
+                            {/* Ações da Pasta */}
+                            <div
+                              className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => openEditFolderModal(folder)}
+                                className="p-1.5 text-muted-foreground hover:text-gold transition rounded-lg hover:bg-muted"
+                                title="Editar Pasta"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                                className="p-1.5 text-muted-foreground hover:text-red-400 transition rounded-lg hover:bg-red-500/10"
+                                title="Excluir Pasta"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Nome e Descrição */}
+                          <h4 className="mt-3.5 font-bold text-base text-foreground group-hover:text-gold transition line-clamp-1">
                             {folder.name}
+                          </h4>
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {folder.description || "Pasta temática de arquivos e ativos oficiais."}
                           </p>
-                          <span className="text-[11px] font-bold text-gold bg-gold/10 px-2.5 py-0.5 rounded-full border border-gold/25">
-                            {folderMaterials.length}{" "}
-                            {folderMaterials.length === 1 ? "arquivo" : "arquivos"}
+                        </div>
+
+                        {/* Rodapé com Contador e Botão de Abertura */}
+                        <div className="mt-5 pt-3 border-t border-border/40 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-muted-foreground">
+                            {folderItems.length} {folderItems.length === 1 ? "arquivo" : "arquivos"}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-gold group-hover:translate-x-1 transition-transform">
+                            <span>Explorar</span>
+                            <ChevronRight className="h-3.5 w-3.5" />
                           </span>
                         </div>
-                        {folder.description && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {folder.description}
-                          </p>
-                        )}
                       </div>
-                    </div>
-
-                    {/* Ações da Pasta (não propagam clique para não alternar o accordion) */}
-                    <div
-                      className="flex items-center gap-1.5 shrink-0 ml-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => openNewMaterialModal(folder.id)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gold/30 bg-gold/5 px-2.5 py-1.5 text-xs font-semibold text-gold hover:bg-gold/15 transition shadow-xs"
-                        title="Adicionar arquivo dentro desta pasta"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Adicionar Arquivo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEditFolderModal(folder)}
-                        className="p-1.5 text-muted-foreground hover:text-gold transition rounded-lg hover:bg-muted"
-                        title="Editar pasta"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteFolder(folder.id, folder.name)}
-                        className="p-1.5 text-muted-foreground hover:text-red-400 transition rounded-lg hover:bg-red-500/10"
-                        title="Excluir pasta"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Conteúdo Expandido da Pasta */}
-                  {isOpen && (
-                    <div className="border-t border-border/50 bg-background/40 p-3 sm:p-4 space-y-2 animate-in fade-in duration-200">
-                      {folderMaterials.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center bg-card/20">
-                          <FolderOpen className="h-7 w-7 text-muted-foreground/30 mb-2" />
-                          <p className="text-xs text-muted-foreground">Esta pasta está vazia no momento.</p>
-                          <button
-                            type="button"
-                            onClick={() => openNewMaterialModal(folder.id)}
-                            className="mt-2.5 inline-flex items-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-1 text-xs font-semibold text-gold hover:bg-gold/10 transition"
-                          >
-                            <Plus className="h-3 w-3" /> Incluir Primeiro Arquivo
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {folderMaterials.map((m) => renderMaterialRow(m, true))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* 2. ARQUIVOS AVULSOS / GERAIS (NÃO ASSOCIADOS A NENHUMA PASTA) */}
-            {rootMaterials.length > 0 && (
-              <div className="space-y-2 pt-2">
-                {foldersList.length > 0 && (
-                  <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>Arquivos Gerais (Sem pasta associada) · {rootMaterials.length}</span>
-                  </div>
-                )}
-                <div className="overflow-hidden rounded-2xl border bg-card divide-y">
-                  {rootMaterials.map((m) => renderMaterialRow(m, false))}
+                    );
+                  })}
                 </div>
               </div>
             )}
+
+            {/* 2. SEÇÃO DE ARQUIVOS AVULSOS DE ACESSO RÁPIDO */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-gold" />
+                  <span>Arquivos Gerais ({displayedMaterials.length})</span>
+                </span>
+                {foldersList.length > 0 && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Materiais avulsos sem pasta vinculada
+                  </span>
+                )}
+              </div>
+
+              {displayedMaterials.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-10 text-center bg-card/20">
+                  <FileText className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                  <p className="text-xs text-muted-foreground">Nenhum arquivo avulso na raiz.</p>
+                </div>
+              ) : viewMode === "grid" ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {displayedMaterials.map((m) => renderMaterialCard(m))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {displayedMaterials.map((m) => renderMaterialRow(m))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
