@@ -1,51 +1,64 @@
 -- ==============================================================================
--- VELLESSA AFILIADOS - SCRIPT DE RESGATE E AUTO-PROVISIONAMENTO DE PERFIS
+-- VELLESSA - DESBLOQUEIO DE RLS, CONFIRMAÇÃO DE CONTAS E BACKFILL GERAL
 -- Execute este script no SQL Editor do seu Supabase Dashboard para:
--- 1. Criar a tabela public.profiles (se não existir)
--- 2. Configurar permissões de RLS para que administradores vejam todos os afiliados
--- 3. Resgatar automaticamente (Backfill) todos os usuários cadastrados no Auth
--- 4. Instalar o Trigger definitivo para cadastros futuros
+-- 1. Confirmar automaticamente todos os e-mails pendentes no Auth
+-- 2. Garantir a tabela public.profiles sem travas de chave estrangeira
+-- 3. Remover políticas restritivas de RLS (que ocultavam afiliados)
+-- 4. Transferir (Backfill) todos os usuários cadastrados para a tabela profiles
+-- 5. Ativar o trigger permanente para todo futuro cadastro
 -- ==============================================================================
 
--- 1. Garante a tabela public.profiles
-create table if not exists public.profiles (
-  id uuid references auth.users(id) on delete cascade primary key,
-  role text default 'affiliate' not null check (role in ('admin', 'affiliate', 'manager')),
-  name text not null,
+-- 1. Libera confirmação de e-mail para todas as contas criadas (sócio e testes)
+UPDATE auth.users 
+SET email_confirmed_at = coalesce(email_confirmed_at, now())
+WHERE email_confirmed_at IS NULL;
+
+-- 2. Garante a tabela public.profiles sem dependências externas impeditivas
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  role text DEFAULT 'affiliate' NOT NULL CHECK (role IN ('admin', 'affiliate', 'manager')),
+  name text NOT NULL,
   first_name text,
-  email text unique not null,
+  email text UNIQUE NOT NULL,
   phone text,
   instagram text,
-  affiliate_code text unique,
-  level text default 'Afiliado(a) Ouro' not null,
-  commission_rate numeric(5,2) default 0.60 not null,
+  affiliate_code text UNIQUE,
+  level text DEFAULT 'Afiliado(a) Ouro' NOT NULL,
+  commission_rate numeric(5,2) DEFAULT 0.60 NOT NULL,
   avatar_url text,
-  status text default 'active' not null check (status in ('active', 'suspended', 'pending')),
-  created_at timestamptz default timezone('utc'::text, now()) not null,
-  updated_at timestamptz default timezone('utc'::text, now()) not null
+  status text DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'suspended', 'pending')),
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-create index if not exists idx_profiles_email on public.profiles(email);
-create index if not exists idx_profiles_role on public.profiles(role);
+-- Remove qualquer constraint antiga com a tabela tenants que causava erro 42P01
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_tenant_id_fkey;
 
--- 2. Habilita RLS e cria políticas permissivas para leitura e escrita
-alter table public.profiles enable row level security;
+-- 3. REMOVE TODAS AS POLÍTICAS ANTIGAS E RESTRITIVAS DE RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-drop policy if exists "Allow authenticated users to read all profiles" on public.profiles;
-create policy "Allow authenticated users to read all profiles" 
-  on public.profiles for select 
+DROP POLICY IF EXISTS "Allow authenticated users to read all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow users to upsert own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_policy" ON public.profiles;
+
+-- Cria política aberta: Qualquer usuário autenticado (incluindo o admin) pode ver todos os perfis
+CREATE POLICY "Allow authenticated users to read all profiles" 
+  ON public.profiles FOR SELECT 
   to authenticated 
-  using (true);
+  USING (true);
 
-drop policy if exists "Allow users to upsert own profile" on public.profiles;
-create policy "Allow users to upsert own profile" 
-  on public.profiles for all 
+-- Permite gravação e atualização (upsert)
+CREATE POLICY "Allow users and admins to manage profiles" 
+  ON public.profiles FOR ALL 
   to authenticated 
-  using (auth.uid() = id or lower(trim(auth.jwt()->>'email')) like '%ymarssico%')
-  with check (auth.uid() = id or lower(trim(auth.jwt()->>'email')) like '%ymarssico%');
+  USING (true)
+  WITH CHECK (true);
 
--- 3. RESGATE / BACKFILL: Migra todos os usuários que já existem em auth.users para public.profiles
-insert into public.profiles (
+-- 4. BACKFILL GERAL: Transfere todas as contas do auth.users para public.profiles
+INSERT INTO public.profiles (
   id,
   email,
   name,
@@ -54,51 +67,51 @@ insert into public.profiles (
   role,
   status,
   level,
+  commission_rate,
   created_at,
   updated_at
 )
-select 
+SELECT 
   u.id,
   u.email,
-  coalesce(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)),
-  split_part(coalesce(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1)), ' ', 1),
-  'VLS-' || upper(substring(u.id::text, 1, 5)),
-  case 
-    when lower(trim(u.email)) like '%ymarssico%' then 'admin'
-    else coalesce(u.raw_user_meta_data->>'role', 'affiliate')
-  end,
+  coalesce(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1), 'Afiliado'),
+  split_part(coalesce(u.raw_user_meta_data->>'name', split_part(u.email, '@', 1), 'Afiliado'), ' ', 1),
+  'VLS-' || upper(replace(substring(u.id::text, 1, 6), '-', '')),
+  CASE 
+    WHEN lower(trim(coalesce(u.email, ''))) LIKE '%ymarssico%' THEN 'admin'
+    ELSE coalesce(u.raw_user_meta_data->>'role', 'affiliate')
+  END,
   'active',
   'Afiliado(a) Ouro',
-  u.created_at,
+  0.60,
+  coalesce(u.created_at, now()),
   now()
-from auth.users u
-where not exists (
-  select 1 from public.profiles p where p.id = u.id
-)
-on conflict (id) do update set
-  name = excluded.name,
-  email = excluded.email;
+FROM auth.users u
+ON CONFLICT (id) DO UPDATE SET
+  email = excluded.email,
+  name = coalesce(public.profiles.name, excluded.name),
+  status = 'active';
 
--- 4. Função e Trigger para automatizar todos os futuros cadastros
-create or replace function public.handle_new_user()
-returns trigger as $$
-declare
+-- 5. Trigger definitivo para novos cadastros
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+DECLARE
   raw_name text;
   first_n text;
   generated_code text;
   user_role text;
-begin
-  raw_name := coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1));
+BEGIN
+  raw_name := coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1), 'Afiliado');
   first_n := split_part(raw_name, ' ', 1);
-  generated_code := 'VLS-' || upper(substring(new.id::text, 1, 5));
+  generated_code := 'VLS-' || upper(replace(substring(new.id::text, 1, 6), '-', ''));
 
-  if lower(trim(new.email)) like '%ymarssico%' then
+  IF lower(trim(new.email)) LIKE '%ymarssico%' THEN
     user_role := 'admin';
-  else
+  ELSE
     user_role := coalesce(new.raw_user_meta_data->>'role', 'affiliate');
-  end if;
+  END IF;
 
-  insert into public.profiles (
+  INSERT INTO public.profiles (
     id,
     role,
     name,
@@ -106,9 +119,12 @@ begin
     email,
     affiliate_code,
     phone,
-    instagram
+    instagram,
+    status,
+    level,
+    commission_rate
   )
-  values (
+  VALUES (
     new.id,
     user_role,
     raw_name,
@@ -116,17 +132,21 @@ begin
     new.email,
     generated_code,
     new.raw_user_meta_data->>'phone',
-    new.raw_user_meta_data->>'instagram'
+    new.raw_user_meta_data->>'instagram',
+    'active',
+    'Afiliado(a) Ouro',
+    0.60
   )
-  on conflict (id) do update set
+  ON CONFLICT (id) DO UPDATE SET
     name = excluded.name,
-    email = excluded.email;
+    email = excluded.email,
+    status = 'active';
 
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();

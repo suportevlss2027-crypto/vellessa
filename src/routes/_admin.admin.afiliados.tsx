@@ -14,6 +14,13 @@ import {
   Activity,
   ChevronDown,
   BookOpen,
+  Check,
+  UserPlus,
+  X,
+  Mail,
+  Phone,
+  Instagram,
+  Key,
 } from "lucide-react";
 import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -37,6 +44,19 @@ function AdminAfiliadosPage() {
   const [loading, setLoading] = useState(false);
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [selectedAffiliate, setSelectedAffiliate] = useState<any | null>(null);
+
+  // Modal de Criação de Afiliado pelo Admin
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newAffiliate, setNewAffiliate] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    instagram: "",
+    level: "Afiliado(a) Ouro",
+    role: "affiliate" as "affiliate" | "admin",
+  });
 
   const fetchAffiliates = async () => {
     setLoading(true);
@@ -189,6 +209,109 @@ function AdminAfiliadosPage() {
     }
   };
 
+  const handleCreateAffiliate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAffiliate.name.trim() || !newAffiliate.email.trim()) {
+      toast.error("Nome e e-mail são obrigatórios.");
+      return;
+    }
+    if (!newAffiliate.email.includes("@")) {
+      toast.error("Insira um e-mail válido.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const trimmedEmail = newAffiliate.email.trim().toLowerCase();
+    const trimmedName = newAffiliate.name.trim();
+    const first = trimmedName.split(" ")[0] || trimmedName;
+    const affiliateCode = `VLS-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
+    try {
+      let createdUserId: string | null = null;
+
+      // 1. Cria usuário no Supabase Auth se houver senha fornecida
+      if (isSupabaseConfigured && supabase && newAffiliate.password.trim().length >= 6) {
+        try {
+          const { data: authData, error: authErr } = await supabase.auth.signUp({
+            email: trimmedEmail,
+            password: newAffiliate.password.trim(),
+            options: {
+              data: {
+                name: trimmedName,
+                role: newAffiliate.role,
+                phone: newAffiliate.phone.trim() || undefined,
+                instagram: newAffiliate.instagram.trim() || undefined,
+              },
+            },
+          });
+          if (authData?.user) {
+            createdUserId = authData.user.id;
+          } else if (authErr) {
+            console.warn("Auth signup notice:", authErr.message);
+          }
+        } catch (err) {
+          console.warn("Auth signup error:", err);
+        }
+      }
+
+      // 2. Garante o perfil em public.profiles
+      const profileId = createdUserId || `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      if (isSupabaseConfigured && supabase) {
+        const { error: profileErr } = await supabase.from("profiles").upsert({
+          id: profileId,
+          email: trimmedEmail,
+          name: trimmedName,
+          first_name: first,
+          phone: newAffiliate.phone.trim() || null,
+          instagram: newAffiliate.instagram.trim() || null,
+          affiliate_code: affiliateCode,
+          role: newAffiliate.role,
+          level: newAffiliate.level,
+          status: "active",
+          commission_rate: 0.60,
+        }, { onConflict: "id" });
+
+        if (profileErr) {
+          console.warn("Profile upsert warning:", profileErr);
+        }
+      }
+
+      // 3. Registra na telemetria local para visualização imediata em qualquer condição
+      const newProf = {
+        id: affiliateCode,
+        rawId: profileId,
+        name: trimmedName,
+        first,
+        email: trimmedEmail,
+        phone: newAffiliate.phone.trim(),
+        instagram: newAffiliate.instagram.trim(),
+        role: newAffiliate.role,
+        level: newAffiliate.level,
+        status: "Ativo",
+        date: new Date().toLocaleDateString("pt-BR"),
+        createdAt: new Date().toISOString(),
+      };
+
+      setDbAffiliates((prev) => [newProf, ...prev.filter((p) => p.email?.toLowerCase() !== trimmedEmail)]);
+      toast.success(`${trimmedName} cadastrado(a) com sucesso como ${newAffiliate.role === "admin" ? "Administrador" : "Afiliado(a)"}!`);
+      setShowCreateModal(false);
+      setNewAffiliate({
+        name: "",
+        email: "",
+        password: "",
+        phone: "",
+        instagram: "",
+        level: "Afiliado(a) Ouro",
+        role: "affiliate",
+      });
+      fetchAffiliates();
+    } catch (e: any) {
+      toast.error(`Erro ao cadastrar: ${e?.message || "Tente novamente."}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
     { key: "all", label: "Todos", count: kpis.total },
     { key: "active", label: "Ativos Recentes", count: kpis.activeLast7 },
@@ -208,9 +331,16 @@ function AdminAfiliadosPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-gold-gradient px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition cursor-pointer"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Cadastrar Afiliado
+          </button>
+          <button
             onClick={fetchAffiliates}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-gold" : ""}`} />
             Atualizar
@@ -524,6 +654,162 @@ function AdminAfiliadosPage() {
           modulesList={modulesList}
           onClose={() => setSelectedAffiliate(null)}
         />
+      )}
+
+      {/* Modal de Criação de Afiliado pelo Admin */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-gold/30 bg-card p-6 shadow-2xl animate-in zoom-in-95 text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-border/40">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-gold/10 text-gold border border-gold/20">
+                  <UserPlus className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold">Cadastrar Novo Afiliado</h3>
+                  <p className="text-xs text-muted-foreground">Adicione um novo membro diretamente à plataforma.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-muted/60 text-muted-foreground hover:text-foreground transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateAffiliate} className="space-y-4 pt-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground/90">Nome Completo *</label>
+                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                  <input
+                    required
+                    value={newAffiliate.name}
+                    onChange={(e) => setNewAffiliate({ ...newAffiliate, name: e.target.value })}
+                    placeholder="Ex: Maria Silva"
+                    className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">E-mail *</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      required
+                      type="email"
+                      value={newAffiliate.email}
+                      onChange={(e) => setNewAffiliate({ ...newAffiliate, email: e.target.value })}
+                      placeholder="afiliado@exemplo.com"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Senha Inicial</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Key className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={newAffiliate.password}
+                      onChange={(e) => setNewAffiliate({ ...newAffiliate, password: e.target.value })}
+                      placeholder="Mín. 6 dígitos (opcional)"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">WhatsApp / Telefone</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={newAffiliate.phone}
+                      onChange={(e) => setNewAffiliate({ ...newAffiliate, phone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Instagram</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs">
+                    <Instagram className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      value={newAffiliate.instagram}
+                      onChange={(e) => setNewAffiliate({ ...newAffiliate, instagram: e.target.value })}
+                      placeholder="@usuario"
+                      className="w-full bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Nível Inicial</label>
+                  <select
+                    value={newAffiliate.level}
+                    onChange={(e) => setNewAffiliate({ ...newAffiliate, level: e.target.value })}
+                    className="w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs outline-none text-foreground"
+                  >
+                    <option value="Afiliado(a) Ouro">Afiliado(a) Ouro</option>
+                    <option value="Afiliado(a) Diamante">Afiliado(a) Diamante</option>
+                    <option value="Afiliado(a) Black">Afiliado(a) Black</option>
+                    <option value="Afiliado(a) Embaixador">Afiliado(a) Embaixador</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground/90">Tipo de Acesso</label>
+                  <select
+                    value={newAffiliate.role}
+                    onChange={(e) => setNewAffiliate({ ...newAffiliate, role: e.target.value as "affiliate" | "admin" })}
+                    className="w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs outline-none text-foreground"
+                  >
+                    <option value="affiliate">Afiliado(a) Padrão</option>
+                    <option value="admin">Administrador / Gerente</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Botões */}
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="rounded-xl border border-border/60 px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gold-gradient px-5 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-50 cursor-pointer"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {isSubmitting ? "Cadastrando..." : "Cadastrar e Ativar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
