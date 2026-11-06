@@ -342,7 +342,7 @@ function Field({
         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
         <input
           {...props}
-          className="h-11 sm:h-12 w-full rounded-xl border border-border/70 bg-card/70 pl-10 pr-3.5 text-sm font-medium text-foreground outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 placeholder:text-muted-foreground/60"
+          className="h-11 sm:h-12 w-full rounded-xl border border-border/70 bg-card/70 pl-10 pr-3.5 text-base sm:text-sm font-medium text-foreground outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20 placeholder:text-muted-foreground/60"
         />
       </span>
     </label>

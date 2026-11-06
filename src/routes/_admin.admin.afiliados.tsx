@@ -993,8 +993,8 @@ function AdminAfiliadosPage() {
                       </td>
 
                       {/* Ações */}
-                      <td className="p-4 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                      <td className="p-4 pr-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                           {/* Raio-X Button */}
                           <button
                             type="button"

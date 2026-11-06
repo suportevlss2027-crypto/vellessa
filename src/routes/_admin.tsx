@@ -15,6 +15,8 @@ import {
   Shield,
   ShieldAlert,
   Users,
+  Menu,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAffiliateStore } from "@/lib/affiliate-store";
@@ -35,6 +37,7 @@ const adminNav = [
 function AdminLayout() {
   const { profile, logout, isAdmin, isTitular, isAuthenticated } = useAffiliateStore();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
@@ -136,35 +139,128 @@ function AdminLayout() {
 
       {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-surface/90 px-4 backdrop-blur-xl md:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-semibold text-gold">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/40 bg-surface/90 px-4 backdrop-blur-xl md:px-8">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Botão de Menu para Smartphone */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-card text-foreground hover:border-gold hover:text-gold transition md:hidden cursor-pointer"
+              aria-label="Abrir Menu Admin"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <Link to="/admin" className="flex items-center gap-2 md:hidden">
+              <div className="grid h-8 w-8 place-items-center rounded-lg bg-gold-gradient shadow-gold">
+                <Shield className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="font-display text-sm font-bold tracking-wider">ADMIN</span>
+            </Link>
+
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-1 text-xs font-semibold text-gold">
               <Shield className="h-3.5 w-3.5" />
               Painel do Produtor / Gerente
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               to="/painel"
-              className="hidden sm:inline-flex items-center gap-2 rounded-full border bg-card px-4 py-1.5 text-xs font-semibold text-foreground hover:border-gold transition"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/20 transition shadow-xs cursor-pointer"
             >
-              Ver como Afiliado
+              <span className="hidden sm:inline">Ver como</span> Afiliado →
             </Link>
 
-            <div className="flex items-center gap-2.5 rounded-full border bg-card py-1 pl-1 pr-3">
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
-                {isTitular ? <Crown className="h-4 w-4" /> : "AD"}
+            <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card py-1 pl-1 pr-2.5 sm:pr-3">
+              <span className="grid h-7 w-7 sm:h-8 sm:w-8 place-items-center rounded-full bg-gold-gradient text-xs font-bold text-primary-foreground shadow-xs">
+                {isTitular ? <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : "AD"}
               </span>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-semibold leading-tight">{profile.name}</span>
-                <span className="text-[10px] text-gold font-medium leading-tight">
+              <div className="hidden xs:flex flex-col text-left">
+                <span className="text-xs font-semibold leading-tight truncate max-w-[100px] sm:max-w-[150px]">{profile.first || profile.name}</span>
+                <span className="text-[9px] sm:text-[10px] text-gold font-medium leading-tight">
                   {isTitular ? "Titular Supremo" : "Administrador"}
                 </span>
               </div>
             </div>
           </div>
         </header>
+
+        {/* Drawer Mobile Deslizante para o Admin */}
+        {mobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-50 flex bg-black/80 backdrop-blur-sm md:hidden animate-in fade-in"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <div
+              className="relative flex h-full w-4/5 max-w-xs flex-col border-r border-gold/30 bg-surface/98 p-5 shadow-2xl animate-in slide-in-from-left duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header do Drawer */}
+              <div className="flex items-center justify-between pb-4 border-b border-border/40">
+                <div className="flex items-center gap-2.5">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl bg-gold-gradient shadow-gold">
+                    <Shield className="h-5 w-5 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-display text-base font-bold tracking-wider">ADMIN CMS</p>
+                    <p className="text-[9px] uppercase tracking-widest text-gold font-semibold">Vellessa Central</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-muted/60 text-muted-foreground hover:text-foreground transition cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Links de navegação */}
+              <nav className="mt-5 flex flex-1 flex-col gap-1.5 overflow-y-auto">
+                {adminNav.map(({ to, label, icon: Icon }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition",
+                      isActive(to)
+                        ? "bg-gold/15 text-gold border border-gold/30 font-semibold shadow-xs"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    )}
+                  >
+                    <Icon className={cn("h-5 w-5 shrink-0", isActive(to) ? "text-gold" : "text-muted-foreground")} />
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+
+              {/* Rodapé do Drawer */}
+              <div className="pt-4 border-t border-border/40 space-y-2">
+                <Link
+                  to="/painel"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between rounded-xl border border-gold/30 bg-gold/10 px-3.5 py-2.5 text-xs font-semibold text-gold transition hover:bg-gold/20"
+                >
+                  <span>Área de Membros (Afiliado)</span>
+                  <span>→</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sair da conta</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 px-4 pb-20 pt-6 md:px-8 md:pb-12 md:pt-8">
           <div className="mx-auto max-w-7xl animate-in fade-in duration-300">

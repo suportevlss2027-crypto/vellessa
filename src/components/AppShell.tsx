@@ -37,15 +37,15 @@ export function AppShell() {
 
   const navItems = useMemo(() => {
     return [
-      { to: "/painel", label: "Início", icon: Home },
-      { to: "/aulas", label: "Aulas", icon: BookOpen },
+      { to: "/painel", label: "Início", mobileLabel: "Início", icon: Home },
+      { to: "/aulas", label: "Aulas", mobileLabel: "Aulas", icon: BookOpen },
       ...(featureSettings.trafficManagerEnabled || isAdmin
-        ? [{ to: "/campanhas", label: "Gestor de Tráfego", icon: TrendingUp }]
+        ? [{ to: "/campanhas", label: "Gestor de Tráfego", mobileLabel: "Tráfego", icon: TrendingUp }]
         : []),
-      { to: "/criativos", label: "Criativos", icon: Image },
-      { to: "/materiais", label: "Materiais", icon: Link2 },
+      { to: "/criativos", label: "Criativos", mobileLabel: "Criativos", icon: Image },
+      { to: "/materiais", label: "Materiais", mobileLabel: "Materiais", icon: Link2 },
       ...(featureSettings.communityEnabled || isAdmin
-        ? [{ to: "/comunidade", label: "Comunidade", icon: Users }]
+        ? [{ to: "/comunidade", label: "Comunidade", mobileLabel: "Mural", icon: Users }]
         : []),
     ];
   }, [featureSettings, isAdmin]);
@@ -171,17 +171,28 @@ export function AppShell() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             {isAdmin && (
-              <Link
-                to="/admin"
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold hover:bg-gold/20 transition shadow-xs"
-              >
-                {isTitular ? (
+              <>
+                <Link
+                  to="/admin"
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold hover:bg-gold/20 transition shadow-xs"
+                >
+                  {isTitular ? (
+                    <Crown className="h-3 w-3 text-gold" />
+                  ) : (
+                    <Shield className="h-3 w-3" />
+                  )}
+                  {isTitular ? "Painel Titular" : "Painel Admin"}
+                </Link>
+
+                <Link
+                  to="/admin"
+                  className="inline-flex sm:hidden items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-gold hover:bg-gold/25 transition shadow-xs"
+                  title="Abrir Painel Admin"
+                >
                   <Crown className="h-3 w-3 text-gold" />
-                ) : (
-                  <Shield className="h-3 w-3" />
-                )}
-                {isTitular ? "Painel Titular" : "Painel Admin"}
-              </Link>
+                  <span>Admin</span>
+                </Link>
+              </>
             )}
             <button
               onClick={() => setSearchOpen(true)}
@@ -216,18 +227,18 @@ export function AppShell() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 flex justify-around rounded-2xl border bg-surface/95 p-1.5 shadow-soft backdrop-blur-xl md:hidden">
-        {navItems.map(({ to, label, icon: Icon }) => (
+      <nav className="fixed inset-x-2 bottom-2 z-40 flex justify-around rounded-2xl border border-white/10 bg-surface/95 p-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-2xl md:hidden">
+        {navItems.map(({ to, mobileLabel, label, icon: Icon }) => (
           <Link
             key={to}
             to={to}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-medium transition",
-              isActive(to) ? "bg-accent text-gold font-semibold" : "text-muted-foreground hover:text-foreground",
+              "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[9.5px] font-medium transition text-center min-w-0",
+              isActive(to) ? "bg-gold/15 text-gold font-bold shadow-xs" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            <Icon className="h-[18px] w-[18px]" />
-            {label}
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="truncate w-full text-center px-0.5">{mobileLabel || label}</span>
           </Link>
         ))}
       </nav>

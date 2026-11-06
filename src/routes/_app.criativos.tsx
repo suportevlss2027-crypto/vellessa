@@ -612,7 +612,7 @@ function Criativos() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Visual com Player de Vídeo Interativo ou Imagem */}
-            <div className="relative bg-black/95 flex items-center justify-center min-h-[360px] max-h-[50vh] md:max-h-[88vh] overflow-hidden p-2">
+            <div className="relative bg-black/95 flex items-center justify-center min-h-[220px] sm:min-h-[320px] max-h-[36vh] md:max-h-[88vh] overflow-hidden p-2">
               {previewVideoUrl ? (
                 <video
                   key={previewVideoUrl}
@@ -621,7 +621,7 @@ function Criativos() {
                   controls
                   autoPlay
                   playsInline
-                  className="max-h-[48vh] md:max-h-[84vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
+                  className="max-h-[34vh] md:max-h-[84vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
                 />
               ) : isResolvingVideo ? (
                 <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
@@ -631,7 +631,7 @@ function Criativos() {
                     <img
                       src={open.image}
                       alt={open.title}
-                      className="max-h-48 w-auto rounded-lg opacity-40 object-contain mt-1"
+                      className="max-h-36 sm:max-h-48 w-auto rounded-lg opacity-40 object-contain mt-1"
                     />
                   )}
                 </div>
@@ -657,26 +657,26 @@ function Criativos() {
             </div>
 
             {/* Painel lateral */}
-            <div className="flex flex-col max-h-[45vh] md:max-h-[88vh] bg-card">
+            <div className="flex flex-col flex-1 max-h-[54vh] md:max-h-[88vh] bg-card overflow-hidden">
               {/* Header */}
-              <div className="shrink-0 flex items-center justify-between p-5 pb-3 border-b border-border/20">
+              <div className="shrink-0 flex items-center justify-between p-3.5 sm:p-5 pb-2.5 sm:pb-3 border-b border-border/20">
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
                   Material Oficial Vellessa
                 </span>
                 <button
                   onClick={() => setOpen(null)}
                   aria-label="Fechar"
-                  className="grid h-8 w-8 place-items-center rounded-full bg-card border border-border/50 hover:bg-muted transition text-foreground"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-card border border-border/50 hover:bg-muted transition text-foreground cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Corpo */}
-              <div className="flex-1 overflow-y-auto p-5 py-3 space-y-3 custom-scrollbar overscroll-contain">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 py-2.5 sm:py-3 space-y-3 custom-scrollbar overscroll-contain">
                 <div>
-                  <h2 className="font-display text-xl font-bold text-foreground">{open.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <h2 className="font-display text-lg sm:text-xl font-bold text-foreground">{open.title}</h2>
+                  <p className="mt-0.5 sm:mt-1 text-xs text-muted-foreground">
                     {open.fileType
                       ? `Formato ${open.fileType.split("/")[1]?.toUpperCase() ?? open.format}${open.fileSize ? ` · ${open.fileSize}` : ""}.`
                       : `Formato nativo ${open.format}.`}{" "}
@@ -690,30 +690,30 @@ function Criativos() {
                     href={open.externalDownloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/40 p-3 text-xs text-gold hover:border-gold/60 transition"
+                    className="flex items-center gap-2 rounded-xl border border-border/40 bg-muted/40 p-2.5 sm:p-3 text-xs text-gold hover:border-gold/60 transition"
                   >
                     <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">Acessar arquivo no link externo</span>
                   </a>
                 )}
 
-                <div className="rounded-xl bg-muted/40 border border-border/40 p-3.5 text-xs leading-relaxed text-foreground">
+                <div className="rounded-xl bg-muted/40 border border-border/40 p-3 sm:p-3.5 text-xs leading-relaxed text-foreground">
                   <p className="font-semibold text-gold text-[10px] uppercase mb-1">Copy Recomendada para Anúncio:</p>
                   <p className="whitespace-pre-wrap">{getCreativeCopy(open)}</p>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="shrink-0 flex gap-2 p-5 pt-3 border-t border-border/30 bg-card">
+              <div className="shrink-0 flex gap-2 p-3 sm:p-5 pt-2.5 sm:pt-3 border-t border-border/30 bg-card z-10">
                 <button
                   onClick={() => copyText(getCreativeCopy(open), "Copy sugerida copiada!")}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-card py-2.5 text-xs font-semibold hover:border-gold hover:text-gold transition"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-card py-2.5 text-xs font-semibold hover:border-gold hover:text-gold transition cursor-pointer"
                 >
                   <Copy className="h-3.5 w-3.5" /> Copiar Copy
                 </button>
                 <button
                   onClick={() => handleDownload(open)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-gradient py-2.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gold-gradient py-2.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition cursor-pointer"
                 >
                   <Download className="h-3.5 w-3.5" /> Baixar Peça
                 </button>
