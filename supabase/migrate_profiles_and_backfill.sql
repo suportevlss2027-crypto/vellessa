@@ -243,16 +243,173 @@ $$;
 GRANT EXECUTE ON FUNCTION public.delete_user_by_admin(uuid) TO authenticated, anon;
 
 -- ==============================================================================
--- 12. RELATÓRIO DIAGNÓSTICO IMEDIATO (RESULTADOS VISÍVEIS NA ABA RESULTS)
+-- 12. TABELAS DE PASTAS, MATERIAIS E LINKS OFICIAIS SINCRONIZADOS NA NUVEM
+-- Permite que materiais e links cadastrados no Admin apareçam para 100% dos afiliados
+-- ==============================================================================
+
+-- Pastas temáticas de materiais
+CREATE TABLE IF NOT EXISTS public.material_folders (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  description text,
+  color text DEFAULT 'gold',
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.material_folders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "material_folders_select" ON public.material_folders;
+DROP POLICY IF EXISTS "material_folders_all" ON public.material_folders;
+
+CREATE POLICY "material_folders_select" 
+  ON public.material_folders FOR SELECT 
+  TO authenticated, anon 
+  USING (true);
+
+CREATE POLICY "material_folders_all" 
+  ON public.material_folders FOR ALL 
+  TO authenticated, anon 
+  USING (true)
+  WITH CHECK (true);
+
+-- Arquivos e materiais oficiais (PDFs, DOCs, Pacotes, ZIPs)
+CREATE TABLE IF NOT EXISTS public.materials (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  kind text NOT NULL,
+  size text NOT NULL,
+  file_url text,
+  raw_file_name text,
+  source_type text DEFAULT 'link',
+  mime_type text,
+  folder_id text REFERENCES public.material_folders(id) ON DELETE SET NULL,
+  files jsonb,
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "materials_select" ON public.materials;
+DROP POLICY IF EXISTS "materials_all" ON public.materials;
+
+CREATE POLICY "materials_select" 
+  ON public.materials FOR SELECT 
+  TO authenticated, anon 
+  USING (true);
+
+CREATE POLICY "materials_all" 
+  ON public.materials FOR ALL 
+  TO authenticated, anon 
+  USING (true)
+  WITH CHECK (true);
+
+-- Links oficiais de venda e ferramentas (ZapData, Logzz, etc.)
+CREATE TABLE IF NOT EXISTS public.affiliate_links (
+  id text PRIMARY KEY,
+  label text NOT NULL,
+  url text NOT NULL,
+  note text,
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.affiliate_links ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "affiliate_links_select" ON public.affiliate_links;
+DROP POLICY IF EXISTS "affiliate_links_all" ON public.affiliate_links;
+
+CREATE POLICY "affiliate_links_select" 
+  ON public.affiliate_links FOR SELECT 
+  TO authenticated, anon 
+  USING (true);
+
+CREATE POLICY "affiliate_links_all" 
+  ON public.affiliate_links FOR ALL 
+  TO authenticated, anon 
+  USING (true)
+  WITH CHECK (true);
+
+-- Configurações globais da plataforma (Outdoor Oficial do Painel, Recursos Ativos)
+CREATE TABLE IF NOT EXISTS public.platform_settings (
+  key text PRIMARY KEY,
+  value jsonb NOT NULL,
+  updated_at timestamptz DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.platform_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "platform_settings_select" ON public.platform_settings;
+DROP POLICY IF EXISTS "platform_settings_all" ON public.platform_settings;
+
+CREATE POLICY "platform_settings_select" 
+  ON public.platform_settings FOR SELECT 
+  TO authenticated, anon 
+  USING (true);
+
+CREATE POLICY "platform_settings_all" 
+  ON public.platform_settings FOR ALL 
+  TO authenticated, anon 
+  USING (true)
+  WITH CHECK (true);
+
+-- ==============================================================================
+-- 13. PROVISIONAMENTO DO BUCKET PÚBLICO DE MATERIAIS (SUPABASE STORAGE)
+-- Permite que PDFs, DOCs, imagens e pacotes subam para a CDN da nuvem
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('materiais', 'materiais', true, 104857600, null)
+ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 104857600;
+
+DROP POLICY IF EXISTS "materiais_public_select" ON storage.objects;
+DROP POLICY IF EXISTS "materiais_public_insert" ON storage.objects;
+DROP POLICY IF EXISTS "materiais_public_update" ON storage.objects;
+DROP POLICY IF EXISTS "materiais_public_delete" ON storage.objects;
+
+CREATE POLICY "materiais_public_select" 
+  ON storage.objects FOR SELECT 
+  TO authenticated, anon 
+  USING (bucket_id = 'materiais');
+
+CREATE POLICY "materiais_public_insert" 
+  ON storage.objects FOR INSERT 
+  TO authenticated, anon 
+  WITH CHECK (bucket_id = 'materiais');
+
+CREATE POLICY "materiais_public_update" 
+  ON storage.objects FOR UPDATE 
+  TO authenticated, anon 
+  USING (bucket_id = 'materiais');
+
+CREATE POLICY "materiais_public_delete" 
+  ON storage.objects FOR DELETE 
+  TO authenticated, anon 
+  USING (bucket_id = 'materiais');
+
+-- ==============================================================================
+-- 14. RELATÓRIO DIAGNÓSTICO IMEDIATO (RESULTADOS VISÍVEIS NA ABA RESULTS)
 -- ==============================================================================
 SELECT 
   'auth.users (Contas Registradas no Auth)' AS tabela, 
-  count(*)::text AS total_usuarios, 
-  coalesce(string_agg(email, ', '), 'Nenhum') AS emails_encontrados
+  count(*)::text AS total_registros, 
+  coalesce(string_agg(email, ', '), 'Nenhum') AS detalhes
 FROM auth.users
 UNION ALL
 SELECT 
   'public.profiles (Perfis Prontos para o CMS)' AS tabela, 
-  count(*)::text AS total_usuarios, 
-  coalesce(string_agg(email, ', '), 'Nenhum') AS emails_encontrados
-FROM public.profiles;
+  count(*)::text AS total_registros, 
+  coalesce(string_agg(email, ', '), 'Nenhum') AS detalhes
+FROM public.profiles
+UNION ALL
+SELECT 
+  'public.materials (Materiais e Manuais Oficiais)' AS tabela,
+  count(*)::text AS total_registros,
+  coalesce(string_agg(title, ', '), 'Nenhum cadastrado ainda') AS detalhes
+FROM public.materials
+UNION ALL
+SELECT 
+  'public.affiliate_links (Links Oficiais e Afiliados)' AS tabela,
+  count(*)::text AS total_registros,
+  coalesce(string_agg(label, ', '), 'Nenhum cadastrado ainda') AS detalhes
+FROM public.affiliate_links;

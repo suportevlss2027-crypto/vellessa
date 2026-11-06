@@ -204,23 +204,23 @@ function Materiais() {
 
   // Downloads
   const handleDownloadFileItem = async (f: MaterialFileItem) => {
-    if (f.sourceType === "upload" || !f.file_url) {
-      const blob = await getRawFile(f.id);
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = f.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-        toast.success(`Download de "${f.name}" iniciado!`);
-        return;
-      }
-    }
-    if (f.file_url) {
+    // 1. Se tiver URL pública na nuvem (Supabase Storage ou link direto), baixa direto da nuvem
+    if (f.file_url && !f.file_url.startsWith("indexeddb://")) {
       downloadAsset(f.file_url, f.name);
+      return;
+    }
+    // 2. Caso contrário, tenta resgatar do IndexedDB local
+    const blob = await getRawFile(f.id);
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast.success(`Download de "${f.name}" iniciado!`);
       return;
     }
     toast.info("Arquivo não disponível para download.");
@@ -241,10 +241,16 @@ function Materiais() {
   };
 
   const handleDownloadMaterial = async (m: DynamicMaterial) => {
-    if ((m.sourceType === "upload" || m.rawFileName) && m.id) {
+    const filename = m.rawFileName || `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${m.kind.toLowerCase()}`;
+    // 1. Se tiver URL na nuvem (Supabase CDN ou link externo), baixa diretamente
+    if (m.file_url && !m.file_url.startsWith("indexeddb://")) {
+      downloadAsset(m.file_url, filename);
+      return;
+    }
+    // 2. Se tiver arquivo local no IndexedDB da máquina que criou
+    if (m.id) {
       const blob = await getRawFile(m.id);
       if (blob) {
-        const filename = m.rawFileName || `${m.title}.${m.kind.toLowerCase()}`;
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -257,18 +263,11 @@ function Materiais() {
         return;
       }
     }
-    if (m.file_url) {
-      downloadAsset(
-        m.file_url,
-        `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${m.kind.toLowerCase()}`
-      );
-      return;
-    }
+    // 3. Fallback oficial formatado com os dados do afiliado
     const content = `=== VELLESSA AFILIADOS - ARQUIVO OFICIAL DE APOIO ===\n\nTítulo: ${m.title}\nTipo: ${m.kind}\nTamanho do Pacote: ${m.size}\nMembro/Afiliado: ${profile.name} (ID: ${profile.id})\nData de Emissão: ${new Date().toLocaleDateString("pt-BR")}\n\nEste documento contém diretrizes oficiais de divulgação.`;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const filename = `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`;
-    downloadAsset(url, filename);
+    downloadAsset(url, `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`);
   };
 
   // ── FILTROS E CONTEXTO DE DIRETÓRIO ATUAL ──────────────────────────────────

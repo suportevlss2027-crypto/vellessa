@@ -1,4 +1,6 @@
-// Gerenciador nativo de arquivos brutos via IndexedDB para materiais da plataforma Vellessa
+// Gerenciador nativo de arquivos brutos via IndexedDB e Supabase Storage para materiais da plataforma Vellessa
+import { supabase, isSupabaseConfigured } from "./supabase";
+
 const DB_NAME = "vellessa_materials_db";
 const STORE_NAME = "materials_files";
 const DB_VERSION = 1;
@@ -83,6 +85,55 @@ export async function deleteRawFiles(ids: string[]): Promise<void> {
     });
   } catch (error) {
     console.error("Erro ao excluir múltiplos arquivos do IndexedDB:", error);
+  }
+}
+
+/**
+ * Envia arquivo bruto para o bucket "materiais" no Supabase Storage.
+ * Retorna a URL pública de acesso CDN ou null em caso de falha.
+ */
+export async function uploadMaterialToSupabase(
+  id: string,
+  file: Blob | File,
+  originalName?: string
+): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const fileName = originalName || (file instanceof File ? file.name : `material_${id}`);
+    const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `files/${id}_${cleanName}`;
+
+    const { data, error } = await supabase.storage
+      .from("materiais")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+    if (!error && data) {
+      const { data: pubData } = supabase.storage
+        .from("materiais")
+        .getPublicUrl(path);
+
+      return pubData.publicUrl;
+    } else if (error) {
+      console.warn(`[FileStorage] Supabase storage upload warning (${error.message})`);
+    }
+  } catch (err) {
+    console.warn("[FileStorage] Exceção ao enviar para Supabase Storage:", err);
+  }
+  return null;
+}
+
+/**
+ * Remove arquivo do bucket "materiais" no Supabase Storage caso exista.
+ */
+export async function deleteMaterialFromSupabase(paths: string[]): Promise<void> {
+  if (!isSupabaseConfigured || !supabase || !paths || paths.length === 0) return;
+  try {
+    await supabase.storage.from("materiais").remove(paths);
+  } catch (err) {
+    console.warn("[FileStorage] Falha ao remover arquivos do Supabase Storage:", err);
   }
 }
 

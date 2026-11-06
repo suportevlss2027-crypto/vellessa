@@ -18,7 +18,7 @@ import {
   type Creative,
 } from "@/data/content";
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
-import { storeRawFile, deleteRawFile, deleteRawFiles } from "./file-storage";
+import { storeRawFile, getRawFile, deleteRawFile, deleteRawFiles, uploadMaterialToSupabase } from "./file-storage";
 import { deleteCreativeAssets, deleteBatchCreativeAssets } from "./creative-storage";
 
 export interface AffiliateProfile {
@@ -1117,6 +1117,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   }, []);
 
   const hasSyncedCreativesRef = useRef(false);
+  const hasSyncedMaterialsRef = useRef(false);
+  const hasSyncedLinksRef = useRef(false);
+  const hasSyncedSettingsRef = useRef(false);
 
   // ── Sincronização Inteligente de Criativos com Supabase (Zero-Data-Loss & Single-Flight) ──
   const syncCreativesWithSupabase = useCallback(async (force = false) => {
@@ -1250,10 +1253,265 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
+  // ── Sincronização Inteligente de Materiais e Pastas com Supabase (Zero-Data-Loss) ──
+  const syncMaterialsWithSupabase = useCallback(async (force = false) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    if (hasSyncedMaterialsRef.current && !force) return;
+    hasSyncedMaterialsRef.current = true;
+
+    try {
+      // 1. Sincronização de Pastas Temáticas de Materiais
+      const { data: dbFolders, error: foldersErr } = await supabase
+        .from("material_folders")
+        .select("*")
+        .order("order_index", { ascending: true });
+
+      if (!foldersErr && dbFolders) {
+        const dbFolderMap = new Map(dbFolders.map((f: any) => [f.id, f]));
+        const currentLocalFolders = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.FOLDERS);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+        const localFoldersToSync = Array.isArray(currentLocalFolders)
+          ? currentLocalFolders.filter((f: any) => !dbFolderMap.has(f.id))
+          : [];
+
+        if (localFoldersToSync.length > 0) {
+          const rowsToInsert = localFoldersToSync.map((f: any, idx: number) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description || null,
+            color: f.color || "gold",
+            order_index: idx,
+          }));
+          await supabase.from("material_folders").upsert(rowsToInsert);
+        }
+
+        const formattedFolders: MaterialFolder[] = dbFolders.map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          description: f.description || "",
+          color: f.color || "gold",
+          createdAt: f.created_at,
+        }));
+
+        localFoldersToSync.forEach((lf: any) => {
+          if (!formattedFolders.some((f) => f.id === lf.id)) {
+            formattedFolders.push(lf);
+          }
+        });
+
+        setFoldersList(formattedFolders);
+        try {
+          localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(formattedFolders));
+        } catch {}
+      }
+
+      // 2. Sincronização de Materiais e Arquivos Oficiais
+      const { data: dbMaterials, error: matErr } = await supabase
+        .from("materials")
+        .select("*")
+        .order("order_index", { ascending: true });
+
+      if (!matErr && dbMaterials) {
+        const dbMaterialMap = new Map(dbMaterials.map((m: any) => [m.id, m]));
+        const currentLocalMaterials = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.MATERIALS);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+        const localMaterialsToSync = Array.isArray(currentLocalMaterials)
+          ? currentLocalMaterials.filter((m: any) => !dbMaterialMap.has(m.id || m.title))
+          : [];
+
+        if (localMaterialsToSync.length > 0) {
+          const rowsToInsert = await Promise.all(
+            localMaterialsToSync.map(async (m: any, idx: number) => {
+              const matId = m.id || `mat-${Date.now()}-${idx}`;
+              let fileUrl = m.file_url || null;
+
+              // Se houver arquivo local no IndexedDB e ainda sem URL pública na nuvem, tenta upload para Supabase Storage
+              if (!fileUrl && (m.sourceType === "upload" || m.rawFileName)) {
+                try {
+                  const blob = await getRawFile(matId);
+                  if (blob) {
+                    const uploadedUrl = await uploadMaterialToSupabase(matId, blob, m.rawFileName);
+                    if (uploadedUrl) fileUrl = uploadedUrl;
+                  }
+                } catch {}
+              }
+
+              return {
+                id: matId,
+                title: m.title,
+                kind: m.kind,
+                size: m.size,
+                file_url: fileUrl,
+                raw_file_name: m.rawFileName || null,
+                source_type: m.sourceType || "link",
+                mime_type: m.mimeType || null,
+                folder_id: m.folderId || null,
+                files: m.files || null,
+                order_index: idx,
+              };
+            })
+          );
+          await supabase.from("materials").upsert(rowsToInsert);
+        }
+
+        const formattedMaterials: DynamicMaterial[] = dbMaterials.map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          kind: m.kind,
+          size: m.size,
+          file_url: m.file_url || undefined,
+          rawFileName: m.raw_file_name || undefined,
+          sourceType: m.source_type || undefined,
+          mimeType: m.mime_type || undefined,
+          folderId: m.folder_id || undefined,
+          files: m.files || undefined,
+        }));
+
+        localMaterialsToSync.forEach((lm: any) => {
+          if (!formattedMaterials.some((m) => (m.id || m.title) === (lm.id || lm.title))) {
+            formattedMaterials.push(lm);
+          }
+        });
+
+        setMaterialsList(formattedMaterials);
+        try {
+          localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(formattedMaterials));
+        } catch {}
+      }
+    } catch (err) {
+      console.warn("[AffiliateStore] Aviso na sincronização de materiais com Supabase:", err);
+    }
+  }, []);
+
+  // ── Sincronização Inteligente de Links Oficiais Logzz com Supabase ──
+  const syncLinksWithSupabase = useCallback(async (force = false) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    if (hasSyncedLinksRef.current && !force) return;
+    hasSyncedLinksRef.current = true;
+
+    try {
+      const { data: dbLinks, error: linksErr } = await supabase
+        .from("affiliate_links")
+        .select("*")
+        .order("order_index", { ascending: true });
+
+      if (!linksErr && dbLinks) {
+        const dbLinkMap = new Map(dbLinks.map((l: any) => [l.id, l]));
+        const currentLocalLinks = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.LINKS);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+        const localLinksToSync = Array.isArray(currentLocalLinks)
+          ? currentLocalLinks.filter((l: any) => !dbLinkMap.has(l.id || l.url))
+          : [];
+
+        if (localLinksToSync.length > 0) {
+          const rowsToInsert = localLinksToSync.map((l: any, idx: number) => ({
+            id: l.id || `link-${Date.now()}-${idx}`,
+            label: l.label,
+            url: l.url,
+            note: l.note || null,
+            order_index: idx,
+          }));
+          await supabase.from("affiliate_links").upsert(rowsToInsert);
+        }
+
+        const formattedLinks: DynamicLink[] = dbLinks.map((l: any) => ({
+          id: l.id,
+          label: l.label,
+          url: l.url,
+          note: l.note || "",
+        }));
+
+        localLinksToSync.forEach((ll: any) => {
+          if (!formattedLinks.some((l) => (l.id || l.url) === (ll.id || ll.url))) {
+            formattedLinks.push(ll);
+          }
+        });
+
+        setLinksList(formattedLinks);
+        try {
+          localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(formattedLinks));
+        } catch {}
+      }
+    } catch (err) {
+      console.warn("[AffiliateStore] Aviso na sincronização de links com Supabase:", err);
+    }
+  }, []);
+
+  // ── Sincronização de Configurações Globais (Outdoor do Painel) ──
+  const syncPlatformSettingsWithSupabase = useCallback(async (force = false) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    if (hasSyncedSettingsRef.current && !force) return;
+    hasSyncedSettingsRef.current = true;
+
+    try {
+      const { data: rows, error } = await supabase
+        .from("platform_settings")
+        .select("*");
+
+      if (!error && rows) {
+        const billboardRow = rows.find((r: any) => r.key === "billboard_settings");
+        if (billboardRow && billboardRow.value) {
+          setBillboardSettings(billboardRow.value);
+          try {
+            localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(billboardRow.value));
+          } catch {}
+        } else {
+          const localBb = (() => {
+            try {
+              const raw = localStorage.getItem(STORAGE_KEYS.BILLBOARD_SETTINGS);
+              return raw ? JSON.parse(raw) : null;
+            } catch {
+              return null;
+            }
+          })();
+          if (localBb) {
+            await supabase.from("platform_settings").upsert({
+              key: "billboard_settings",
+              value: localBb,
+              updated_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[AffiliateStore] Aviso na sincronização de platform_settings:", err);
+    }
+  }, []);
+
   useEffect(() => {
     checkSupabaseSession();
     syncCreativesWithSupabase();
-  }, [checkSupabaseSession, syncCreativesWithSupabase]);
+    syncMaterialsWithSupabase();
+    syncLinksWithSupabase();
+    syncPlatformSettingsWithSupabase();
+  }, [
+    checkSupabaseSession,
+    syncCreativesWithSupabase,
+    syncMaterialsWithSupabase,
+    syncLinksWithSupabase,
+    syncPlatformSettingsWithSupabase,
+  ]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     setAuthLoading(true);
@@ -1290,6 +1548,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           setIsAuthenticated(true);
           localStorage.setItem(STORAGE_KEYS.AUTH, "true");
           await checkSupabaseSession();
+          syncCreativesWithSupabase(true).catch(() => {});
+          syncMaterialsWithSupabase(true).catch(() => {});
+          syncLinksWithSupabase(true).catch(() => {});
+          syncPlatformSettingsWithSupabase(true).catch(() => {});
           toast.success("Autenticado com sucesso!");
           setAuthLoading(false);
           return true;
@@ -1380,6 +1642,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           setProfile(adminProf);
           localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(adminProf));
           localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+          syncCreativesWithSupabase(true).catch(() => {});
+          syncMaterialsWithSupabase(true).catch(() => {});
+          syncLinksWithSupabase(true).catch(() => {});
+          syncPlatformSettingsWithSupabase(true).catch(() => {});
           toast.success("Autenticado como Administrador!");
           setAuthLoading(false);
           return true;
@@ -1586,6 +1852,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             status: "active",
           };
           recordAffiliateAccess(newProf);
+          syncCreativesWithSupabase(true).catch(() => {});
+          syncMaterialsWithSupabase(true).catch(() => {});
+          syncLinksWithSupabase(true).catch(() => {});
+          syncPlatformSettingsWithSupabase(true).catch(() => {});
 
           toast.success("Conta criada! Você já pode acessar a plataforma.");
           setAuthLoading(false);
@@ -2010,32 +2280,46 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     mimeType?: string;
     rawFile?: Blob | File;
     files?: MaterialFileItem[];
+    folderId?: string;
   }) => {
     const id = `mat-${Date.now()}`;
+    let cloudFileUrl = data.file_url;
     
-    // Salva arquivo único legado caso exista
+    // Salva arquivo único no IndexedDB (cache local) e envia para o Supabase Storage (CDN global)
     if (data.rawFile) {
       try {
         await storeRawFile(id, data.rawFile);
+        const uploadedUrl = await uploadMaterialToSupabase(id, data.rawFile, data.rawFileName);
+        if (uploadedUrl) {
+          cloudFileUrl = uploadedUrl;
+        }
       } catch (err) {
         console.error("Erro ao salvar arquivo bruto:", err);
       }
     }
 
-    // Salva múltiplos arquivos do pacote no IndexedDB
+    // Salva múltiplos arquivos do pacote no IndexedDB e Supabase Storage
     let sanitizedFiles: MaterialFileItem[] | undefined = undefined;
     if (data.files && data.files.length > 0) {
       sanitizedFiles = [];
       for (const f of data.files) {
+        let fUrl = f.file_url;
         if (f.rawFile) {
           try {
             await storeRawFile(f.id, f.rawFile);
+            const uploadedUrl = await uploadMaterialToSupabase(f.id, f.rawFile, f.name);
+            if (uploadedUrl) {
+              fUrl = uploadedUrl;
+            }
           } catch (err) {
-            console.error("Erro ao salvar arquivo do pacote no IndexedDB:", err);
+            console.error("Erro ao salvar arquivo do pacote:", err);
           }
         }
         const { rawFile, ...fileMeta } = f;
-        sanitizedFiles.push(fileMeta);
+        sanitizedFiles.push({
+          ...fileMeta,
+          file_url: fUrl,
+        });
       }
     }
 
@@ -2044,13 +2328,34 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       title: data.title,
       kind: data.kind.toUpperCase(),
       size: data.size,
-      file_url: data.file_url,
+      file_url: cloudFileUrl,
       sourceType: data.sourceType || (data.rawFile || (sanitizedFiles && sanitizedFiles.length > 0) ? "upload" : "link"),
       rawFileName: data.rawFileName,
       mimeType: data.mimeType,
       files: sanitizedFiles,
       folderId: data.folderId,
     };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("materials").upsert({
+          id: newM.id,
+          title: newM.title,
+          kind: newM.kind,
+          size: newM.size,
+          file_url: newM.file_url || null,
+          raw_file_name: newM.rawFileName || null,
+          source_type: newM.sourceType || "link",
+          mime_type: newM.mimeType || null,
+          folder_id: newM.folderId || null,
+          files: newM.files || null,
+          order_index: materialsList.length,
+        });
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao persistir material no Supabase:", err);
+      }
+    }
+
     const updated = [...materialsList, newM];
     setMaterialsList(updated);
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
@@ -2069,30 +2374,44 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       mimeType?: string;
       rawFile?: Blob | File;
       files?: MaterialFileItem[];
+      folderId?: string;
     }
   ) => {
+    let cloudFileUrl = data.file_url;
     if (data.rawFile) {
       try {
         await storeRawFile(id, data.rawFile);
+        const uploadedUrl = await uploadMaterialToSupabase(id, data.rawFile, data.rawFileName);
+        if (uploadedUrl) {
+          cloudFileUrl = uploadedUrl;
+        }
       } catch (err) {
         console.error("Erro ao atualizar arquivo bruto:", err);
       }
     }
 
-    // Salva ou atualiza múltiplos arquivos no IndexedDB
+    // Salva ou atualiza múltiplos arquivos no IndexedDB e Supabase Storage
     let sanitizedFiles: MaterialFileItem[] | undefined = undefined;
     if (data.files && data.files.length > 0) {
       sanitizedFiles = [];
       for (const f of data.files) {
+        let fUrl = f.file_url;
         if (f.rawFile) {
           try {
             await storeRawFile(f.id, f.rawFile);
+            const uploadedUrl = await uploadMaterialToSupabase(f.id, f.rawFile, f.name);
+            if (uploadedUrl) {
+              fUrl = uploadedUrl;
+            }
           } catch (err) {
-            console.error("Erro ao salvar arquivo do pacote no IndexedDB:", err);
+            console.error("Erro ao salvar arquivo do pacote:", err);
           }
         }
         const { rawFile, ...fileMeta } = f;
-        sanitizedFiles.push(fileMeta);
+        sanitizedFiles.push({
+          ...fileMeta,
+          file_url: fUrl,
+        });
       }
     }
 
@@ -2102,11 +2421,33 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       return {
         ...m,
         ...rest,
+        file_url: cloudFileUrl !== undefined ? cloudFileUrl : m.file_url,
         kind: rest.kind ? rest.kind.toUpperCase() : m.kind,
         files: sanitizedFiles !== undefined ? sanitizedFiles : m.files,
         folderId: "folderId" in rest ? rest.folderId : m.folderId,
       };
     });
+
+    const targetMaterial = updated.find((m) => (m.id || m.title) === id);
+    if (targetMaterial && isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("materials").upsert({
+          id: targetMaterial.id || id,
+          title: targetMaterial.title,
+          kind: targetMaterial.kind,
+          size: targetMaterial.size,
+          file_url: targetMaterial.file_url || null,
+          raw_file_name: targetMaterial.rawFileName || null,
+          source_type: targetMaterial.sourceType || "link",
+          mime_type: targetMaterial.mimeType || null,
+          folder_id: targetMaterial.folderId || null,
+          files: targetMaterial.files || null,
+        });
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao atualizar material no Supabase:", err);
+      }
+    }
+
     setMaterialsList(updated);
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
     toast.success("Material atualizado com sucesso!");
@@ -2121,6 +2462,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       }
       await deleteRawFiles(idsToDelete);
     } catch {}
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("materials").delete().eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao remover material no Supabase:", err);
+      }
+    }
+
     const updated = materialsList.filter((m) => (m.id || m.title) !== id);
     setMaterialsList(updated);
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updated));
@@ -2137,6 +2487,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       icon: data.icon || "Folder",
       createdAt: new Date().toISOString(),
     };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("material_folders").upsert({
+          id: newFolder.id,
+          name: newFolder.name,
+          description: newFolder.description || null,
+          color: newFolder.color || "gold",
+          order_index: foldersList.length,
+        });
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao criar pasta no Supabase:", err);
+      }
+    }
+
     const updated = [...foldersList, newFolder];
     setFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(updated));
@@ -2154,6 +2519,20 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         icon: data.icon ?? f.icon,
       };
     });
+
+    const targetFolder = updated.find((f) => f.id === id);
+    if (targetFolder && isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("material_folders").update({
+          name: targetFolder.name,
+          description: targetFolder.description || null,
+          color: targetFolder.color || "gold",
+        }).eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao atualizar pasta no Supabase:", err);
+      }
+    }
+
     setFoldersList(updated);
     localStorage.setItem(STORAGE_KEYS.FOLDERS, JSON.stringify(updated));
     toast.success("Pasta atualizada!");
@@ -2166,6 +2545,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     );
     setMaterialsList(updatedMaterials);
     localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(updatedMaterials));
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("materials").update({ folder_id: null }).eq("folder_id", id);
+        await supabase.from("material_folders").delete().eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao excluir pasta no Supabase:", err);
+      }
+    }
 
     const updated = foldersList.filter((f) => f.id !== id);
     setFoldersList(updated);
@@ -2266,6 +2654,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       url: data.url,
       note: data.note,
     };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("affiliate_links").upsert({
+          id: newL.id,
+          label: newL.label,
+          url: newL.url,
+          note: newL.note,
+          order_index: linksList.length,
+        });
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao criar link no Supabase:", err);
+      }
+    }
+
     const updated = [...linksList, newL];
     setLinksList(updated);
     localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
@@ -2283,12 +2686,34 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         ...data,
       };
     });
+
+    const targetLink = updated.find((l) => (l.id || l.url) === id);
+    if (targetLink && isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("affiliate_links").update({
+          label: targetLink.label,
+          url: targetLink.url,
+          note: targetLink.note,
+        }).eq("id", targetLink.id || id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao atualizar link no Supabase:", err);
+      }
+    }
+
     setLinksList(updated);
     localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
     toast.success("Link atualizado com sucesso!");
   };
 
   const deleteAffiliateLink = async (id: string) => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from("affiliate_links").delete().eq("id", id);
+      } catch (err) {
+        console.warn("[AffiliateStore] Falha ao excluir link no Supabase:", err);
+      }
+    }
+
     const updated = linksList.filter((l) => (l.id || l.url) !== id);
     setLinksList(updated);
     localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(updated));
@@ -2451,6 +2876,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       try {
         localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(next));
       } catch {}
+      if (isSupabaseConfigured && supabase) {
+        supabase.from("platform_settings").upsert({
+          key: "billboard_settings",
+          value: next,
+          updated_at: new Date().toISOString(),
+        }).then(() => {}).catch(() => {});
+      }
       toast.success("Outdoor do painel atualizado com sucesso!");
       return next;
     });
@@ -2461,6 +2893,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     try {
       localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(DEFAULT_BILLBOARD_SETTINGS));
     } catch {}
+    if (isSupabaseConfigured && supabase) {
+      supabase.from("platform_settings").upsert({
+        key: "billboard_settings",
+        value: DEFAULT_BILLBOARD_SETTINGS,
+        updated_at: new Date().toISOString(),
+      }).then(() => {}).catch(() => {});
+    }
     toast.info("Outdoor restaurado para o padrão Logzz.");
   }, []);
 
