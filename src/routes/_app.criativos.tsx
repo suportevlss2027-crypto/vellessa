@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
   Copy,
   Download,
@@ -9,13 +10,19 @@ import {
   Folder,
   Image as ImageIcon,
   Play,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { type Creative } from "@/data/content";
 import { EmptyState } from "@/components/EmptyState";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
-import { resolveCreativeDownload } from "@/lib/creative-storage";
+import {
+  resolveCreativeDownload,
+  isCreativeVideo,
+  getEmbedVideoUrl,
+} from "@/lib/creative-storage";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/criativos")({
@@ -69,9 +76,24 @@ function Criativos() {
   const [visibleCount, setVisibleCount] = useState(24);
   const [open, setOpen] = useState<Creative | null>(null);
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
+  const [previewEmbedUrl, setPreviewEmbedUrl] = useState<string | null>(null);
   const [isResolvingVideo, setIsResolvingVideo] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const activeBlobUrlRef = useRef<string | null>(null);
   const { copyText, downloadAsset, creativesList, creativeFoldersList } =
     useAffiliateStore();
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      const nextMuted = !videoRef.current.muted;
+      videoRef.current.muted = nextMuted;
+      setIsMuted(nextMuted);
+    } else {
+      setIsMuted((prev) => !prev);
+    }
+  };
 
   // Reinicia paginação ao trocar de pasta ou filtro
   useEffect(() => {
@@ -90,59 +112,86 @@ function Criativos() {
     };
   }, [open]);
 
+  // Limpeza de Blob quando o componente desmonta
+  useEffect(() => {
+    return () => {
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
+    };
+  }, []);
+
   // Carrega e resolve a prévia de vídeo quando o modal abre
   useEffect(() => {
     let active = true;
-    let createdBlobUrl: string | null = null;
 
     if (!open) {
       setPreviewVideoUrl(null);
+      setPreviewEmbedUrl(null);
+      setVideoError(null);
+      setIsResolvingVideo(false);
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
+      return;
+    }
+
+    const isVideo = isCreativeVideo(open);
+    if (!isVideo) {
+      setPreviewVideoUrl(null);
+      setPreviewEmbedUrl(null);
+      setVideoError(null);
       setIsResolvingVideo(false);
       return;
     }
 
-    const isVideo =
-      open.type === "Reels" ||
-      open.fileType?.startsWith("video/") ||
-      (open.fileUrl && /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(open.fileUrl)) ||
-      (open.title && /\.(mp4|webm|mov|m4v)$/i.test(open.title));
+    setIsResolvingVideo(true);
+    setVideoError(null);
+    setIsMuted(true); // Sempre inicia mudo para garantir reprodução imediata sem bloqueio de autoplay
 
-    if (isVideo) {
-      setIsResolvingVideo(true);
-      resolveCreativeDownload(open)
-        .then((res) => {
-          if (!active) {
-            if (res?.isBlobUrl && res.url) URL.revokeObjectURL(res.url);
-            return;
+    resolveCreativeDownload(open)
+      .then((res) => {
+        if (!active) return;
+        if (res?.isEmbed && res.embedUrl) {
+          setPreviewEmbedUrl(res.embedUrl);
+          setPreviewVideoUrl(null);
+        } else if (res?.url) {
+          if (res.isBlobUrl) {
+            if (activeBlobUrlRef.current && activeBlobUrlRef.current !== res.url) {
+              URL.revokeObjectURL(activeBlobUrlRef.current);
+            }
+            activeBlobUrlRef.current = res.url;
           }
-          // Garante que só define previewVideoUrl se de fato for uma URL de vídeo ou blob
-          const isUrlVideo = res?.url && (res.isBlobUrl || res.isVideo || !res.url.startsWith("data:image/"));
-          if (isUrlVideo && res?.url) {
-            if (res.isBlobUrl) createdBlobUrl = res.url;
-            setPreviewVideoUrl(res.url);
-          } else if (open.fileUrl && !open.fileUrl.startsWith("indexeddb://")) {
-            setPreviewVideoUrl(open.fileUrl);
-          } else {
+          setPreviewVideoUrl(res.url);
+          setPreviewEmbedUrl(null);
+        } else if (open.fileUrl && !open.fileUrl.startsWith("indexeddb://")) {
+          const embed = getEmbedVideoUrl(open.fileUrl);
+          if (embed) {
+            setPreviewEmbedUrl(embed);
             setPreviewVideoUrl(null);
+          } else {
+            setPreviewVideoUrl(open.fileUrl);
+            setPreviewEmbedUrl(null);
           }
-        })
-        .catch((err) => {
-          console.warn("Erro ao resolver prévia de vídeo:", err);
-          if (active) setPreviewVideoUrl(open.fileUrl && !open.fileUrl.startsWith("indexeddb://") ? open.fileUrl : null);
-        })
-        .finally(() => {
-          if (active) setIsResolvingVideo(false);
-        });
-    } else {
-      setPreviewVideoUrl(null);
-      setIsResolvingVideo(false);
-    }
+        } else {
+          setPreviewVideoUrl(null);
+          setPreviewEmbedUrl(null);
+        }
+      })
+      .catch((err) => {
+        console.warn("Erro ao resolver prévia de vídeo:", err);
+        if (active) {
+          setVideoError("Não foi possível carregar a mídia deste vídeo.");
+        }
+      })
+      .finally(() => {
+        if (active) setIsResolvingVideo(false);
+      });
 
     return () => {
       active = false;
-      if (createdBlobUrl) {
-        URL.revokeObjectURL(createdBlobUrl);
-      }
     };
   }, [open]);
 
@@ -217,7 +266,7 @@ function Criativos() {
       console.warn("Erro ao resolver download:", e);
     }
 
-    const isVideoCreative = c.type === "Vídeo" || (c.format && c.format.toLowerCase().includes("video"));
+    const isVideoCreative = isCreativeVideo(c);
     if (isVideoCreative) {
       toast.error("O arquivo de vídeo deste criativo ainda está sendo sincronizado na nuvem pelo administrador.");
       return;
@@ -622,20 +671,10 @@ function Criativos() {
           >
             {/* Visual com Player de Vídeo Interativo ou Imagem */}
             <div className="relative bg-black/95 flex items-center justify-center min-h-[220px] sm:min-h-[320px] max-h-[36vh] md:max-h-[88vh] overflow-hidden p-2">
-              {previewVideoUrl ? (
-                <video
-                  key={previewVideoUrl}
-                  src={previewVideoUrl}
-                  poster={open.image}
-                  controls
-                  autoPlay
-                  playsInline
-                  className="max-h-[34vh] md:max-h-[84vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
-                />
-              ) : isResolvingVideo ? (
+              {isResolvingVideo ? (
                 <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
                   <div className="h-10 w-10 animate-spin rounded-full border-2 border-gold border-t-transparent shadow-gold" />
-                  <p className="text-xs font-semibold text-gold">Carregando vídeo para pré-visualização...</p>
+                  <p className="text-xs font-semibold text-gold">Carregando reprodução do vídeo...</p>
                   {open.image && (
                     <img
                       src={open.image}
@@ -643,6 +682,70 @@ function Criativos() {
                       className="max-h-36 sm:max-h-48 w-auto rounded-lg opacity-40 object-contain mt-1"
                     />
                   )}
+                </div>
+              ) : previewEmbedUrl ? (
+                <iframe
+                  src={previewEmbedUrl}
+                  title={open.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="h-full w-full max-h-[34vh] md:max-h-[84vh] aspect-video rounded-xl shadow-2xl border-0"
+                />
+              ) : previewVideoUrl ? (
+                <div className="relative h-full w-full flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    key={previewVideoUrl}
+                    src={previewVideoUrl}
+                    poster={open.image}
+                    controls
+                    autoPlay
+                    muted={isMuted}
+                    playsInline
+                    className="max-h-[34vh] md:max-h-[84vh] w-auto max-w-full rounded-xl object-contain shadow-2xl cursor-pointer"
+                    onError={() => {
+                      setVideoError("Não foi possível reproduzir este vídeo diretamente.");
+                    }}
+                  />
+                  {/* Botão flutuante de Ativar / Desativar Som */}
+                  <button
+                    type="button"
+                    onClick={toggleMute}
+                    className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 rounded-full bg-black/85 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md border border-white/20 shadow-lg hover:border-gold hover:text-gold transition cursor-pointer"
+                    title={isMuted ? "Clique para ativar som" : "Desativar som"}
+                  >
+                    {isMuted ? (
+                      <>
+                        <VolumeX className="h-3.5 w-3.5 text-gold" />
+                        <span>Ativar Som</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>Som Ativo</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : videoError ? (
+                <div className="flex flex-col items-center justify-center gap-2 p-6 text-center max-w-xs">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground">{videoError}</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Você pode baixar o arquivo original ou aguardar a sincronização completa na nuvem.
+                  </p>
+                </div>
+              ) : isCreativeVideo(open) ? (
+                <div className="flex flex-col items-center justify-center gap-3 p-6 text-center max-w-xs">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold/15 border border-gold/30 text-gold shadow-gold">
+                    <Play className="h-6 w-6 ml-0.5 fill-current" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground">Vídeo bruto aguardando nuvem</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    O arquivo original foi cadastrado localmente e precisa ser sincronizado no painel do administrador para visualização em outros dispositivos.
+                  </p>
                 </div>
               ) : open.image ? (
                 <img

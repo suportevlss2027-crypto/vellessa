@@ -56,7 +56,8 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Inicia mutado para garantir autoplay sem bloqueio do navegador
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [speed, setSpeed] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentDuration, setCurrentDuration] = useState(duration || "");
@@ -177,10 +178,16 @@ export function VideoPlayer({
         />
       ) : isPlaying && isDirectVideo ? (
         <video
+          ref={videoRef}
           src={videoUrl}
           autoPlay
           controls
+          playsInline
+          muted={isMuted}
           className="absolute inset-0 h-full w-full object-contain bg-black"
+          onError={() => {
+            console.warn("Erro ao reproduzir stream direto de vídeo na aula.");
+          }}
           onEnded={() => {
             setIsPlaying(false);
             onAutoComplete?.();

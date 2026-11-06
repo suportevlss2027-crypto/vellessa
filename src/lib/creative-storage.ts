@@ -186,16 +186,73 @@ export async function uploadCreativeToSupabase(
 }
 
 /**
+ * Detecta se uma URL externa é de serviço de vídeo embutido (Google Drive, YouTube, Vimeo, Loom, Panda)
+ * e retorna a URL adequada para renderização em iframe, ou null se não for embed.
+ */
+export function getEmbedVideoUrl(url?: string): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+
+  // YouTube (Padrão, Não Listado, Shorts e Embed)
+  const ytMatch = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&modestbranding=1`;
+  }
+
+  // Vimeo
+  const vimeoMatch = trimmed.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
+  }
+
+  // Google Drive
+  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  }
+
+  // Loom
+  if (trimmed.includes("loom.com/share/")) {
+    return trimmed.replace("loom.com/share/", "loom.com/embed/");
+  }
+
+  // Panda Video / VTurb / Player Embed
+  if (trimmed.includes("pandavideo") || trimmed.includes("vturb") || trimmed.includes("/embed") || trimmed.includes("player.")) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+/**
+ * Detecta de forma abrangente e confiável se um criativo é de formato de vídeo.
+ */
+export function isCreativeVideo(creative: Creative): boolean {
+  if (!creative) return false;
+  if (creative.type === "Reels") return true;
+  if (creative.format && /vídeo|video|reels/i.test(creative.format)) return true;
+  if (creative.fileType && creative.fileType.startsWith("video/")) return true;
+  if (creative.fileUrl && /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(creative.fileUrl.trim())) return true;
+  if (creative.fileUrl && Boolean(getEmbedVideoUrl(creative.fileUrl))) return true;
+  if (creative.externalDownloadUrl && (Boolean(getEmbedVideoUrl(creative.externalDownloadUrl)) || /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(creative.externalDownloadUrl.trim()))) return true;
+  if (creative.title && /\.(mp4|webm|mov|m4v|ogg)$/i.test(creative.title.trim())) return true;
+  return false;
+}
+
+/**
  * Resolve o link para download direto do arquivo pelo afiliado ou admin.
  */
 export async function resolveCreativeDownload(
   creative: Creative
-): Promise<{ url: string; fileName: string; isBlobUrl?: boolean; isVideo?: boolean } | null> {
-  const isVideo =
-    creative.type === "Reels" ||
-    creative.fileType?.startsWith("video/") ||
-    (creative.fileUrl && /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(creative.fileUrl)) ||
-    (creative.title && /\.(mp4|webm|mov|m4v)$/i.test(creative.title));
+): Promise<{
+  url: string;
+  fileName: string;
+  isBlobUrl?: boolean;
+  isVideo?: boolean;
+  isEmbed?: boolean;
+  embedUrl?: string | null;
+} | null> {
+  const isVideo = isCreativeVideo(creative);
 
   const sanitizeName = (title: string, ext = "bin") => {
     return `${title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${ext}`;
@@ -216,21 +273,27 @@ export async function resolveCreativeDownload(
 
   // 1. Link externo (Google Drive, Canva, Dropbox, etc.)
   if (creative.externalDownloadUrl) {
+    const embed = getEmbedVideoUrl(creative.externalDownloadUrl);
     return {
       url: creative.externalDownloadUrl,
       fileName: sanitizeName(creative.title, getExtension()),
       isBlobUrl: false,
-      isVideo,
+      isVideo: isVideo || Boolean(embed),
+      isEmbed: Boolean(embed),
+      embedUrl: embed,
     };
   }
 
   // 2. Arquivo na Nuvem (Supabase CDN ou URL pública)
   if (creative.fileUrl && (creative.fileUrl.startsWith("http://") || creative.fileUrl.startsWith("https://"))) {
+    const embed = getEmbedVideoUrl(creative.fileUrl);
     return {
       url: creative.fileUrl,
       fileName: sanitizeName(creative.title, getExtension()),
       isBlobUrl: false,
-      isVideo,
+      isVideo: isVideo || Boolean(embed),
+      isEmbed: Boolean(embed),
+      embedUrl: embed,
     };
   }
 
@@ -238,20 +301,26 @@ export async function resolveCreativeDownload(
   const isIndexedDb = creative.fileUrl?.startsWith("indexeddb://");
   const rawId = isIndexedDb ? creative.fileUrl!.replace("indexeddb://", "") : creative.id;
   try {
-    const blob = await getRawFile(rawId);
-    if (blob) {
-      const blobUrl = URL.createObjectURL(blob);
+    const rawBlob = await getRawFile(rawId);
+    if (rawBlob) {
+      // Garante tipo MIME de vídeo se for vídeo sem header ou com tipo genérico
+      let finalBlob = rawBlob;
+      if (isVideo && (!rawBlob.type || !rawBlob.type.startsWith("video/"))) {
+        finalBlob = new Blob([rawBlob], { type: "video/mp4" });
+      }
+      const blobUrl = URL.createObjectURL(finalBlob);
       let detectedExt = getExtension();
-      if (blob.type?.startsWith("video/")) {
-        detectedExt = blob.type.split("/")[1] || "mp4";
-      } else if (blob.type?.startsWith("image/")) {
-        detectedExt = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+      if (finalBlob.type?.startsWith("video/")) {
+        detectedExt = finalBlob.type.split("/")[1] || "mp4";
+      } else if (finalBlob.type?.startsWith("image/")) {
+        detectedExt = finalBlob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
       }
       return {
         url: blobUrl,
         fileName: sanitizeName(creative.title, detectedExt),
         isBlobUrl: true,
-        isVideo: isVideo || blob.type?.startsWith("video/"),
+        isVideo: true,
+        isEmbed: false,
       };
     }
   } catch (err) {
@@ -265,6 +334,7 @@ export async function resolveCreativeDownload(
       fileName: sanitizeName(creative.title, getExtension()),
       isBlobUrl: false,
       isVideo,
+      isEmbed: false,
     };
   }
 
@@ -276,6 +346,7 @@ export async function resolveCreativeDownload(
       fileName: sanitizeName(creative.title, "jpg"),
       isBlobUrl: false,
       isVideo: false,
+      isEmbed: false,
     };
   }
 
