@@ -21,6 +21,7 @@ import {
   Palette,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -190,9 +191,20 @@ function AdminMateriaisPage() {
     updateFolder,
     deleteFolder,
     billboardSettings,
+    forceSyncAllData,
   } = useAffiliateStore();
 
   const [showBillboardModal, setShowBillboardModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleForceSync = async () => {
+    setIsSyncing(true);
+    try {
+      await forceSyncAllData();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const ESTIMATED_SIZES: Record<string, string> = {
     PDF: "2,5 MB",
@@ -907,6 +919,15 @@ function AdminMateriaisPage() {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={handleForceSync}
+              disabled={isSyncing}
+              title="Forca sincronizacao de materiais, links, criativos e outdoor com Supabase. Use se afiliados nao estiverem vendo os dados."
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Sincronizando..." : "Sincronizar Nuvem"}
+            </button>
             <button
               onClick={() => setShowBillboardModal(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"

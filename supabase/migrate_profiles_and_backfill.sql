@@ -25,6 +25,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status text DEFAULT 'active';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT timezone('utc'::text, now());
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT timezone('utc'::text, now());
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pix_key text;
 
 -- 3. Remove travas e restrições restritivas que impediam inserção direta
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_tenant_id_fkey;

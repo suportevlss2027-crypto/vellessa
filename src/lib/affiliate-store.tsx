@@ -181,6 +181,9 @@ interface AffiliateStoreContextType {
   isTitular: boolean;
   updateProfile: (updated: Partial<AffiliateProfile>) => Promise<void>;
 
+  // Sincronização forçada com Supabase (Admin → Force Push de todos os dados locais)
+  forceSyncAllData: () => Promise<void>;
+
   // Dynamic Course & Lessons State
   modulesList: DynamicModule[];
   allLessonsList: (Lesson & { module: DynamicModule })[];
@@ -1290,6 +1293,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             order_index: idx,
           }));
           await supabase.from("material_folders").upsert(rowsToInsert);
+          console.log(`[SYNC] ✅ ${localFoldersToSync.length} pasta(s) de materiais migrada(s) para o Supabase.`);
         }
 
         const formattedFolders: MaterialFolder[] = dbFolders.map((f: any) => ({
@@ -1366,6 +1370,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             })
           );
           await supabase.from("materials").upsert(rowsToInsert);
+          console.log(`[SYNC] ✅ ${localMaterialsToSync.length} material(is) migrado(s) para o Supabase.`);
         }
 
         const formattedMaterials: DynamicMaterial[] = dbMaterials.map((m: any) => ({
@@ -1391,6 +1396,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         try {
           localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(formattedMaterials));
         } catch {}
+        console.log(`[SYNC] ✅ Materiais carregados do Supabase: ${formattedMaterials.length} material(is).`);
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de materiais com Supabase:", err);
@@ -1433,6 +1439,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             order_index: idx,
           }));
           await supabase.from("affiliate_links").upsert(rowsToInsert);
+          console.log(`[SYNC] ✅ ${localLinksToSync.length} link(s) migrado(s) para o Supabase.`);
         }
 
         const formattedLinks: DynamicLink[] = dbLinks.map((l: any) => ({
@@ -1452,6 +1459,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         try {
           localStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(formattedLinks));
         } catch {}
+        console.log(`[SYNC] ✅ Links carregados do Supabase: ${formattedLinks.length} link(s).`);
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de links com Supabase:", err);
@@ -1512,6 +1520,33 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     syncLinksWithSupabase,
     syncPlatformSettingsWithSupabase,
   ]);
+
+  // ── Sincronização Forçada Total (Admin → Force Push local → Supabase) ────────
+  const forceSyncAllData = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      toast.error("Supabase não configurado. Configure as variáveis de ambiente primeiro.");
+      return;
+    }
+    hasSyncedCreativesRef.current = false;
+    hasSyncedMaterialsRef.current = false;
+    hasSyncedLinksRef.current = false;
+    hasSyncedSettingsRef.current = false;
+
+    toast.info("Sincronizando dados com a nuvem...", { duration: 2000 });
+    try {
+      await Promise.all([
+        syncCreativesWithSupabase(true),
+        syncMaterialsWithSupabase(true),
+        syncLinksWithSupabase(true),
+        syncPlatformSettingsWithSupabase(true),
+      ]);
+      toast.success("✅ Todos os dados sincronizados! Afiliados já podem visualizar.", { duration: 5000 });
+      console.log("[SYNC] ✅ Force sync completo executado pelo Admin.");
+    } catch (err) {
+      toast.error("Erro ao sincronizar. Verifique o console para detalhes.");
+      console.error("[SYNC] Erro no force sync:", err);
+    }
+  }, [syncCreativesWithSupabase, syncMaterialsWithSupabase, syncLinksWithSupabase, syncPlatformSettingsWithSupabase]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     setAuthLoading(true);
@@ -3063,6 +3098,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         isAdmin,
         isTitular,
         updateProfile,
+        forceSyncAllData,
         modulesList,
         allLessonsList,
         completedLessonIds,
