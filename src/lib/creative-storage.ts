@@ -145,11 +145,58 @@ export async function processCreativeThumbnail(
 }
 
 /**
+ * Envia um Blob ou File bruto para o bucket 'criativos' do Supabase Storage.
+ * Retorna a URL pública CDN ou null se falhar.
+ */
+export async function uploadCreativeToSupabase(
+  id: string,
+  fileOrBlob: Blob | File,
+  originalName?: string
+): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  try {
+    const rawExt = fileOrBlob.type.split("/")[1] || (fileOrBlob.type.includes("video") ? "mp4" : "jpg");
+    const cleanExt = rawExt === "jpeg" ? "jpg" : rawExt.replace(/[^a-zA-Z0-9]/g, "");
+    const cleanName = (originalName || `${id}.${cleanExt}`).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `files/${id}_${cleanName}`;
+
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(path, fileOrBlob, {
+        cacheControl: "86400",
+        upsert: true,
+        contentType: fileOrBlob.type || (cleanExt === "mp4" ? "video/mp4" : "image/jpeg"),
+      });
+
+    if (error) {
+      console.warn(`[CreativeStorage] Falha ao enviar para Supabase Storage (${error.message})`);
+      return null;
+    }
+
+    const { data: pubData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(path);
+
+    return pubData.publicUrl || null;
+  } catch (err) {
+    console.error("[CreativeStorage] Erro no upload para Supabase:", err);
+    return null;
+  }
+}
+
+/**
  * Resolve o link para download direto do arquivo pelo afiliado ou admin.
  */
 export async function resolveCreativeDownload(
   creative: Creative
-): Promise<{ url: string; fileName: string; isBlobUrl?: boolean } | null> {
+): Promise<{ url: string; fileName: string; isBlobUrl?: boolean; isVideo?: boolean } | null> {
+  const isVideo =
+    creative.type === "Reels" ||
+    creative.fileType?.startsWith("video/") ||
+    (creative.fileUrl && /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(creative.fileUrl)) ||
+    (creative.title && /\.(mp4|webm|mov|m4v)$/i.test(creative.title));
+
   const sanitizeName = (title: string, ext = "bin") => {
     return `${title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${ext}`;
   };
@@ -157,8 +204,13 @@ export async function resolveCreativeDownload(
   const getExtension = () => {
     if (creative.fileType) {
       const parts = creative.fileType.split("/");
-      if (parts[1]) return parts[1];
+      if (parts[1]) {
+        const ext = parts[1].toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (ext === "jpeg") return "jpg";
+        return ext;
+      }
     }
+    if (isVideo) return "mp4";
     return "jpg";
   };
 
@@ -168,6 +220,7 @@ export async function resolveCreativeDownload(
       url: creative.externalDownloadUrl,
       fileName: sanitizeName(creative.title, getExtension()),
       isBlobUrl: false,
+      isVideo,
     };
   }
 
@@ -177,25 +230,32 @@ export async function resolveCreativeDownload(
       url: creative.fileUrl,
       fileName: sanitizeName(creative.title, getExtension()),
       isBlobUrl: false,
+      isVideo,
     };
   }
 
-  // 3. Arquivo local no IndexedDB
-  if (creative.fileUrl && creative.fileUrl.startsWith("indexeddb://")) {
-    const rawId = creative.fileUrl.replace("indexeddb://", "") || creative.id;
-    try {
-      const blob = await getRawFile(rawId);
-      if (blob) {
-        const blobUrl = URL.createObjectURL(blob);
-        return {
-          url: blobUrl,
-          fileName: sanitizeName(creative.title, getExtension()),
-          isBlobUrl: true,
-        };
+  // 3. Arquivo local no IndexedDB (busca por indexeddb:// ou fallback pelo id do criativo)
+  const isIndexedDb = creative.fileUrl?.startsWith("indexeddb://");
+  const rawId = isIndexedDb ? creative.fileUrl!.replace("indexeddb://", "") : creative.id;
+  try {
+    const blob = await getRawFile(rawId);
+    if (blob) {
+      const blobUrl = URL.createObjectURL(blob);
+      let detectedExt = getExtension();
+      if (blob.type?.startsWith("video/")) {
+        detectedExt = blob.type.split("/")[1] || "mp4";
+      } else if (blob.type?.startsWith("image/")) {
+        detectedExt = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
       }
-    } catch (err) {
-      console.error("[CreativeStorage] Erro ao recuperar arquivo do IndexedDB:", err);
+      return {
+        url: blobUrl,
+        fileName: sanitizeName(creative.title, detectedExt),
+        isBlobUrl: true,
+        isVideo: isVideo || blob.type?.startsWith("video/"),
+      };
     }
+  } catch (err) {
+    console.error("[CreativeStorage] Erro ao recuperar arquivo do IndexedDB:", err);
   }
 
   // 4. Arquivo em base64 legado
@@ -204,15 +264,18 @@ export async function resolveCreativeDownload(
       url: creative.fileUrl,
       fileName: sanitizeName(creative.title, getExtension()),
       isBlobUrl: false,
+      isVideo,
     };
   }
 
-  // 5. Fallback para imagem da capa se não houver arquivo anexado
-  if (creative.image) {
+  // 5. Fallback para imagem APENAS SE NÃO FOR VÍDEO!
+  // Se for um criativo de vídeo, NUNCA entregue uma imagem JPEG fingindo ser vídeo!
+  if (!isVideo && creative.image) {
     return {
       url: creative.image,
       fileName: sanitizeName(creative.title, "jpg"),
       isBlobUrl: false,
+      isVideo: false,
     };
   }
 

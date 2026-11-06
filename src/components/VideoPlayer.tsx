@@ -27,6 +27,12 @@ function getEmbedUrl(url?: string): string | null {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
   }
 
+  // Google Drive
+  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  }
+
   // Loom
   if (trimmed.includes("loom.com/share/")) {
     return trimmed.replace("loom.com/share/", "loom.com/embed/");
@@ -148,7 +154,13 @@ export function VideoPlayer({
   };
 
   const embedUrl = getEmbedUrl(videoUrl);
-  const isDirectVideo = videoUrl && (videoUrl.endsWith(".mp4") || videoUrl.endsWith(".webm"));
+  const isDirectVideo = Boolean(
+    videoUrl &&
+      (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(videoUrl.trim()) ||
+        videoUrl.includes("/storage/v1/object/public/") ||
+        videoUrl.startsWith("blob:") ||
+        videoUrl.startsWith("data:video/"))
+  );
 
   return (
     <div

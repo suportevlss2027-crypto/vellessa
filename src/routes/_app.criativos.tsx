@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 import { resolveCreativeDownload } from "@/lib/creative-storage";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/criativos")({
   head: () => ({
@@ -103,7 +104,7 @@ function Criativos() {
     const isVideo =
       open.type === "Reels" ||
       open.fileType?.startsWith("video/") ||
-      (open.fileUrl && /\.(mp4|webm|mov|m4v)$/i.test(open.fileUrl)) ||
+      (open.fileUrl && /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(open.fileUrl)) ||
       (open.title && /\.(mp4|webm|mov|m4v)$/i.test(open.title));
 
     if (isVideo) {
@@ -114,10 +115,12 @@ function Criativos() {
             if (res?.isBlobUrl && res.url) URL.revokeObjectURL(res.url);
             return;
           }
-          if (res?.url) {
+          // Garante que só define previewVideoUrl se de fato for uma URL de vídeo ou blob
+          const isUrlVideo = res?.url && (res.isBlobUrl || res.isVideo || !res.url.startsWith("data:image/"));
+          if (isUrlVideo && res?.url) {
             if (res.isBlobUrl) createdBlobUrl = res.url;
             setPreviewVideoUrl(res.url);
-          } else if (open.fileUrl) {
+          } else if (open.fileUrl && !open.fileUrl.startsWith("indexeddb://")) {
             setPreviewVideoUrl(open.fileUrl);
           } else {
             setPreviewVideoUrl(null);
@@ -125,7 +128,7 @@ function Criativos() {
         })
         .catch((err) => {
           console.warn("Erro ao resolver prévia de vídeo:", err);
-          if (active) setPreviewVideoUrl(open.fileUrl || null);
+          if (active) setPreviewVideoUrl(open.fileUrl && !open.fileUrl.startsWith("indexeddb://") ? open.fileUrl : null);
         })
         .finally(() => {
           if (active) setIsResolvingVideo(false);
@@ -212,6 +215,12 @@ function Criativos() {
       }
     } catch (e) {
       console.warn("Erro ao resolver download:", e);
+    }
+
+    const isVideoCreative = c.type === "Vídeo" || (c.format && c.format.toLowerCase().includes("video"));
+    if (isVideoCreative) {
+      toast.error("O arquivo de vídeo deste criativo ainda está sendo sincronizado na nuvem pelo administrador.");
+      return;
     }
 
     if (c.image) {

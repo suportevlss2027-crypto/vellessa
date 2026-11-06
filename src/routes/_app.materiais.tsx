@@ -482,7 +482,7 @@ function Materiais() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 w-full max-w-full overflow-x-hidden min-w-0">
       {/* Lightbox Modal */}
       {lightboxFiles.length > 0 && (
         <Lightbox files={lightboxFiles} startIndex={lightboxIndex} onClose={closeLightbox} />
@@ -495,24 +495,24 @@ function Materiais() {
       />
 
       {/* 1. CARD PRINCIPAL OFICIAL: CONEXÃO COM A PLATAFORMA LOGZZ */}
-      <section className="relative overflow-hidden rounded-3xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/70 via-card/90 to-card/70 p-6 md:p-8 backdrop-blur-xl shadow-soft">
+      <section className="relative overflow-hidden rounded-3xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/70 via-card/90 to-card/70 p-4 sm:p-6 md:p-8 backdrop-blur-xl shadow-soft w-full max-w-full">
         <div className="pointer-events-none absolute -right-10 -top-10 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
         <div className="pointer-events-none absolute right-1/3 bottom-0 h-48 w-48 rounded-full bg-gold/10 blur-2xl" />
 
-        <div className="relative z-10">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
-            <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-md">
-                <span className="font-display text-sm font-black tracking-tighter text-emerald-800">
+        <div className="relative z-10 w-full min-w-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5 w-full min-w-0">
+            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <div className="grid h-11 w-11 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-2xl bg-white shadow-md">
+                <span className="font-display text-xs sm:text-sm font-black tracking-tighter text-emerald-800">
                   LQZZ
                 </span>
               </div>
-              <div>
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                  <ShieldCheck className="h-3 w-3 text-emerald-400" />
-                  <span>Plataforma Oficial de Checkout & Comissões</span>
+              <div className="min-w-0 flex-1">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-emerald-300 max-w-full">
+                  <ShieldCheck className="h-3 w-3 text-emerald-400 shrink-0" />
+                  <span className="truncate">Plataforma Oficial de Checkout & Comissões</span>
                 </div>
-                <h2 className="mt-1 font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                <h2 className="mt-1 font-display text-lg sm:text-2xl font-bold tracking-tight text-foreground break-words">
                   Onde está o seu link de vendas comissionado?
                 </h2>
               </div>
@@ -521,10 +521,10 @@ function Materiais() {
               href="https://app.logzz.com.br"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold px-6 py-3 text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02]"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition-all hover:scale-[1.02] w-full sm:w-auto text-center shrink-0"
             >
-              <span>Acessar Painel Logzz & Pegar Meus Links</span>
-              <ExternalLink className="h-4 w-4" />
+              <span className="truncate">Acessar Painel Logzz & Pegar Meus Links</span>
+              <ExternalLink className="h-4 w-4 shrink-0" />
             </a>
           </div>
 
@@ -609,44 +609,44 @@ function Materiais() {
                 key={l.id || l.url || i}
                 className={
                   i === 0
-                    ? "rounded-3xl bg-hero-gradient p-6 gold-hairline shadow-soft flex flex-col justify-between"
-                    : "rounded-3xl border border-gold/20 bg-card/60 p-6 shadow-xs backdrop-blur-md flex flex-col justify-between"
+                    ? "rounded-3xl bg-hero-gradient p-4 sm:p-6 gold-hairline shadow-soft flex flex-col justify-between w-full min-w-0"
+                    : "rounded-3xl border border-gold/20 bg-card/60 p-4 sm:p-6 shadow-xs backdrop-blur-md flex flex-col justify-between w-full min-w-0"
                 }
               >
-                <div>
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-gold-gradient text-primary-foreground shadow-xs">
+                <div className="w-full min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gold-gradient text-primary-foreground shadow-xs">
                       <Link2 className="h-4 w-4" />
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">{l.label}</p>
-                      <p className="text-xs text-muted-foreground">{l.note}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground text-sm truncate">{l.label}</p>
+                      <p className="text-xs text-muted-foreground truncate">{l.note}</p>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-border/60 bg-card/70 p-1.5 pl-3.5">
+                  <div className="mt-4 flex items-center gap-2 rounded-xl border border-border/60 bg-card/70 p-1.5 pl-3 w-full min-w-0 overflow-hidden">
                     <span
-                      className="flex-1 truncate font-mono text-xs text-muted-foreground"
+                      className="flex-1 min-w-0 truncate font-mono text-xs text-muted-foreground"
                       title={l.url}
                     >
                       {l.url}
                     </span>
                     <button
                       onClick={() => copyText(l.url, `URL de referência "${l.label}" copiada!`)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs hover:brightness-105 transition"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs hover:brightness-105 transition shrink-0"
                     >
                       <Copy className="h-3 w-3" /> Copiar
                     </button>
                   </div>
                 </div>
-                <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-muted-foreground">
+                <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium text-muted-foreground truncate">
                     Modelo de Demonstração
                   </span>
                   <a
                     href={l.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-gold hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-gold hover:underline shrink-0"
                   >
                     Visualizar página <ArrowUpRight className="h-3.5 w-3.5" />
                   </a>
@@ -718,24 +718,23 @@ function Materiais() {
 
         {/* ── NAVEGAÇÃO POR BREADCRUMB (QUANDO DENTRO DE UMA PASTA) ─────────── */}
         {currentFolder && (
-          <div className="flex items-center justify-between gap-3 bg-gold/10 border border-gold/30 p-4 rounded-2xl backdrop-blur-md animate-in fade-in">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gold/10 border border-gold/30 p-3 sm:p-4 rounded-2xl backdrop-blur-md animate-in fade-in w-full min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <button
                 type="button"
                 onClick={() => setCurrentFolderId(null)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-gold/30 px-3.5 py-1.5 text-xs font-semibold text-gold hover:bg-gold/15 transition shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-gold/30 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/15 transition shadow-xs shrink-0"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Voltar a Todos os Materiais</span>
+                <span>Voltar</span>
               </button>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="hidden sm:inline">Central</span>
-                <ChevronRight className="h-3.5 w-3.5 text-gold" />
-                <span className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                  <FolderOpen className="h-4 w-4 text-gold" /> {currentFolder.name}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                <ChevronRight className="h-3.5 w-3.5 text-gold shrink-0" />
+                <span className="font-semibold text-foreground text-xs sm:text-sm flex items-center gap-1.5 truncate">
+                  <FolderOpen className="h-4 w-4 text-gold shrink-0" /> {currentFolder.name}
                 </span>
-                <span className="text-[11px] font-mono text-gold ml-1">
-                  ({displayedMaterials.length} materiais)
+                <span className="text-[11px] font-mono text-gold shrink-0">
+                  ({displayedMaterials.length})
                 </span>
               </div>
             </div>
@@ -744,10 +743,10 @@ function Materiais() {
               <button
                 type="button"
                 onClick={() => handleDownloadEntireFolder(displayedMaterials)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gold-gradient px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gold-gradient px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition w-full sm:w-auto shrink-0"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Baixar Pasta Completa</span>
+                <span>Baixar Pasta Completa</span>
               </button>
             )}
           </div>

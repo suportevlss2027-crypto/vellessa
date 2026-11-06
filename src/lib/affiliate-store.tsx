@@ -19,7 +19,7 @@ import {
 } from "@/data/content";
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
 import { storeRawFile, getRawFile, deleteRawFile, deleteRawFiles, uploadMaterialToSupabase } from "./file-storage";
-import { deleteCreativeAssets, deleteBatchCreativeAssets } from "./creative-storage";
+import { deleteCreativeAssets, deleteBatchCreativeAssets, uploadCreativeToSupabase } from "./creative-storage";
 
 export interface AffiliateProfile {
   name: string;
@@ -1201,8 +1201,42 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           }
         })();
 
-        const localCreativesToSync = Array.isArray(currentLocalCreatives)
-          ? currentLocalCreatives.filter((c: any) => !dbCreativeMap.has(c.id))
+        // Auto-migração transparente de vídeos e arquivos brutos do IndexedDB para a Nuvem Supabase
+        const migratedLocalCreatives = await Promise.all(
+          currentLocalCreatives.map(async (c: any) => {
+            const isLocalIndexed = !c.fileUrl || c.fileUrl.startsWith("indexeddb://");
+            if (isLocalIndexed && c.id) {
+              try {
+                const blob = await getRawFile(c.id);
+                if (blob) {
+                  const cloudUrl = await uploadCreativeToSupabase(c.id, blob, c.title);
+                  if (cloudUrl) {
+                    console.log(`[SYNC] ✅ Arquivo bruto do criativo "${c.title}" enviado para o Supabase CDN.`);
+                    return {
+                      ...c,
+                      fileUrl: cloudUrl,
+                      storageType: "supabase",
+                    };
+                  }
+                }
+              } catch (err) {
+                console.warn("[CreativeSync] Falha ao auto-migrar criativo para Supabase:", err);
+              }
+            }
+            return c;
+          })
+        );
+
+        const localCreativesToSync = Array.isArray(migratedLocalCreatives)
+          ? migratedLocalCreatives.filter((c: any) => {
+              const inDb = dbCreativeMap.get(c.id);
+              // Sincroniza se não estiver no DB ou se o DB tiver URL vazia/indexeddb e nós temos cloudUrl
+              if (!inDb) return true;
+              if ((!inDb.file_url || inDb.file_url.startsWith("indexeddb://")) && c.fileUrl && !c.fileUrl.startsWith("indexeddb://")) {
+                return true;
+              }
+              return false;
+            })
           : [];
 
         if (localCreativesToSync.length > 0) {
@@ -1222,25 +1256,34 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             storage_path: c.storagePath || null,
           }));
           await supabase.from("creatives").upsert(rowsToInsert);
+          console.log(`[SYNC] ✅ ${localCreativesToSync.length} criativo(s) sincronizado(s) com o Supabase.`);
         }
 
-        const formattedCreatives: Creative[] = dbCreatives.map((c: any) => ({
-          id: c.id,
-          title: c.title,
-          type: c.type,
-          format: c.format,
-          image: c.image || c.media_url || undefined,
-          text: c.text || c.suggested_copy || undefined,
-          folderId: c.folder_id || undefined,
-          fileUrl: c.file_url || undefined,
-          externalDownloadUrl: c.external_download_url || undefined,
-          fileType: c.file_type || undefined,
-          fileSize: c.file_size || undefined,
-          storageType: c.storage_type || undefined,
-          storagePath: c.storage_path || undefined,
-        }));
+        const formattedCreatives: Creative[] = dbCreatives.map((c: any) => {
+          // Se o banco ainda estiver com indexeddb mas temos a versão migrada localmente com cloudUrl
+          const localMigrated = migratedLocalCreatives.find((lm: any) => lm.id === c.id);
+          const effectiveFileUrl = (localMigrated?.fileUrl && !localMigrated.fileUrl.startsWith("indexeddb://"))
+            ? localMigrated.fileUrl
+            : (c.file_url || undefined);
 
-        localCreativesToSync.forEach((lc: any) => {
+          return {
+            id: c.id,
+            title: c.title,
+            type: c.type,
+            format: c.format,
+            image: c.image || c.media_url || undefined,
+            text: c.text || c.suggested_copy || undefined,
+            folderId: c.folder_id || undefined,
+            fileUrl: effectiveFileUrl,
+            externalDownloadUrl: c.external_download_url || undefined,
+            fileType: c.file_type || undefined,
+            fileSize: c.file_size || undefined,
+            storageType: c.storage_type || undefined,
+            storagePath: c.storage_path || undefined,
+          };
+        });
+
+        migratedLocalCreatives.forEach((lc: any) => {
           if (!formattedCreatives.some((c) => c.id === lc.id)) {
             formattedCreatives.push(lc);
           }

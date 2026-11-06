@@ -154,8 +154,8 @@ export function AppShell() {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/40 bg-surface/90 px-4 backdrop-blur-2xl md:px-8">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden max-w-full">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/40 bg-surface/90 px-3 sm:px-4 backdrop-blur-2xl md:px-8">
           <div className="md:hidden"><Logo compact /></div>
           <div className="relative hidden max-w-sm flex-1 sm:block">
             <button
@@ -169,7 +169,7 @@ export function AppShell() {
               <kbd className="hidden rounded-full border border-border/60 bg-muted/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground lg:inline-block">Ctrl K</kbd>
             </button>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             {isAdmin && (
               <>
                 <Link
@@ -186,7 +186,7 @@ export function AppShell() {
 
                 <Link
                   to="/admin"
-                  className="inline-flex sm:hidden items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-gold hover:bg-gold/25 transition shadow-xs"
+                  className="inline-flex sm:hidden items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2.5 py-1 text-[11px] font-bold text-gold hover:bg-gold/25 transition shadow-xs shrink-0"
                   title="Abrir Painel Admin"
                 >
                   <Crown className="h-3 w-3 text-gold" />
@@ -197,14 +197,14 @@ export function AppShell() {
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Buscar"
-              className="grid h-9 w-9 place-items-center rounded-full border border-border/60 bg-card/60 text-foreground transition hover:border-gold/50 hover:text-gold sm:hidden"
+              className="grid h-9 w-9 place-items-center rounded-full border border-border/60 bg-card/60 text-foreground transition hover:border-gold/50 hover:text-gold sm:hidden shrink-0"
             >
               <Search className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={() => setNotificationsOpen(true)}
               aria-label="Notificações"
-              className="relative grid h-9 w-9 place-items-center rounded-full border border-border/60 bg-card/60 hover:border-gold/40 hover:bg-card/80 transition backdrop-blur-md shadow-xs"
+              className="relative grid h-9 w-9 place-items-center rounded-full border border-border/60 bg-card/60 hover:border-gold/40 hover:bg-card/80 transition backdrop-blur-md shadow-xs shrink-0"
             >
               <Bell className="h-3.5 w-3.5 text-foreground/80" />
               {unreadAnnouncementsCount > 0 && (
@@ -213,15 +213,15 @@ export function AppShell() {
                 </span>
               )}
             </button>
-            <Link to="/perfil" className="ml-0.5 flex items-center gap-2 rounded-full border border-border/60 bg-card/60 py-0.5 pl-0.5 pr-2.5 hover:border-gold/40 hover:bg-card/90 transition backdrop-blur-md shadow-xs">
+            <Link to="/perfil" className="ml-0.5 flex items-center gap-2 rounded-full border border-border/60 bg-card/60 py-0.5 pl-0.5 pr-2.5 hover:border-gold/40 hover:bg-card/90 transition backdrop-blur-md shadow-xs shrink-0">
               <span className="grid h-7 w-7 place-items-center rounded-full bg-gold-gradient text-[11px] font-bold text-primary-foreground shadow-xs">{initials}</span>
               <span className="hidden text-xs font-semibold text-foreground/90 lg:block">{profile.first}</span>
             </Link>
           </div>
         </header>
 
-        <main className="flex-1 px-4 pb-20 pt-5 md:px-8 md:pb-12 md:pt-6">
-          <div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <main className="flex-1 px-3 sm:px-4 pb-20 pt-4 sm:pt-5 md:px-8 md:pb-12 md:pt-6 w-full max-w-full overflow-x-hidden">
+          <div className="mx-auto max-w-7xl w-full min-w-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <Outlet />
           </div>
         </main>
