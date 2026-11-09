@@ -102,7 +102,7 @@ function Dashboard() {
             </div>
 
             <h1 className="mt-2.5 font-display text-2xl sm:text-3xl md:text-4xl font-bold leading-tight tracking-tight text-foreground">
-              Olá, <span className="italic text-gold-gradient">{profile.first || "Afiliado"}</span>
+              Olá, <span className="inline-block italic text-gold-gradient pr-2.5 -mr-1">{profile.first || "Afiliado"}</span>
             </h1>
 
             <p className="mt-2 text-xs sm:text-sm text-foreground/80 font-normal leading-relaxed max-w-md">

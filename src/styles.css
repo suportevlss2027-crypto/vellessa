@@ -86,6 +86,7 @@
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  padding-right: 0.08em;
 }
 @utility shadow-soft {
   box-shadow: var(--shadow-soft);
