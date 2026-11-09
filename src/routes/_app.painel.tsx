@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ArrowUpRight, BookOpen, CheckCircle, CheckCircle2, Image, Link2, Pin, Play, ShieldCheck, Sparkles, TrendingUp, Users } from "lucide-react";
 import { ProgressBar } from "@/components/AppShell";
 import { useAffiliateStore, BILLBOARD_THEMES } from "@/lib/affiliate-store";
@@ -33,6 +33,29 @@ function Dashboard() {
   } = useAffiliateStore();
 
   const isCompletedAll = totalLessonsCount > 0 && completedCount === totalLessonsCount;
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            video.play().catch(() => {});
+          } else {
+            video.pause();
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
 
   const billboardTheme =
     BILLBOARD_THEMES[billboardSettings?.theme || "emerald"] || BILLBOARD_THEMES.emerald;
@@ -177,8 +200,9 @@ function Dashboard() {
               {/* Glow áureo de fundo */}
               <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(ellipse_at_center,oklch(0.80_0.12_82/0.20)_0%,oklch(0.65_0.15_150/0.12)_45%,transparent_70%)] blur-xl" />
 
-              {/* Vídeo HTML5 Cinematográfico com Autoplay Suave */}
+              {/* Vídeo HTML5 Cinematográfico com Autoplay Suave e Pausa em Scroll */}
               <video
+                ref={videoRef}
                 autoPlay
                 loop
                 muted

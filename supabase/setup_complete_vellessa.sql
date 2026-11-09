@@ -139,7 +139,62 @@ CREATE POLICY "Admins and authenticated can manage creatives"
   USING (true)
   WITH CHECK (true);
 
--- 7. STORAGE BUCKETS PÚBLICOS PARA UPLOADS (criativos e materiais)
+-- 7. TABELAS DE MATERIAIS DE APOIO E PASTAS (Manuais, PDFs, Documentos)
+CREATE TABLE IF NOT EXISTS public.material_folders (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  color TEXT DEFAULT 'gold',
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.material_folders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone authenticated can view material folders" ON public.material_folders;
+CREATE POLICY "Anyone authenticated can view material folders"
+  ON public.material_folders FOR SELECT
+  TO authenticated, anon
+  USING (true);
+
+DROP POLICY IF EXISTS "Admins and authenticated can manage material folders" ON public.material_folders;
+CREATE POLICY "Admins and authenticated can manage material folders"
+  ON public.material_folders FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS public.materials (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  kind TEXT DEFAULT 'PDF' NOT NULL,
+  size TEXT DEFAULT '1,0 MB' NOT NULL,
+  file_url TEXT,
+  raw_file_name TEXT,
+  source_type TEXT DEFAULT 'supabase',
+  mime_type TEXT,
+  folder_id TEXT,
+  files JSONB,
+  order_index INTEGER DEFAULT 0 NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone authenticated can view materials" ON public.materials;
+CREATE POLICY "Anyone authenticated can view materials"
+  ON public.materials FOR SELECT
+  TO authenticated, anon
+  USING (true);
+
+DROP POLICY IF EXISTS "Admins and authenticated can manage materials" ON public.materials;
+CREATE POLICY "Admins and authenticated can manage materials"
+  ON public.materials FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- 8. STORAGE BUCKETS PÚBLICOS PARA UPLOADS (criativos e materiais)
 INSERT INTO storage.buckets (id, name, public)
 VALUES 
   ('criativos', 'criativos', true),
@@ -196,9 +251,10 @@ CREATE POLICY "Authenticated delete materiais"
   TO authenticated
   USING (bucket_id = 'materiais');
 
--- 8. DIAGNÓSTICO FINAL DE CONFIRMAÇÃO
+-- 9. DIAGNÓSTICO FINAL DE CONFIRMAÇÃO
 SELECT 
   'Banco de dados, tabelas, storage e políticas RLS configurados com sucesso!' AS status,
   (SELECT count(*) FROM public.profiles) AS total_perfis,
-  (SELECT count(*) FROM public.creative_folders) AS total_grupos,
-  (SELECT count(*) FROM public.creatives) AS total_criativos;
+  (SELECT count(*) FROM public.creative_folders) AS total_grupos_criativos,
+  (SELECT count(*) FROM public.creatives) AS total_criativos,
+  (SELECT count(*) FROM public.materials) AS total_materiais;

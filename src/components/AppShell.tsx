@@ -79,7 +79,7 @@ export function AppShell() {
 
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/40 bg-surface/95 px-3 py-5 transition-all duration-300 md:flex backdrop-blur-xl",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/40 bg-surface/95 px-3 py-5 transition-all duration-300 md:flex backdrop-blur-md",
           collapsed ? "w-16" : "w-56",
         )}
       >
@@ -160,7 +160,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden max-w-full">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/40 bg-surface/90 px-3 sm:px-4 backdrop-blur-2xl md:px-8">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/40 bg-surface/90 px-3 sm:px-4 backdrop-blur-md md:px-8">
           <div className="md:hidden"><Logo compact /></div>
           <div className="relative hidden max-w-sm flex-1 sm:block">
             <button
@@ -232,7 +232,7 @@ export function AppShell() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-2 bottom-2 z-40 flex justify-around rounded-2xl border border-white/10 bg-surface/95 p-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-2xl md:hidden">
+      <nav className="fixed inset-x-2 bottom-2 z-40 flex justify-around rounded-2xl border border-white/10 bg-surface/95 p-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-md md:hidden">
         {navItems.map(({ to, mobileLabel, label, icon: Icon }) => (
           <Link
             key={to}

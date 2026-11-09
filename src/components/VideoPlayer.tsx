@@ -62,6 +62,7 @@ export function VideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentDuration, setCurrentDuration] = useState(duration || "");
   const containerRef = useRef<HTMLDivElement>(null);
+  const detectedUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (duration) {
@@ -70,7 +71,9 @@ export function VideoPlayer({
   }, [duration]);
 
   useEffect(() => {
-    if (videoUrl && (!currentDuration || currentDuration === "10:00" || currentDuration === "--:--")) {
+    if (!videoUrl || detectedUrlRef.current === videoUrl) return;
+    if (!currentDuration || currentDuration === "10:00" || currentDuration === "--:--") {
+      detectedUrlRef.current = videoUrl;
       detectVideoDuration(videoUrl).then((res) => {
         if (res.duration) {
           setCurrentDuration(res.duration);
@@ -78,7 +81,7 @@ export function VideoPlayer({
             onDurationDetected(res.duration);
           }
         }
-      });
+      }).catch(() => {});
     }
   }, [videoUrl, currentDuration, onDurationDetected]);
 

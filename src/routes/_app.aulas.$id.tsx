@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -54,6 +55,21 @@ function LessonPage() {
     downloadAsset(url, filename.replace(".pdf", ".txt"));
   };
 
+  const handleAutoComplete = useCallback(() => {
+    if (lesson) {
+      markLessonDone(lesson.id, lesson.title);
+    }
+  }, [lesson?.id, lesson?.title, markLessonDone]);
+
+  const handleDurationDetected = useCallback(
+    (detectedDur: string) => {
+      if (detectedDur && lesson && detectedDur !== lesson.duration && lesson.module?.id) {
+        updateLesson(lesson.module.id, lesson.id, { duration: detectedDur });
+      }
+    },
+    [lesson?.id, lesson?.duration, lesson?.module?.id, updateLesson]
+  );
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
       <div>
@@ -70,12 +86,8 @@ function LessonPage() {
           title={lesson.title}
           duration={lesson.duration}
           videoUrl={lesson.video_url}
-          onAutoComplete={() => markLessonDone(lesson.id, lesson.title)}
-          onDurationDetected={(detectedDur) => {
-            if (detectedDur && detectedDur !== lesson.duration && lesson.module?.id) {
-              updateLesson(lesson.module.id, lesson.id, { duration: detectedDur });
-            }
-          }}
+          onAutoComplete={handleAutoComplete}
+          onDurationDetected={handleDurationDetected}
         />
 
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

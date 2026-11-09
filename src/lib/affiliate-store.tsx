@@ -1071,26 +1071,67 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             return;
           }
 
-          const hasValidPhone = Boolean(dbProfile.phone && dbProfile.phone.trim().length >= 10);
+          // Leitura do cache local para resiliência contra sobrescrita indevida
+          const localSavedRaw = (() => {
+            try {
+              const raw = localStorage.getItem(STORAGE_KEYS.PROFILE);
+              return raw ? JSON.parse(raw) : null;
+            } catch {
+              return null;
+            }
+          })();
+
+          const isLocallyMarkedDone = (() => {
+            try {
+              return (
+                localStorage.getItem(`vellessa_onboarding_done_${session.user.id}`) === "true" ||
+                localStorage.getItem(`vellessa_onboarding_done_${session.user.email}`) === "true" ||
+                Boolean(localSavedRaw?.onboardingCompleted && (localSavedRaw?.phone?.trim().length >= 10))
+              );
+            } catch {
+              return false;
+            }
+          })();
+
+          const effectivePhone = dbProfile.phone?.trim() || localSavedRaw?.phone?.trim() || "";
+          const hasValidPhone = Boolean(effectivePhone && effectivePhone.length >= 10);
+          const isDone = dbProfile.onboarding_completed === true || isLocallyMarkedDone || (hasValidPhone && dbProfile.onboarding_completed !== false);
+
+          // Auto-cura: se o telefone foi preenchido localmente mas ainda não gravou no Supabase, envia agora
+          if (!dbProfile.phone && effectivePhone && hasValidPhone) {
+            supabase
+              .from("profiles")
+              .update({
+                phone: effectivePhone,
+                onboarding_completed: true,
+              })
+              .eq("id", session.user.id)
+              .then(() => {})
+              .catch(() => {});
+          }
+
           const loadedProf: AffiliateProfile = {
             id: dbProfile.affiliate_code || session.user.id.slice(0, 8),
             name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliado",
             first: dbProfile.first_name || dbProfile.name?.split(" ")[0] || "Afiliado",
             email: session.user.email || "",
             level: dbProfile.level || "Afiliado Ouro",
-            phone: dbProfile.phone || "",
+            phone: effectivePhone,
             instagram: dbProfile.instagram || "",
             role: dbProfile.role === "admin" ? "admin" : "affiliate",
             status: dbProfile.status || "active",
             pix_key: dbProfile.pix_key || "",
-            onboardingCompleted: hasValidPhone && (dbProfile.onboarding_completed !== false),
-            trafficExperience: dbProfile.traffic_experience,
-            trafficInvestment: dbProfile.traffic_investment,
-            trafficWillingness: dbProfile.traffic_willingness,
-            trafficBudget: dbProfile.traffic_budget,
-            onboardingAnswers: dbProfile.onboarding_answers || dbProfile.onboarding_data,
+            onboardingCompleted: isDone,
+            trafficExperience: dbProfile.traffic_experience || localSavedRaw?.trafficExperience,
+            trafficInvestment: dbProfile.traffic_investment || localSavedRaw?.trafficInvestment,
+            trafficWillingness: dbProfile.traffic_willingness || localSavedRaw?.trafficWillingness,
+            trafficBudget: dbProfile.traffic_budget || localSavedRaw?.trafficBudget,
+            onboardingAnswers: dbProfile.onboarding_answers || dbProfile.onboarding_data || localSavedRaw?.onboardingAnswers,
           };
           setProfile(loadedProf);
+          try {
+            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(loadedProf));
+          } catch {}
           recordAffiliateAccess(loadedProf);
         } else {
           // Auto-cura: Usuário autenticado órfão (sem linha em public.profiles)
@@ -1223,108 +1264,96 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         .order("created_at", { ascending: false });
 
       if (!creativesErr && dbCreatives) {
-        const dbCreativeMap = new Map(dbCreatives.map((c: any) => [c.id, c]));
-        const currentLocalCreatives = (() => {
-          try {
-            const raw = localStorage.getItem(STORAGE_KEYS.CREATIVES);
-            return raw ? JSON.parse(raw) : [];
-          } catch {
-            return [];
-          }
-        })();
-
-        // Auto-migração transparente de vídeos e arquivos brutos do IndexedDB para a Nuvem Supabase
-        const migratedLocalCreatives = await Promise.all(
-          currentLocalCreatives.map(async (c: any) => {
-            const isLocalIndexed = !c.fileUrl || c.fileUrl.startsWith("indexeddb://");
-            if (isLocalIndexed && c.id) {
-              try {
-                const blob = await getRawFile(c.id);
-                if (blob) {
-                  const cloudUrl = await uploadCreativeToSupabase(c.id, blob, c.title);
-                  if (cloudUrl) {
-                    console.log(`[SYNC] ✅ Arquivo bruto do criativo "${c.title}" enviado para o Supabase CDN.`);
-                    return {
-                      ...c,
-                      fileUrl: cloudUrl,
-                      storageType: "supabase",
-                    };
-                  }
-                }
-              } catch (err) {
-                console.warn("[CreativeSync] Falha ao auto-migrar criativo para Supabase:", err);
-              }
-            }
-            return c;
-          })
-        );
-
-        const localCreativesToSync = Array.isArray(migratedLocalCreatives)
-          ? migratedLocalCreatives.filter((c: any) => {
-              const inDb = dbCreativeMap.get(c.id);
-              // Sincroniza se não estiver no DB ou se o DB tiver URL vazia/indexeddb e nós temos cloudUrl
-              if (!inDb) return true;
-              if ((!inDb.file_url || inDb.file_url.startsWith("indexeddb://")) && c.fileUrl && !c.fileUrl.startsWith("indexeddb://")) {
-                return true;
-              }
-              return false;
-            })
-          : [];
-
-        if (localCreativesToSync.length > 0) {
-          const rowsToInsert = localCreativesToSync.map((c: any) => ({
-            id: c.id,
-            title: c.title,
-            type: c.type,
-            format: c.format,
-            image: c.image || null,
-            text: c.text || null,
-            folder_id: c.folderId || null,
-            file_url: c.fileUrl || null,
-            external_download_url: c.externalDownloadUrl || null,
-            file_type: c.fileType || null,
-            file_size: c.fileSize || null,
-            storage_type: c.storageType || "supabase",
-            storage_path: c.storagePath || null,
-          }));
-          await supabase.from("creatives").upsert(rowsToInsert);
-          console.log(`[SYNC] ✅ ${localCreativesToSync.length} criativo(s) sincronizado(s) com o Supabase.`);
-        }
-
-        const formattedCreatives: Creative[] = dbCreatives.map((c: any) => {
-          // Se o banco ainda estiver com indexeddb mas temos a versão migrada localmente com cloudUrl
-          const localMigrated = migratedLocalCreatives.find((lm: any) => lm.id === c.id);
-          const effectiveFileUrl = (localMigrated?.fileUrl && !localMigrated.fileUrl.startsWith("indexeddb://"))
-            ? localMigrated.fileUrl
-            : (c.file_url || undefined);
-
-          return {
-            id: c.id,
-            title: c.title,
-            type: c.type,
-            format: c.format,
-            image: c.image || c.media_url || undefined,
-            text: c.text || c.suggested_copy || undefined,
-            folderId: c.folder_id || undefined,
-            fileUrl: effectiveFileUrl,
-            externalDownloadUrl: c.external_download_url || undefined,
-            fileType: c.file_type || undefined,
-            fileSize: c.file_size || undefined,
-            storageType: c.storage_type || undefined,
-            storagePath: c.storage_path || undefined,
-          };
-        });
-
-        migratedLocalCreatives.forEach((lc: any) => {
-          if (!formattedCreatives.some((c) => c.id === lc.id)) {
-            formattedCreatives.push(lc);
-          }
-        });
+        // Exibe os criativos do banco IMEDIATAMENTE (Zero-Lag na Main Thread)
+        const formattedCreatives: Creative[] = dbCreatives.map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          type: c.type,
+          format: c.format,
+          image: c.image || c.media_url || undefined,
+          text: c.text || c.suggested_copy || undefined,
+          folderId: c.folder_id || undefined,
+          fileUrl: c.file_url || undefined,
+          externalDownloadUrl: c.external_download_url || undefined,
+          fileType: c.file_type || undefined,
+          fileSize: c.file_size || undefined,
+          storageType: c.storage_type || undefined,
+          storagePath: c.storage_path || undefined,
+        }));
 
         setCreativesList(formattedCreatives);
         try {
           localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(formattedCreatives));
         } catch {}
+
+        // Migração em fila não-bloqueante (executada no tempo ocioso do navegador)
+        setTimeout(async () => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.CREATIVES);
+            const currentLocalCreatives = raw ? JSON.parse(raw) : [];
+            const dbCreativeMap = new Map(dbCreatives.map((c: any) => [c.id, c]));
+            const pendingMigrate = Array.isArray(currentLocalCreatives)
+              ? currentLocalCreatives.filter((c: any) => {
+                  const inDb = dbCreativeMap.get(c.id);
+                  const isLocalOnly = !inDb;
+                  const needsCloudUpload = Boolean(
+                    c.fileUrl?.startsWith("indexeddb://") || 
+                    (!inDb?.file_url && c.fileUrl) ||
+                    (inDb?.file_url?.startsWith("indexeddb://"))
+                  );
+                  return isLocalOnly || needsCloudUpload;
+                })
+              : [];
+
+            if (pendingMigrate.length > 0) {
+              const rowsToInsert = [];
+              const itemsToProcess = force ? pendingMigrate : pendingMigrate.slice(0, 25);
+              let hasNewCloudUrls = false;
+
+              for (const c of itemsToProcess) {
+                let fileUrl = c.fileUrl;
+                if ((!fileUrl || fileUrl.startsWith("indexeddb://")) && c.id) {
+                  try {
+                    const blob = await getRawFile(c.id);
+                    if (blob) {
+                      const cloudUrl = await uploadCreativeToSupabase(c.id, blob, c.title);
+                      if (cloudUrl) {
+                        fileUrl = cloudUrl;
+                        c.fileUrl = cloudUrl;
+                        c.storageType = "supabase";
+                        hasNewCloudUrls = true;
+                      }
+                    }
+                  } catch {}
+                }
+                rowsToInsert.push({
+                  id: c.id,
+                  title: c.title,
+                  type: c.type,
+                  format: c.format,
+                  image: c.image || null,
+                  text: c.text || null,
+                  folder_id: c.folderId || null,
+                  file_url: fileUrl || null,
+                  external_download_url: c.externalDownloadUrl || null,
+                  file_type: c.fileType || null,
+                  file_size: c.fileSize || null,
+                  storage_type: fileUrl && !fileUrl.startsWith("indexeddb://") ? "supabase" : (c.storageType || "supabase"),
+                  storage_path: c.storagePath || null,
+                });
+              }
+
+              if (rowsToInsert.length > 0) {
+                await supabase.from("creatives").upsert(rowsToInsert);
+                if (hasNewCloudUrls) {
+                  try {
+                    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(currentLocalCreatives));
+                  } catch {}
+                }
+              }
+            }
+          } catch {}
+        }, 1200);
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização com Supabase:", err);
@@ -1398,56 +1427,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         .order("order_index", { ascending: true });
 
       if (!matErr && dbMaterials) {
-        const dbMaterialMap = new Map(dbMaterials.map((m: any) => [m.id, m]));
-        const currentLocalMaterials = (() => {
-          try {
-            const raw = localStorage.getItem(STORAGE_KEYS.MATERIALS);
-            return raw ? JSON.parse(raw) : [];
-          } catch {
-            return [];
-          }
-        })();
-
-        const localMaterialsToSync = Array.isArray(currentLocalMaterials)
-          ? currentLocalMaterials.filter((m: any) => !dbMaterialMap.has(m.id || m.title))
-          : [];
-
-        if (localMaterialsToSync.length > 0) {
-          const rowsToInsert = await Promise.all(
-            localMaterialsToSync.map(async (m: any, idx: number) => {
-              const matId = m.id || `mat-${Date.now()}-${idx}`;
-              let fileUrl = m.file_url || null;
-
-              // Se houver arquivo local no IndexedDB e ainda sem URL pública na nuvem, tenta upload para Supabase Storage
-              if (!fileUrl && (m.sourceType === "upload" || m.rawFileName)) {
-                try {
-                  const blob = await getRawFile(matId);
-                  if (blob) {
-                    const uploadedUrl = await uploadMaterialToSupabase(matId, blob, m.rawFileName);
-                    if (uploadedUrl) fileUrl = uploadedUrl;
-                  }
-                } catch {}
-              }
-
-              return {
-                id: matId,
-                title: m.title,
-                kind: m.kind,
-                size: m.size,
-                file_url: fileUrl,
-                raw_file_name: m.rawFileName || null,
-                source_type: m.sourceType || "link",
-                mime_type: m.mimeType || null,
-                folder_id: m.folderId || null,
-                files: m.files || null,
-                order_index: idx,
-              };
-            })
-          );
-          await supabase.from("materials").upsert(rowsToInsert);
-          console.log(`[SYNC] ✅ ${localMaterialsToSync.length} material(is) migrado(s) para o Supabase.`);
-        }
-
+        // Exibe os materiais do banco IMEDIATAMENTE (Zero-Lag)
         const formattedMaterials: DynamicMaterial[] = dbMaterials.map((m: any) => ({
           id: m.id,
           title: m.title,
@@ -1461,17 +1441,55 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           files: m.files || undefined,
         }));
 
-        localMaterialsToSync.forEach((lm: any) => {
-          if (!formattedMaterials.some((m) => (m.id || m.title) === (lm.id || lm.title))) {
-            formattedMaterials.push(lm);
-          }
-        });
-
         setMaterialsList(formattedMaterials);
         try {
           localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(formattedMaterials));
         } catch {}
-        console.log(`[SYNC] ✅ Materiais carregados do Supabase: ${formattedMaterials.length} material(is).`);
+
+        // Migração de materiais locais em fila não-bloqueante
+        setTimeout(async () => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.MATERIALS);
+            const currentLocalMaterials = raw ? JSON.parse(raw) : [];
+            const dbMaterialMap = new Map(dbMaterials.map((m: any) => [m.id, m]));
+            const localMaterialsToSync = Array.isArray(currentLocalMaterials)
+              ? currentLocalMaterials.filter((m: any) => !dbMaterialMap.has(m.id || m.title))
+              : [];
+
+            if (localMaterialsToSync.length > 0) {
+              const rowsToInsert = [];
+              for (const m of localMaterialsToSync.slice(0, 10)) {
+                const matId = m.id || `mat-${Date.now()}`;
+                let fileUrl = m.file_url || null;
+                if (!fileUrl && (m.sourceType === "upload" || m.rawFileName)) {
+                  try {
+                    const blob = await getRawFile(matId);
+                    if (blob) {
+                      const uploadedUrl = await uploadMaterialToSupabase(matId, blob, m.rawFileName);
+                      if (uploadedUrl) fileUrl = uploadedUrl;
+                    }
+                  } catch {}
+                }
+                rowsToInsert.push({
+                  id: matId,
+                  title: m.title,
+                  kind: m.kind,
+                  size: m.size,
+                  file_url: fileUrl,
+                  raw_file_name: m.rawFileName || null,
+                  source_type: m.sourceType || "link",
+                  mime_type: m.mimeType || null,
+                  folder_id: m.folderId || null,
+                  files: m.files || null,
+                  order_index: 0,
+                });
+              }
+              if (rowsToInsert.length > 0) {
+                await supabase.from("materials").upsert(rowsToInsert);
+              }
+            }
+          } catch {}
+        }, 1500);
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de materiais com Supabase:", err);
@@ -2023,8 +2041,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       };
 
       setProfile(updatedProf);
+      // Chave permanente no cache local do navegador para nunca reabrir o modal
       try {
         localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updatedProf));
+        localStorage.setItem(`vellessa_onboarding_done_${profile.email || "current"}`, "true");
       } catch {}
       recordAffiliateAccess(updatedProf);
 
@@ -2033,7 +2053,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user?.id) {
-            await supabase.from("profiles").update({
+            try {
+              localStorage.setItem(`vellessa_onboarding_done_${session.user.id}`, "true");
+              localStorage.setItem(`vellessa_onboarding_done_${session.user.email || profile.email}`, "true");
+            } catch {}
+
+            // Tentativa 1: update completo com colunas de perfil de tráfego
+            const { error: fullErr } = await supabase.from("profiles").update({
               phone: cleanPhone,
               traffic_experience: data.trafficExperience,
               traffic_investment: data.trafficInvestment || null,
@@ -2042,6 +2068,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
               onboarding_completed: true,
               updated_at: new Date().toISOString(),
             }).eq("id", session.user.id);
+
+            if (fullErr) {
+              console.warn("[Onboarding] Aviso na sincronização completa:", fullErr.message);
+              // Fallback de contingência: atualiza somente o telefone para garantir liberação do painel
+              await supabase.from("profiles").update({
+                phone: cleanPhone,
+                updated_at: new Date().toISOString(),
+              }).eq("id", session.user.id);
+            }
           }
         } catch (dbErr) {
           console.warn("[Onboarding] Aviso ao sincronizar com Supabase profiles:", dbErr);
@@ -2295,7 +2330,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         // Assegura que todas as pastas de destino existam no Supabase antes de inserir as peças (evita FK violation)
         const referencedFolderIds = Array.from(new Set(newCreatives.map((c) => c.folderId).filter(Boolean))) as string[];
         if (referencedFolderIds.length > 0) {
-          const foldersToEnsure = creativeFoldersList.filter((f) => referencedFolderIds.includes(f.id));
+          const allKnownFolders = (() => {
+            try {
+              const raw = localStorage.getItem(STORAGE_KEYS.CREATIVE_FOLDERS);
+              return raw ? JSON.parse(raw) : creativeFoldersList;
+            } catch {
+              return creativeFoldersList;
+            }
+          })();
+          const foldersToEnsure = allKnownFolders.filter((f: any) => referencedFolderIds.includes(f.id));
           for (const f of foldersToEnsure) {
             await supabase.from("creative_folders").upsert({
               id: f.id,
@@ -3252,90 +3295,118 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
   };
 
+  const contextValue = useMemo<AffiliateStoreContextType>(
+    () => ({
+      profile,
+      isAdmin,
+      isTitular,
+      updateProfile,
+      forceSyncAllData,
+      modulesList,
+      allLessonsList,
+      completedLessonIds,
+      isLessonDone,
+      toggleLessonDone,
+      markLessonDone,
+      completedCount,
+      totalLessonsCount,
+      progressPercentage,
+      nextLesson,
+      affiliatesMonitoring,
+      recordAffiliateActivity,
+      recordAffiliateAccess,
+      updateAffiliateMonitoring,
+      deleteAffiliateMonitoring,
+      campaignsList,
+      createCampaign,
+      updateCampaign,
+      deleteCampaign,
+      recordCampaignMetric,
+      creativesList,
+      materialsList,
+      linksList,
+      foldersList,
+      creativeFoldersList,
+      createFolder,
+      updateFolder,
+      deleteFolder,
+      createCreativeFolder,
+      updateCreativeFolder,
+      deleteCreativeFolder,
+      moveCreativesToFolder,
+      deleteCreativesBatch,
+      createModule,
+      updateModule,
+      deleteModule,
+      createLesson,
+      updateLesson,
+      deleteLesson,
+      createCreative,
+      createCreativesBatch,
+      updateCreative,
+      deleteCreative,
+      createMaterial,
+      updateMaterial,
+      deleteMaterial,
+      createAffiliateLink,
+      updateAffiliateLink,
+      deleteAffiliateLink,
+      seedInitialDataToDatabase,
+      posts,
+      addPost,
+      toggleLikePost,
+      announcements,
+      unreadAnnouncementsCount,
+      markAllNotificationsRead,
+      createAnnouncement,
+      isAuthenticated,
+      authLoading,
+      login,
+      adminLogin,
+      signUp,
+      adminSignUp,
+      completeOnboarding,
+      logout,
+      resetPassword,
+      copyText,
+      downloadAsset,
+      featureSettings,
+      toggleFeature,
+      updateFeatureSettings,
+      billboardSettings,
+      updateBillboardSettings,
+      resetBillboardSettings,
+    }),
+    [
+      profile,
+      isAdmin,
+      isTitular,
+      modulesList,
+      allLessonsList,
+      completedLessonIds,
+      completedCount,
+      totalLessonsCount,
+      progressPercentage,
+      nextLesson,
+      affiliatesMonitoring,
+      campaignsList,
+      creativesList,
+      materialsList,
+      linksList,
+      foldersList,
+      creativeFoldersList,
+      posts,
+      announcements,
+      unreadAnnouncementsCount,
+      isAuthenticated,
+      authLoading,
+      featureSettings,
+      billboardSettings,
+    ]
+  );
+
   return (
-    <AffiliateStoreContext.Provider
-      value={{
-        profile,
-        isAdmin,
-        isTitular,
-        updateProfile,
-        forceSyncAllData,
-        modulesList,
-        allLessonsList,
-        completedLessonIds,
-        isLessonDone,
-        toggleLessonDone,
-        markLessonDone,
-        completedCount,
-        totalLessonsCount,
-        progressPercentage,
-        nextLesson,
-        affiliatesMonitoring,
-        recordAffiliateActivity,
-        recordAffiliateAccess,
-        updateAffiliateMonitoring,
-        deleteAffiliateMonitoring,
-        campaignsList,
-        createCampaign,
-        updateCampaign,
-        deleteCampaign,
-        recordCampaignMetric,
-        creativesList,
-        materialsList,
-        linksList,
-        foldersList,
-        creativeFoldersList,
-        createFolder,
-        updateFolder,
-        deleteFolder,
-        createCreativeFolder,
-        updateCreativeFolder,
-        deleteCreativeFolder,
-        moveCreativesToFolder,
-        deleteCreativesBatch,
-        createModule,
-        updateModule,
-        deleteModule,
-        createLesson,
-        updateLesson,
-        deleteLesson,
-        createCreative,
-        createCreativesBatch,
-        updateCreative,
-        deleteCreative,
-        createMaterial,
-        updateMaterial,
-        deleteMaterial,
-        createAffiliateLink,
-        updateAffiliateLink,
-        deleteAffiliateLink,
-        seedInitialDataToDatabase,
-        posts,
-        addPost,
-        toggleLikePost,
-        announcements,
-        unreadAnnouncementsCount,
-        markAllNotificationsRead,
-        createAnnouncement,
-        isAuthenticated,
-        authLoading,
-        login,
-        adminLogin,
-        signUp,
-        adminSignUp,
-        completeOnboarding,
-        logout,
-        resetPassword,
-        copyText,
-        downloadAsset,
-        featureSettings,
-        toggleFeature,
-        updateFeatureSettings,
-        billboardSettings,
-        updateBillboardSettings,
-        resetBillboardSettings,
-      }}
-    >
+    <AffiliateStoreContext.Provider value={contextValue}>
       {children}
     </AffiliateStoreContext.Provider>
   );
