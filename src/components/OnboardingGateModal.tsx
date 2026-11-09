@@ -23,6 +23,10 @@ export function OnboardingGateModal() {
   const [trafficExperience, setTrafficExperience] = useState<"yes" | "no" | null>(
     (profile.trafficExperience as any) || null
   );
+  // Seleção pendente da Etapa 2 (separada do estado confirmado)
+  const [pendingExperience, setPendingExperience] = useState<"yes" | "no" | null>(
+    (profile.trafficExperience as any) || null
+  );
   const [trafficInvestment, setTrafficInvestment] = useState<string>(
     profile.trafficInvestment || ""
   );
@@ -36,6 +40,7 @@ export function OnboardingGateModal() {
 
   // Formata telefone celular brasileiro: (XX) 9XXXX-XXXX
   const formatPhone = (val: string) => {
+    // Extrai somente dígitos do valor atual, limitando a 11
     const digits = val.replace(/\D/g, "").slice(0, 11);
     if (digits.length <= 2) return digits;
     if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
@@ -43,10 +48,11 @@ export function OnboardingGateModal() {
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Sempre re-aplica a máscara sobre o valor atual do input
     setPhone(formatPhone(e.target.value));
   };
 
-  // Validação estrita do WhatsApp: 11 dígitos, DDD válido (11-99), 9º dígito
+  // Validação estrita do WhatsApp: 11 dígitos, DDD válido (11-99), 9º dígito = "9"
   const rawDigits = phone.replace(/\D/g, "");
   const ddd = parseInt(rawDigits.slice(0, 2), 10);
   const isPhoneValid =
@@ -64,8 +70,14 @@ export function OnboardingGateModal() {
     setStep(2);
   };
 
+  // Etapa 2: seleciona sem avançar — botão "Continuar" confirma
   const handleSelectExperience = (exp: "yes" | "no") => {
-    setTrafficExperience(exp);
+    setPendingExperience(exp);
+  };
+
+  const handleConfirmExperience = () => {
+    if (!pendingExperience) return;
+    setTrafficExperience(pendingExperience);
     setStep(3);
   };
 
@@ -146,12 +158,15 @@ export function OnboardingGateModal() {
                     <Phone className="h-4 w-4" />
                   </div>
                   <input
-                    type="tel"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
                     required
                     autoFocus
                     value={phone}
                     onChange={handlePhoneChange}
                     placeholder="(11) 99999-9999"
+                    maxLength={15}
                     className="w-full rounded-2xl border border-border/60 bg-muted/30 py-3.5 pl-11 pr-4 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 transition focus:border-gold focus:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-gold"
                   />
                   {isPhoneValid && (
@@ -198,7 +213,7 @@ export function OnboardingGateModal() {
                   onClick={() => handleSelectExperience("yes")}
                   className={cn(
                     "flex flex-col items-start gap-3 rounded-2xl border p-4 sm:p-5 text-left transition duration-200 cursor-pointer group",
-                    trafficExperience === "yes"
+                    pendingExperience === "yes"
                       ? "border-gold bg-gold/15 shadow-gold"
                       : "border-border/60 bg-muted/20 hover:border-gold/50 hover:bg-muted/40"
                   )}
@@ -214,9 +229,15 @@ export function OnboardingGateModal() {
                       Já anunciei ou mantenho campanhas ativas no Meta Ads, Google Ads ou TikTok.
                     </p>
                   </div>
-                  <span className="text-[11px] font-semibold text-gold mt-auto flex items-center gap-1">
-                    Selecionar perfil com experiência →
-                  </span>
+                  {pendingExperience === "yes" ? (
+                    <span className="text-[11px] font-semibold text-gold mt-auto flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Selecionado
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-gold mt-auto flex items-center gap-1">
+                      Selecionar perfil com experiência →
+                    </span>
+                  )}
                 </button>
 
                 {/* Opção NÃO */}
@@ -225,8 +246,8 @@ export function OnboardingGateModal() {
                   onClick={() => handleSelectExperience("no")}
                   className={cn(
                     "flex flex-col items-start gap-3 rounded-2xl border p-4 sm:p-5 text-left transition duration-200 cursor-pointer group",
-                    trafficExperience === "no"
-                      ? "border-gold bg-gold/15 shadow-gold"
+                    pendingExperience === "no"
+                      ? "border-emerald-500/60 bg-emerald-950/20 shadow-sm"
                       : "border-border/60 bg-muted/20 hover:border-gold/50 hover:bg-muted/40"
                   )}
                 >
@@ -241,19 +262,36 @@ export function OnboardingGateModal() {
                       Estou começando agora ou ainda pretendo aprender como anunciar online.
                     </p>
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-400 mt-auto flex items-center gap-1">
-                    Selecionar perfil iniciante →
-                  </span>
+                  {pendingExperience === "no" ? (
+                    <span className="text-[11px] font-semibold text-emerald-400 mt-auto flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Selecionado
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-emerald-400 mt-auto flex items-center gap-1">
+                      Selecionar perfil iniciante →
+                    </span>
+                  )}
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="text-xs text-muted-foreground hover:text-gold transition inline-flex items-center gap-1 cursor-pointer"
-              >
-                ← Voltar para alterar o telefone
-              </button>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-xs text-muted-foreground hover:text-gold transition inline-flex items-center gap-1 cursor-pointer"
+                >
+                  ← Voltar para alterar o telefone
+                </button>
+                <button
+                  type="button"
+                  disabled={!pendingExperience}
+                  onClick={handleConfirmExperience}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gold-gradient px-6 py-3 text-sm font-bold text-primary-foreground shadow-gold hover:brightness-105 active:scale-[0.99] transition disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                >
+                  <span>Continuar</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
 

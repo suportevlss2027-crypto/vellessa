@@ -2035,6 +2035,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           if (session?.user?.id) {
             await supabase.from("profiles").update({
               phone: cleanPhone,
+              traffic_experience: data.trafficExperience,
+              traffic_investment: data.trafficInvestment || null,
+              traffic_willingness: data.trafficWillingness || null,
+              traffic_budget: data.trafficBudget || null,
+              onboarding_completed: true,
               updated_at: new Date().toISOString(),
             }).eq("id", session.user.id);
           }
