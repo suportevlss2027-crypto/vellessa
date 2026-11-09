@@ -228,7 +228,7 @@ interface AffiliateStoreContextType {
   deleteFolder: (id: string) => Promise<void>;
 
   // Creative Folders Actions (Grupos / Coleções Estilo Kiwify)
-  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<void>;
+  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<string>;
   updateCreativeFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<void>;
   deleteCreativeFolder: (id: string) => Promise<void>;
   moveCreativesToFolder: (creativeIds: string[], targetFolderId?: string) => Promise<void>;
@@ -2292,6 +2292,21 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     // 2. Persistência em Lote no Supabase (chunks de 50 para evitar limites de payload)
     if (isSupabaseConfigured && supabase) {
       try {
+        // Assegura que todas as pastas de destino existam no Supabase antes de inserir as peças (evita FK violation)
+        const referencedFolderIds = Array.from(new Set(newCreatives.map((c) => c.folderId).filter(Boolean))) as string[];
+        if (referencedFolderIds.length > 0) {
+          const foldersToEnsure = creativeFoldersList.filter((f) => referencedFolderIds.includes(f.id));
+          for (const f of foldersToEnsure) {
+            await supabase.from("creative_folders").upsert({
+              id: f.id,
+              name: f.name,
+              description: f.description || null,
+              color: f.color || "gold",
+              cover_image: f.coverImage || null,
+            }).catch(() => {});
+          }
+        }
+
         const rowsToInsert = newCreatives.map((c) => ({
           id: c.id,
           title: c.title,
@@ -2726,7 +2741,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Pasta removida. Os materiais foram movidos para Geral.");
   };
 
-  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }) => {
+  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }): Promise<string> => {
     const newFolder: CreativeFolder = {
       id: `cfolder-${Date.now()}`,
       name: data.name.trim(),
@@ -2738,23 +2753,39 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     };
     const updated = [...creativeFoldersList, newFolder];
     setCreativeFoldersList(updated);
-    localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+
+    try {
+      localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+    } catch (storageErr) {
+      console.warn("[AffiliateStore] Cota de localStorage excedida no grupo, salvando versão segura:", storageErr);
+      try {
+        const safeFolders = updated.map((f) => ({
+          ...f,
+          coverImage: f.coverImage?.startsWith("data:") ? undefined : f.coverImage,
+        }));
+        localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(safeFolders));
+      } catch {}
+    }
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from("creative_folders").upsert({
+        const { error } = await supabase.from("creative_folders").upsert({
           id: newFolder.id,
           name: newFolder.name,
           description: newFolder.description || null,
           color: newFolder.color || "gold",
           cover_image: newFolder.coverImage || null,
         });
+        if (error) {
+          console.warn("[AffiliateStore] Erro ao sincronizar grupo com Supabase:", error.message);
+        }
       } catch (err) {
         console.warn("[AffiliateStore] Falha ao sincronizar grupo com Supabase:", err);
       }
     }
 
     toast.success(`Grupo "${newFolder.name}" criado com sucesso!`);
+    return newFolder.id;
   };
 
   const updateCreativeFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string }) => {

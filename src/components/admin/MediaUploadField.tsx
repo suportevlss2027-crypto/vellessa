@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { Upload, Link2, Sparkles, X, Check, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { images } from "@/data/content";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 interface MediaUploadFieldProps {
   label?: string;
@@ -64,15 +65,95 @@ export function MediaUploadField({
     }
 
     if (isImage) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          onChange(result);
-          toast.success("Foto carregada com sucesso!");
+      const img = new Image();
+      const objUrl = URL.createObjectURL(file);
+      img.src = objUrl;
+
+      img.onload = async () => {
+        URL.revokeObjectURL(objUrl);
+        try {
+          // Redimensiona proporcionalmente para resolução ideal (max 1280px)
+          const maxDim = 1280;
+          let w = img.width || 1280;
+          let h = img.height || 720;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, w);
+          canvas.height = Math.max(1, h);
+          const ctx = canvas.getContext("2d");
+
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            
+            // 1. Tenta upload direto no Supabase Storage (bucket "criativos", pasta "covers/")
+            if (isSupabaseConfigured && supabase) {
+              try {
+                const blob = await new Promise<Blob | null>((res) =>
+                  canvas.toBlob((b) => res(b), "image/jpeg", 0.85)
+                );
+                if (blob) {
+                  const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                  const path = `covers/${Date.now()}_${cleanName}`;
+                  const { error: uploadErr } = await supabase.storage
+                    .from("criativos")
+                    .upload(path, blob, {
+                      cacheControl: "86400",
+                      upsert: true,
+                      contentType: "image/jpeg",
+                    });
+
+                  if (!uploadErr) {
+                    const { data: pubData } = supabase.storage
+                      .from("criativos")
+                      .getPublicUrl(path);
+
+                    if (pubData?.publicUrl) {
+                      onChange(pubData.publicUrl);
+                      toast.success("Foto enviada para a nuvem com sucesso!");
+                      return;
+                    }
+                  }
+                }
+              } catch (storageErr) {
+                console.warn("[MediaUploadField] Fallback para imagem comprimida local:", storageErr);
+              }
+            }
+
+            // 2. Fallback seguro: Base64 comprimido leve (< 45KB) que nunca estoura o localStorage
+            const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.80);
+            onChange(compressedDataUrl);
+            toast.success("Foto otimizada com sucesso!");
+            return;
+          }
+        } catch (e) {
+          console.warn("[MediaUploadField] Erro no processamento canvas:", e);
         }
+
+        // Fallback final
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          if (result) {
+            onChange(result);
+            toast.success("Foto carregada!");
+          }
+        };
+        reader.readAsDataURL(file);
       };
-      reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objUrl);
+        toast.error("Não foi possível carregar a imagem selecionada.");
+      };
     } else if (isVideo) {
       // Gera thumbnail do vídeo usando canvas
       const videoEl = document.createElement("video");

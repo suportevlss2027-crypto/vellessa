@@ -614,12 +614,15 @@ function AdminCriativosPage() {
         coverImage: folderCoverImage,
       });
     } else {
-      await createCreativeFolder({
+      const createdId = await createCreativeFolder({
         name: folderName,
         description: folderDescription,
         color: folderColor,
         coverImage: folderCoverImage,
       });
+      if (createdId) {
+        setCurrentFolderId(createdId);
+      }
     }
     setShowFolderModal(false);
   };
