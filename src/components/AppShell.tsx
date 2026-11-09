@@ -7,6 +7,7 @@ import { useAffiliateStore } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPopover } from "./NotificationsPopover";
+import { OnboardingGateModal } from "./OnboardingGateModal";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -66,6 +67,10 @@ export function AppShell() {
     logout();
     navigate({ to: "/" });
   };
+
+  const needsOnboarding =
+    profile.role !== "admin" &&
+    (!profile.phone || profile.phone.trim().length < 10 || !profile.onboardingCompleted);
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -242,6 +247,8 @@ export function AppShell() {
           </Link>
         ))}
       </nav>
+
+      {needsOnboarding && <OnboardingGateModal />}
     </div>
   );
 }

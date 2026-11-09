@@ -13,6 +13,7 @@ import {
   Phone,
   Shield,
   Sparkles,
+  TrendingUp,
   User,
   X,
   Edit2,
@@ -40,6 +41,12 @@ interface AffiliateDetailModalProps {
     completedLessonIds?: string[];
     lastLessonWatchedTitle?: string;
     lastLessonWatchedAt?: string;
+    onboardingCompleted?: boolean;
+    trafficExperience?: "yes" | "no";
+    trafficInvestment?: string;
+    trafficWillingness?: "yes" | "no";
+    trafficBudget?: string;
+    onboardingAnswers?: Record<string, any>;
   };
   modulesList: DynamicModule[];
   onClose: () => void;
@@ -109,12 +116,19 @@ export function AffiliateDetailModal({
 
   // Mensagem personalizada de WhatsApp para mentoria
   const cleanPhone = (affiliate.phone || "").replace(/\D/g, "");
-  const mentorMessage =
-    progressPct >= 70
-      ? `Olá ${affiliate.name.split(" ")[0]}! Aqui é da equipe Vellessa. Vi que você já concluiu ${progressPct}% das aulas da Academia! Meus parabéns! Gostaria de uma mentoria rápida para otimizar suas campanhas na Logzz?`
-      : progressPct > 0
-      ? `Olá ${affiliate.name.split(" ")[0]}! Aqui é da equipe Vellessa. Notei que você já iniciou o treinamento da Academia Vellessa (${progressPct}% concluído). Posso te ajudar a tirar alguma dúvida da aula para acelerar seus resultados?`
-      : `Olá ${affiliate.name.split(" ")[0]}! Aqui é da equipe Vellessa. Vi que você se cadastrou na nossa plataforma de afiliados, mas ainda não começou as aulas da Academia. Precisa de algum apoio para dar o primeiro passo?`;
+  const firstName = affiliate.name.split(" ")[0];
+  let mentorMessage = "";
+  if (affiliate.trafficExperience === "yes") {
+    mentorMessage = `Olá ${firstName}! Aqui é da equipe de suporte e escala da Vellessa. Vi no seu cadastro que você já investe em tráfego pago (${affiliate.trafficInvestment || "ativo"}). Temos criativos validados e estratégias de alta conversão na Logzz prontos para sua operação. Como posso te apoiar hoje?`;
+  } else if (affiliate.trafficExperience === "no" && affiliate.trafficWillingness === "yes") {
+    mentorMessage = `Olá ${firstName}! Aqui é da equipe Vellessa. Notei que você tem interesse em começar a anunciar com tráfego pago (${affiliate.trafficBudget || "orçamento inicial"}). Quer receber nosso direcionamento rápido para seus primeiros testes sem queimar verba?`;
+  } else if (progressPct >= 70) {
+    mentorMessage = `Olá ${firstName}! Aqui é da equipe Vellessa. Vi que você já concluiu ${progressPct}% das aulas da Academia! Meus parabéns! Gostaria de uma mentoria rápida para otimizar suas campanhas na Logzz?`;
+  } else if (progressPct > 0) {
+    mentorMessage = `Olá ${firstName}! Aqui é da equipe Vellessa. Notei que você já iniciou o treinamento da Academia Vellessa (${progressPct}% concluído). Posso te ajudar a tirar alguma dúvida da aula para acelerar seus resultados?`;
+  } else {
+    mentorMessage = `Olá ${firstName}! Aqui é da equipe Vellessa. Vi que você se cadastrou na nossa plataforma de afiliados. Precisa de algum apoio para dar o primeiro passo e começar a faturar?`;
+  }
 
   const waLink = cleanPhone
     ? `https://wa.me/${cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone}?text=${encodeURIComponent(
@@ -232,6 +246,65 @@ export function AffiliateDetailModal({
               </p>
               <p className="text-[10px] text-muted-foreground">Membro da Comunidade</p>
             </div>
+          </div>
+
+          {/* Card de Qualificação de Tráfego Pago & Onboarding */}
+          <div className="rounded-2xl border border-white/10 bg-muted/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-gold" /> Qualificação de Tráfego Pago
+              </span>
+              {affiliate.onboardingCompleted || (affiliate.phone && affiliate.phone.trim().length >= 10) ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                  <CheckCircle2 className="h-3 w-3" /> Onboarding Concluído
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                  <Clock className="h-3 w-3" /> Onboarding Pendente
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="rounded-xl bg-card/60 border border-white/5 p-3 space-y-1">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Experiência com Tráfego
+                </p>
+                <p className="font-semibold text-foreground">
+                  {affiliate.trafficExperience === "yes"
+                    ? "Já investe em tráfego pago"
+                    : affiliate.trafficExperience === "no"
+                    ? "Nunca investiu em tráfego pago"
+                    : "Não informado / Pendente"}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-card/60 border border-white/5 p-3 space-y-1">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {affiliate.trafficExperience === "yes"
+                    ? "Volume Investido / Mês"
+                    : "Disposição / Orçamento de Teste"}
+                </p>
+                <p className="font-semibold text-gold">
+                  {affiliate.trafficExperience === "yes"
+                    ? affiliate.trafficInvestment || "Não especificado"
+                    : affiliate.trafficWillingness === "yes"
+                    ? `Disposto(a) a investir (${affiliate.trafficBudget || "A definir"})`
+                    : affiliate.trafficWillingness === "no"
+                    ? "Não tem interesse agora (Foco Orgânico)"
+                    : "Pendente"}
+                </p>
+              </div>
+            </div>
+
+            {affiliate.phone && (
+              <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground border-t border-white/5">
+                <span className="flex items-center gap-1.5 font-mono text-foreground">
+                  <Phone className="h-3.5 w-3.5 text-emerald-400" /> {affiliate.phone}
+                </span>
+                <span className="text-[10px] text-muted-foreground">WhatsApp Cadastrado</span>
+              </div>
+            )}
           </div>
 
           {/* Barra de Ação Rápida: Mentoria WhatsApp */}

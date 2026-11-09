@@ -167,6 +167,12 @@ function AdminAfiliadosPage() {
             commissionRate: p.commission_rate ?? 0.60,
             date: new Date(p.created_at).toLocaleDateString("pt-BR"),
             createdAt: p.created_at,
+            onboardingCompleted: p.onboarding_completed,
+            trafficExperience: p.traffic_experience,
+            trafficInvestment: p.traffic_investment,
+            trafficWillingness: p.traffic_willingness,
+            trafficBudget: p.traffic_budget,
+            onboardingAnswers: p.onboarding_answers,
           }));
         }
       } catch (e: any) {
@@ -198,6 +204,12 @@ function AdminAfiliadosPage() {
           commissionRate: 0.60,
           date: new Date(mon.createdAt || Date.now()).toLocaleDateString("pt-BR"),
           createdAt: mon.createdAt || new Date().toISOString(),
+          onboardingCompleted: mon.onboardingCompleted,
+          trafficExperience: mon.trafficExperience,
+          trafficInvestment: mon.trafficInvestment,
+          trafficWillingness: mon.trafficWillingness,
+          trafficBudget: mon.trafficBudget,
+          onboardingAnswers: mon.onboardingAnswers,
         });
       }
     });
@@ -887,7 +899,22 @@ function AdminAfiliadosPage() {
                           <div>
                             <p className="font-semibold">{a.name}</p>
                             <p className="text-xs text-muted-foreground">{a.email}</p>
-                            <p className="text-[10px] font-mono text-gold/80">{a.id}</p>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-[10px] font-mono text-gold/80">{a.id}</span>
+                              {a.phone && (
+                                <a
+                                  href={`https://wa.me/${a.phone.replace(/\D/g, "").startsWith("55") ? a.phone.replace(/\D/g, "") : "55" + a.phone.replace(/\D/g, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 transition"
+                                  title="Conversar no WhatsApp"
+                                >
+                                  <Phone className="h-2.5 w-2.5" />
+                                  <span>{a.phone}</span>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -896,22 +923,48 @@ function AdminAfiliadosPage() {
                       <td className="p-4">
                         <div className="space-y-1">
                           <p className="text-xs font-medium text-foreground">{a.level}</p>
-                          {isSuperAdmin(a.email) ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-gold">
-                              <Crown className="h-3 w-3" /> Titular Supremo
-                            </span>
-                          ) : (
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                a.role === "admin"
-                                  ? "bg-gold/15 text-gold border border-gold/30"
-                                  : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {a.role === "admin" && <Shield className="h-3 w-3" />}
-                              {a.role === "admin" ? "Admin" : "Afiliado(a)"}
-                            </span>
-                          )}
+                          <div className="flex flex-col gap-1 items-start">
+                            {isSuperAdmin(a.email) ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-gold">
+                                <Crown className="h-3 w-3" /> Titular Supremo
+                              </span>
+                            ) : (
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                  a.role === "admin"
+                                    ? "bg-gold/15 text-gold border border-gold/30"
+                                    : "bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                {a.role === "admin" && <Shield className="h-3 w-3" />}
+                                {a.role === "admin" ? "Admin" : "Afiliado(a)"}
+                              </span>
+                            )}
+
+                            {/* Badge de Tráfego Pago / Onboarding */}
+                            {a.trafficExperience === "yes" ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
+                                title={`Investimento: ${a.trafficInvestment || "Já investe"}`}
+                              >
+                                <TrendingUp className="h-2.5 w-2.5" />
+                                {a.trafficInvestment ? `Tráfego: ${a.trafficInvestment.split(" ")[0]}...` : "Já investe"}
+                              </span>
+                            ) : a.trafficExperience === "no" ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] font-semibold text-blue-400"
+                                title={a.trafficWillingness === "yes" ? `Quer investir: ${a.trafficBudget || ""}` : "Foco em vendas orgânicas"}
+                              >
+                                <Activity className="h-2.5 w-2.5" />
+                                {a.trafficWillingness === "yes" ? "Quer investir" : "Foco Orgânico"}
+                              </span>
+                            ) : (!a.phone || a.phone.trim().length < 10) ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                                <AlertCircle className="h-2.5 w-2.5" />
+                                Onboarding Pendente
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </td>
 

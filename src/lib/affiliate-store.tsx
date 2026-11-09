@@ -32,6 +32,12 @@ export interface AffiliateProfile {
   role: "admin" | "affiliate";
   status?: "active" | "suspended" | "inactive" | string;
   pix_key?: string;
+  onboardingCompleted?: boolean;
+  trafficExperience?: "yes" | "no";
+  trafficInvestment?: string;
+  trafficWillingness?: "yes" | "no";
+  trafficBudget?: string;
+  onboardingAnswers?: Record<string, any>;
 }
 
 export interface CommunityPost {
@@ -145,6 +151,12 @@ export interface AffiliateMonitoringData {
   completedLessonIds: string[];
   lastLessonWatchedTitle?: string;
   lastLessonWatchedAt?: string;
+  onboardingCompleted?: boolean;
+  trafficExperience?: "yes" | "no";
+  trafficInvestment?: string;
+  trafficWillingness?: "yes" | "no";
+  trafficBudget?: string;
+  onboardingAnswers?: Record<string, any>;
 }
 
 export interface Campaign {
@@ -338,6 +350,13 @@ interface AffiliateStoreContextType {
   adminLogin: (email: string, password?: string) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<boolean>;
   adminSignUp: (data: { name: string; email: string; password: string; masterKey?: string }) => Promise<boolean>;
+  completeOnboarding: (data: {
+    phone: string;
+    trafficExperience: "yes" | "no";
+    trafficInvestment?: string;
+    trafficWillingness?: "yes" | "no";
+    trafficBudget?: string;
+  }) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   // Gestão de Tráfego & Campanhas (Meta Ads)
@@ -816,6 +835,12 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           role: prof.role || existing.role,
           lastLoginAt: now,
           loginCount: (existing.loginCount || 0) + 1,
+          onboardingCompleted: prof.onboardingCompleted !== undefined ? prof.onboardingCompleted : existing.onboardingCompleted,
+          trafficExperience: prof.trafficExperience || existing.trafficExperience,
+          trafficInvestment: prof.trafficInvestment || existing.trafficInvestment,
+          trafficWillingness: prof.trafficWillingness || existing.trafficWillingness,
+          trafficBudget: prof.trafficBudget || existing.trafficBudget,
+          onboardingAnswers: prof.onboardingAnswers || existing.onboardingAnswers,
         };
 
         const next = { ...prev, [key]: updated };
@@ -1046,6 +1071,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             return;
           }
 
+          const hasValidPhone = Boolean(dbProfile.phone && dbProfile.phone.trim().length >= 10);
           const loadedProf: AffiliateProfile = {
             id: dbProfile.affiliate_code || session.user.id.slice(0, 8),
             name: dbProfile.name || session.user.email?.split("@")[0] || "Afiliado",
@@ -1057,6 +1083,12 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             role: dbProfile.role === "admin" ? "admin" : "affiliate",
             status: dbProfile.status || "active",
             pix_key: dbProfile.pix_key || "",
+            onboardingCompleted: hasValidPhone && (dbProfile.onboarding_completed !== false),
+            trafficExperience: dbProfile.traffic_experience,
+            trafficInvestment: dbProfile.traffic_investment,
+            trafficWillingness: dbProfile.traffic_willingness,
+            trafficBudget: dbProfile.traffic_budget,
+            onboardingAnswers: dbProfile.onboarding_answers || dbProfile.onboarding_data,
           };
           setProfile(loadedProf);
           recordAffiliateAccess(loadedProf);
@@ -1966,6 +1998,56 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       console.error("Signup error", e);
       toast.error("Erro ao cadastrar.");
       setAuthLoading(false);
+      return false;
+    }
+  };
+
+  const completeOnboarding = async (data: {
+    phone: string;
+    trafficExperience: "yes" | "no";
+    trafficInvestment?: string;
+    trafficWillingness?: "yes" | "no";
+    trafficBudget?: string;
+  }): Promise<boolean> => {
+    try {
+      const cleanPhone = data.phone.trim();
+      const updatedProf: AffiliateProfile = {
+        ...profile,
+        phone: cleanPhone,
+        onboardingCompleted: true,
+        trafficExperience: data.trafficExperience,
+        trafficInvestment: data.trafficInvestment,
+        trafficWillingness: data.trafficWillingness,
+        trafficBudget: data.trafficBudget,
+        onboardingAnswers: data,
+      };
+
+      setProfile(updatedProf);
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updatedProf));
+      } catch {}
+      recordAffiliateAccess(updatedProf);
+
+      // Persiste no Supabase se disponível
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            await supabase.from("profiles").update({
+              phone: cleanPhone,
+              updated_at: new Date().toISOString(),
+            }).eq("id", session.user.id);
+          }
+        } catch (dbErr) {
+          console.warn("[Onboarding] Aviso ao sincronizar com Supabase profiles:", dbErr);
+        }
+      }
+
+      toast.success("Perfil ativado com sucesso! Seja bem-vindo(a) à Vellessa.", { icon: "✨" });
+      return true;
+    } catch (err) {
+      console.error("[Onboarding] Erro ao concluir onboarding:", err);
+      toast.error("Ocorreu um erro ao salvar suas informações.");
       return false;
     }
   };
@@ -3205,6 +3287,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         adminLogin,
         signUp,
         adminSignUp,
+        completeOnboarding,
         logout,
         resetPassword,
         copyText,
