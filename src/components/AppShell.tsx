@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import {
   Bell, BookOpen, ChevronsLeft, Crown, Home, Image, Link2, LogOut, Search, Shield, Sparkles, TrendingUp, Users,
 } from "lucide-react";
-import { useAffiliateStore } from "@/lib/affiliate-store";
+import { useAffiliateStore, isSuperAdmin } from "@/lib/affiliate-store";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsPopover } from "./NotificationsPopover";
@@ -70,6 +70,7 @@ export function AppShell() {
 
   const needsOnboarding =
     profile.role !== "admin" &&
+    !isSuperAdmin(profile.email) &&
     (!profile.phone || profile.phone.trim().length < 10 || !profile.onboardingCompleted);
 
   return (

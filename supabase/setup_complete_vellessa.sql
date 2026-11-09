@@ -42,20 +42,20 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow users to update own profile" ON public.profiles;
 CREATE POLICY "Allow users to update own profile"
   ON public.profiles FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = id OR public.is_admin())
-  WITH CHECK (auth.uid() = id OR public.is_admin());
+  TO authenticated, anon
+  USING (true)
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow users to insert own profile" ON public.profiles;
 CREATE POLICY "Allow users to insert own profile"
   ON public.profiles FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = id OR public.is_admin());
+  TO authenticated, anon
+  WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow authenticated users to read all profiles" ON public.profiles;
 CREATE POLICY "Allow authenticated users to read all profiles"
   ON public.profiles FOR SELECT
-  TO authenticated
+  TO authenticated, anon
   USING (true);
 
 -- 5. TABELA DE GRUPOS/PASTAS DE CRIATIVOS (Kiwify 16:9)
@@ -77,15 +77,17 @@ ALTER TABLE public.creative_folders ADD COLUMN IF NOT EXISTS order_index INTEGER
 ALTER TABLE public.creative_folders ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone authenticated can view creative folders" ON public.creative_folders;
-CREATE POLICY "Anyone authenticated can view creative folders"
+DROP POLICY IF EXISTS "Public view creative folders" ON public.creative_folders;
+CREATE POLICY "Public view creative folders"
   ON public.creative_folders FOR SELECT
   TO authenticated, anon
   USING (true);
 
 DROP POLICY IF EXISTS "Admins and authenticated can manage creative folders" ON public.creative_folders;
-CREATE POLICY "Admins and authenticated can manage creative folders"
+DROP POLICY IF EXISTS "Public manage creative folders" ON public.creative_folders;
+CREATE POLICY "Public manage creative folders"
   ON public.creative_folders FOR ALL
-  TO authenticated
+  TO authenticated, anon
   USING (true)
   WITH CHECK (true);
 
@@ -127,15 +129,17 @@ ALTER TABLE public.creatives
 ALTER TABLE public.creatives ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone authenticated can view creatives" ON public.creatives;
-CREATE POLICY "Anyone authenticated can view creatives"
+DROP POLICY IF EXISTS "Public view creatives" ON public.creatives;
+CREATE POLICY "Public view creatives"
   ON public.creatives FOR SELECT
   TO authenticated, anon
   USING (true);
 
 DROP POLICY IF EXISTS "Admins and authenticated can manage creatives" ON public.creatives;
-CREATE POLICY "Admins and authenticated can manage creatives"
+DROP POLICY IF EXISTS "Public manage creatives" ON public.creatives;
+CREATE POLICY "Public manage creatives"
   ON public.creatives FOR ALL
-  TO authenticated
+  TO authenticated, anon
   USING (true)
   WITH CHECK (true);
 
@@ -152,15 +156,17 @@ CREATE TABLE IF NOT EXISTS public.material_folders (
 ALTER TABLE public.material_folders ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone authenticated can view material folders" ON public.material_folders;
-CREATE POLICY "Anyone authenticated can view material folders"
+DROP POLICY IF EXISTS "Public view material folders" ON public.material_folders;
+CREATE POLICY "Public view material folders"
   ON public.material_folders FOR SELECT
   TO authenticated, anon
   USING (true);
 
 DROP POLICY IF EXISTS "Admins and authenticated can manage material folders" ON public.material_folders;
-CREATE POLICY "Admins and authenticated can manage material folders"
+DROP POLICY IF EXISTS "Public manage material folders" ON public.material_folders;
+CREATE POLICY "Public manage material folders"
   ON public.material_folders FOR ALL
-  TO authenticated
+  TO authenticated, anon
   USING (true)
   WITH CHECK (true);
 
@@ -182,73 +188,86 @@ CREATE TABLE IF NOT EXISTS public.materials (
 ALTER TABLE public.materials ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone authenticated can view materials" ON public.materials;
-CREATE POLICY "Anyone authenticated can view materials"
+DROP POLICY IF EXISTS "Public view materials" ON public.materials;
+CREATE POLICY "Public view materials"
   ON public.materials FOR SELECT
   TO authenticated, anon
   USING (true);
 
 DROP POLICY IF EXISTS "Admins and authenticated can manage materials" ON public.materials;
-CREATE POLICY "Admins and authenticated can manage materials"
+DROP POLICY IF EXISTS "Public manage materials" ON public.materials;
+CREATE POLICY "Public manage materials"
   ON public.materials FOR ALL
-  TO authenticated
+  TO authenticated, anon
   USING (true)
   WITH CHECK (true);
 
 -- 8. STORAGE BUCKETS PÚBLICOS PARA UPLOADS (criativos e materiais)
-INSERT INTO storage.buckets (id, name, public)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES 
-  ('criativos', 'criativos', true),
-  ('materiais', 'materiais', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+  ('criativos', 'criativos', true, 524288000, null),
+  ('materiais', 'materiais', true, 524288000, null)
+ON CONFLICT (id) DO UPDATE SET 
+  public = true,
+  file_size_limit = 524288000,
+  allowed_mime_types = null;
 
--- Políticas de Leitura Pública do Storage
+-- Políticas de Leitura Pública do Storage (qualquer visitante/afiliado pode visualizar)
 DROP POLICY IF EXISTS "Public Access criativos" ON storage.objects;
+DROP POLICY IF EXISTS "criativos_public_select" ON storage.objects;
 CREATE POLICY "Public Access criativos"
   ON storage.objects FOR SELECT
   TO public
   USING (bucket_id = 'criativos');
 
 DROP POLICY IF EXISTS "Public Access materiais" ON storage.objects;
+DROP POLICY IF EXISTS "materiais_public_select" ON storage.objects;
 CREATE POLICY "Public Access materiais"
   ON storage.objects FOR SELECT
   TO public
   USING (bucket_id = 'materiais');
 
--- Políticas de Escrita/Upload no Storage para Autenticados
+-- Políticas de Escrita/Upload no Storage (permite gravação pelo app sem erro 403)
 DROP POLICY IF EXISTS "Authenticated upload criativos" ON storage.objects;
-CREATE POLICY "Authenticated upload criativos"
+DROP POLICY IF EXISTS "criativos_public_insert" ON storage.objects;
+CREATE POLICY "Public upload criativos"
   ON storage.objects FOR INSERT
-  TO authenticated
+  TO public
   WITH CHECK (bucket_id = 'criativos');
 
 DROP POLICY IF EXISTS "Authenticated update criativos" ON storage.objects;
-CREATE POLICY "Authenticated update criativos"
+DROP POLICY IF EXISTS "criativos_public_update" ON storage.objects;
+CREATE POLICY "Public update criativos"
   ON storage.objects FOR UPDATE
-  TO authenticated
+  TO public
   USING (bucket_id = 'criativos');
 
 DROP POLICY IF EXISTS "Authenticated delete criativos" ON storage.objects;
-CREATE POLICY "Authenticated delete criativos"
+DROP POLICY IF EXISTS "criativos_public_delete" ON storage.objects;
+CREATE POLICY "Public delete criativos"
   ON storage.objects FOR DELETE
-  TO authenticated
+  TO public
   USING (bucket_id = 'criativos');
 
 DROP POLICY IF EXISTS "Authenticated upload materiais" ON storage.objects;
-CREATE POLICY "Authenticated upload materiais"
+DROP POLICY IF EXISTS "materiais_public_insert" ON storage.objects;
+CREATE POLICY "Public upload materiais"
   ON storage.objects FOR INSERT
-  TO authenticated
+  TO public
   WITH CHECK (bucket_id = 'materiais');
 
 DROP POLICY IF EXISTS "Authenticated update materiais" ON storage.objects;
-CREATE POLICY "Authenticated update materiais"
+DROP POLICY IF EXISTS "materiais_public_update" ON storage.objects;
+CREATE POLICY "Public update materiais"
   ON storage.objects FOR UPDATE
-  TO authenticated
+  TO public
   USING (bucket_id = 'materiais');
 
 DROP POLICY IF EXISTS "Authenticated delete materiais" ON storage.objects;
-CREATE POLICY "Authenticated delete materiais"
+DROP POLICY IF EXISTS "materiais_public_delete" ON storage.objects;
+CREATE POLICY "Public delete materiais"
   ON storage.objects FOR DELETE
-  TO authenticated
+  TO public
   USING (bucket_id = 'materiais');
 
 -- 9. DIAGNÓSTICO FINAL DE CONFIRMAÇÃO

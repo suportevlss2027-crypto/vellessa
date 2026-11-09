@@ -19,6 +19,31 @@ export interface CreativeUploadResult {
 }
 
 /**
+ * Detecta de forma estrita o tipo MIME do arquivo baseado no tipo ou na extensão.
+ */
+export function getFileMimeType(file: File | { name: string; type?: string }): string {
+  if (file.type && file.type !== "application/octet-stream" && file.type.trim() !== "") {
+    return file.type;
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "mp4": return "video/mp4";
+    case "webm": return "video/webm";
+    case "mov": return "video/quicktime";
+    case "m4v": return "video/x-m4v";
+    case "png": return "image/png";
+    case "jpg":
+    case "jpeg": return "image/jpeg";
+    case "webp": return "image/webp";
+    case "gif": return "image/gif";
+    case "svg": return "image/svg+xml";
+    case "pdf": return "application/pdf";
+    case "zip": return "application/zip";
+    default: return file.type || "application/octet-stream";
+  }
+}
+
+/**
  * Converte DataURL base64 para Blob
  */
 function dataUrlToBlob(dataUrl: string): Blob | null {
@@ -48,6 +73,8 @@ export async function uploadCreativeFile(
   id: string,
   file: File
 ): Promise<CreativeUploadResult> {
+  const detectedMime = getFileMimeType(file);
+
   // Tentativa 1: Supabase Storage
   if (isSupabaseConfigured && supabase) {
     try {
@@ -59,12 +86,18 @@ export async function uploadCreativeFile(
         .upload(path, file, {
           cacheControl: "3600",
           upsert: true,
+          contentType: detectedMime,
         });
 
       if (!error && data) {
         const { data: pubData } = supabase.storage
           .from(BUCKET_NAME)
           .getPublicUrl(path);
+
+        // Salva cópia de segurança local no IndexedDB (Zero-Loss Offline Cache)
+        try {
+          await storeRawFile(id, file);
+        } catch {}
 
         return {
           fileUrl: pubData.publicUrl,
@@ -156,7 +189,19 @@ export async function uploadCreativeToSupabase(
   if (!isSupabaseConfigured || !supabase) return null;
 
   try {
-    const rawExt = fileOrBlob.type.split("/")[1] || (fileOrBlob.type.includes("video") ? "mp4" : "jpg");
+    let mime = fileOrBlob.type || "";
+    if (!mime || mime === "application/octet-stream") {
+      const name = originalName || "";
+      const ext = name.split(".").pop()?.toLowerCase();
+      if (ext === "mp4") mime = "video/mp4";
+      else if (ext === "webm") mime = "video/webm";
+      else if (ext === "mov") mime = "video/quicktime";
+      else if (ext === "png") mime = "image/png";
+      else if (ext === "jpg" || ext === "jpeg") mime = "image/jpeg";
+      else mime = "application/octet-stream";
+    }
+
+    const rawExt = mime.split("/")[1] || (mime.includes("video") ? "mp4" : "jpg");
     const cleanExt = rawExt === "jpeg" ? "jpg" : rawExt.replace(/[^a-zA-Z0-9]/g, "");
     const cleanName = (originalName || `${id}.${cleanExt}`).replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `files/${id}_${cleanName}`;
@@ -166,7 +211,7 @@ export async function uploadCreativeToSupabase(
       .upload(path, fileOrBlob, {
         cacheControl: "86400",
         upsert: true,
-        contentType: fileOrBlob.type || (cleanExt === "mp4" ? "video/mp4" : "image/jpeg"),
+        contentType: mime || (cleanExt === "mp4" ? "video/mp4" : "image/jpeg"),
       });
 
     if (error) {
@@ -181,6 +226,24 @@ export async function uploadCreativeToSupabase(
     return pubData.publicUrl || null;
   } catch (err) {
     console.error("[CreativeStorage] Erro no upload para Supabase:", err);
+    return null;
+  }
+}
+
+/**
+ * Tenta migrar um criativo armazenado localmente em IndexedDB para o Supabase Storage.
+ * Retorna a URL pública em nuvem se conseguir, ou null se não conseguir.
+ */
+export async function uploadIndexedDbCreativeToCloud(
+  id: string,
+  title?: string
+): Promise<string | null> {
+  try {
+    const rawBlob = await getRawFile(id);
+    if (!rawBlob) return null;
+    return await uploadCreativeToSupabase(id, rawBlob, title);
+  } catch (err) {
+    console.warn(`[CreativeStorage] Falha ao ler IndexedDB para migrar ${id}:`, err);
     return null;
   }
 }

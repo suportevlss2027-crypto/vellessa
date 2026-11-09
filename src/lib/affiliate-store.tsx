@@ -19,7 +19,7 @@ import {
 } from "@/data/content";
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
 import { storeRawFile, getRawFile, deleteRawFile, deleteRawFiles, uploadMaterialToSupabase } from "./file-storage";
-import { deleteCreativeAssets, deleteBatchCreativeAssets, uploadCreativeToSupabase } from "./creative-storage";
+import { deleteCreativeAssets, deleteBatchCreativeAssets, uploadCreativeToSupabase, uploadIndexedDbCreativeToCloud } from "./creative-storage";
 
 export interface AffiliateProfile {
   name: string;
@@ -1095,7 +1095,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
           const effectivePhone = dbProfile.phone?.trim() || localSavedRaw?.phone?.trim() || "";
           const hasValidPhone = Boolean(effectivePhone && effectivePhone.length >= 10);
-          const isDone = dbProfile.onboarding_completed === true || isLocallyMarkedDone || (hasValidPhone && dbProfile.onboarding_completed !== false);
+          const isAdminUser = dbProfile.role === "admin" || isSuperAdmin(session.user.email);
+          const isDone = isAdminUser || dbProfile.onboarding_completed === true || isLocallyMarkedDone || (hasValidPhone && dbProfile.onboarding_completed !== false);
 
           // Auto-cura: se o telefone foi preenchido localmente mas ainda não gravou no Supabase, envia agora
           if (!dbProfile.phone && effectivePhone && hasValidPhone) {
@@ -1118,7 +1119,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             level: dbProfile.level || "Afiliado Ouro",
             phone: effectivePhone,
             instagram: dbProfile.instagram || "",
-            role: dbProfile.role === "admin" ? "admin" : "affiliate",
+            role: isAdminUser ? "admin" : (dbProfile.role === "admin" ? "admin" : "affiliate"),
             status: dbProfile.status || "active",
             pix_key: dbProfile.pix_key || "",
             onboardingCompleted: isDone,
@@ -1138,15 +1139,17 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           const selfAffiliateCode = `VLS-${session.user.id.slice(0, 5).toUpperCase()}`;
           const rawName = (session.user.user_metadata?.name as string) || session.user.email?.split("@")[0] || "Afiliado";
           const userRole = isSuperAdmin(session.user.email) ? "admin" : "affiliate";
+          const isOrphanDone = userRole === "admin" || isLocallyMarkedDone;
           const fallbackProf: AffiliateProfile = {
             id: selfAffiliateCode,
             name: rawName,
             first: rawName.split(" ")[0] || rawName,
             email: session.user.email || "",
             level: "Afiliado(a) Ouro",
-            phone: "",
+            phone: localSavedRaw?.phone || "",
             instagram: "",
             role: userRole,
+            onboardingCompleted: isOrphanDone,
           };
           setProfile(fallbackProf);
           recordAffiliateAccess(fallbackProf);
@@ -1257,15 +1260,25 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         } catch {}
       }
 
-      // 2. Sincronização de Criativos
+      // 2. Sincronização de Criativos (Zero-Data-Loss & Cross-Device Merge)
       const { data: dbCreatives, error: creativesErr } = await supabase
         .from("creatives")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (!creativesErr && dbCreatives) {
-        // Exibe os criativos do banco IMEDIATAMENTE (Zero-Lag na Main Thread)
-        const formattedCreatives: Creative[] = dbCreatives.map((c: any) => ({
+        // Lê os criativos locais ANTES de qualquer alteração de estado para evitar perda de dados
+        const currentLocalCreatives = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.CREATIVES);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+        const localList: Creative[] = Array.isArray(currentLocalCreatives) ? currentLocalCreatives : [];
+
+        const formattedRemote: Creative[] = dbCreatives.map((c: any) => ({
           id: c.id,
           title: c.title,
           type: c.type,
@@ -1281,52 +1294,73 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           storagePath: c.storage_path || undefined,
         }));
 
-        setCreativesList(formattedCreatives);
+        const dbCreativeMap = new Map(formattedRemote.map((c) => [c.id, c]));
+
+        // Identifica criativos locais que ainda não estão no banco (Zero Data Loss)
+        const localOnly = localList.filter((lc) => !dbCreativeMap.has(lc.id));
+
+        // Mesclagem segura: preserva locais pendentes no topo + registros do banco
+        const mergedList: Creative[] = [
+          ...localOnly,
+          ...formattedRemote.map((rc) => {
+            const localMatch = localList.find((lc) => lc.id === rc.id);
+            // Se o banco não tiver fileUrl mas o local tiver (ou tiver fallback), preserva
+            if (localMatch && !rc.fileUrl && localMatch.fileUrl) {
+              return { ...rc, fileUrl: localMatch.fileUrl, storageType: localMatch.storageType };
+            }
+            return rc;
+          }),
+        ];
+
+        // Atualiza IMEDIATAMENTE a UI e o cache com a lista mesclada (nenhum criativo é apagado)
+        setCreativesList(mergedList);
         try {
-          localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(formattedCreatives));
+          localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(mergedList));
         } catch {}
 
-        // Migração em fila não-bloqueante (executada no tempo ocioso do navegador)
-        setTimeout(async () => {
-          try {
-            const raw = localStorage.getItem(STORAGE_KEYS.CREATIVES);
-            const currentLocalCreatives = raw ? JSON.parse(raw) : [];
-            const dbCreativeMap = new Map(dbCreatives.map((c: any) => [c.id, c]));
-            const pendingMigrate = Array.isArray(currentLocalCreatives)
-              ? currentLocalCreatives.filter((c: any) => {
-                  const inDb = dbCreativeMap.get(c.id);
-                  const isLocalOnly = !inDb;
-                  const needsCloudUpload = Boolean(
-                    c.fileUrl?.startsWith("indexeddb://") || 
-                    (!inDb?.file_url && c.fileUrl) ||
-                    (inDb?.file_url?.startsWith("indexeddb://"))
-                  );
-                  return isLocalOnly || needsCloudUpload;
-                })
-              : [];
+        // Migração em segundo plano: envia para o Supabase Storage qualquer arquivo que esteja apenas local
+        const itemsToMigrate = mergedList.filter((c) => {
+          const inDb = dbCreativeMap.get(c.id);
+          const notInDb = !inDb;
+          const hasIndexedDbUrl = Boolean(c.fileUrl?.startsWith("indexeddb://") || inDb?.fileUrl?.startsWith("indexeddb://"));
+          return notInDb || hasIndexedDbUrl;
+        });
 
-            if (pendingMigrate.length > 0) {
-              const rowsToInsert = [];
-              const itemsToProcess = force ? pendingMigrate : pendingMigrate.slice(0, 25);
-              let hasNewCloudUrls = false;
+        if (itemsToMigrate.length > 0) {
+          (async () => {
+            let hasNewCloudUrls = false;
+            const updatedMerged = [...mergedList];
 
-              for (const c of itemsToProcess) {
-                let fileUrl = c.fileUrl;
-                if ((!fileUrl || fileUrl.startsWith("indexeddb://")) && c.id) {
-                  try {
-                    const blob = await getRawFile(c.id);
-                    if (blob) {
-                      const cloudUrl = await uploadCreativeToSupabase(c.id, blob, c.title);
-                      if (cloudUrl) {
-                        fileUrl = cloudUrl;
-                        c.fileUrl = cloudUrl;
-                        c.storageType = "supabase";
-                        hasNewCloudUrls = true;
-                      }
+            for (const c of itemsToMigrate) {
+              let activeFileUrl = c.fileUrl;
+              let activeStorageType = c.storageType || "supabase";
+
+              // Se o arquivo está no IndexedDB, faz upload agora para o Supabase Storage
+              if (c.id && (!activeFileUrl || activeFileUrl.startsWith("indexeddb://"))) {
+                try {
+                  const cloudUrl = await uploadIndexedDbCreativeToCloud(c.id, c.title);
+                  if (cloudUrl) {
+                    activeFileUrl = cloudUrl;
+                    activeStorageType = "supabase";
+                    hasNewCloudUrls = true;
+
+                    const idx = updatedMerged.findIndex((m) => m.id === c.id);
+                    if (idx !== -1) {
+                      updatedMerged[idx] = {
+                        ...updatedMerged[idx],
+                        fileUrl: cloudUrl,
+                        storageType: "supabase",
+                      };
                     }
-                  } catch {}
+                  }
+                } catch (upErr) {
+                  console.warn(`[AffiliateStore] Falha ao migrar arquivo do criativo ${c.id}:`, upErr);
                 }
-                rowsToInsert.push({
+              }
+
+              // Salva o registro completo no Supabase
+              try {
+                await supabase.from("creatives").upsert({
                   id: c.id,
                   title: c.title,
                   type: c.type,
@@ -1334,26 +1368,26 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
                   image: c.image || null,
                   text: c.text || null,
                   folder_id: c.folderId || null,
-                  file_url: fileUrl || null,
+                  file_url: activeFileUrl || null,
                   external_download_url: c.externalDownloadUrl || null,
                   file_type: c.fileType || null,
                   file_size: c.fileSize || null,
-                  storage_type: fileUrl && !fileUrl.startsWith("indexeddb://") ? "supabase" : (c.storageType || "supabase"),
+                  storage_type: activeStorageType,
                   storage_path: c.storagePath || null,
                 });
-              }
-
-              if (rowsToInsert.length > 0) {
-                await supabase.from("creatives").upsert(rowsToInsert);
-                if (hasNewCloudUrls) {
-                  try {
-                    localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(currentLocalCreatives));
-                  } catch {}
-                }
+              } catch (dbErr) {
+                console.warn(`[AffiliateStore] Falha ao persistir criativo ${c.id} no Supabase:`, dbErr);
               }
             }
-          } catch {}
-        }, 1200);
+
+            if (hasNewCloudUrls) {
+              setCreativesList(updatedMerged);
+              try {
+                localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updatedMerged));
+              } catch {}
+            }
+          })().catch(() => {});
+        }
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização com Supabase:", err);
@@ -1420,14 +1454,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         } catch {}
       }
 
-      // 2. Sincronização de Materiais e Arquivos Oficiais
+      // 2. Sincronização de Materiais e Arquivos Oficiais (Zero-Data-Loss Merge)
       const { data: dbMaterials, error: matErr } = await supabase
         .from("materials")
         .select("*")
         .order("order_index", { ascending: true });
 
       if (!matErr && dbMaterials) {
-        // Exibe os materiais do banco IMEDIATAMENTE (Zero-Lag)
+        // Lê os materiais locais ANTES de atualizar para não apagar arquivos locais
+        const currentLocalMaterials = (() => {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEYS.MATERIALS);
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+        const localList: DynamicMaterial[] = Array.isArray(currentLocalMaterials) ? currentLocalMaterials : [];
+
         const formattedMaterials: DynamicMaterial[] = dbMaterials.map((m: any) => ({
           id: m.id,
           title: m.title,
@@ -1441,55 +1485,65 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           files: m.files || undefined,
         }));
 
-        setMaterialsList(formattedMaterials);
+        const dbMaterialMap = new Map(formattedMaterials.map((m) => [m.id, m]));
+        const localOnlyMaterials = localList.filter((lm) => !dbMaterialMap.has(lm.id));
+
+        const mergedMaterials: DynamicMaterial[] = [
+          ...localOnlyMaterials,
+          ...formattedMaterials.map((rm) => {
+            const localMatch = localList.find((lm) => lm.id === rm.id);
+            if (localMatch && !rm.file_url && localMatch.file_url) {
+              return { ...rm, file_url: localMatch.file_url };
+            }
+            return rm;
+          }),
+        ];
+
+        setMaterialsList(mergedMaterials);
         try {
-          localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(formattedMaterials));
+          localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(mergedMaterials));
         } catch {}
 
-        // Migração de materiais locais em fila não-bloqueante
-        setTimeout(async () => {
-          try {
-            const raw = localStorage.getItem(STORAGE_KEYS.MATERIALS);
-            const currentLocalMaterials = raw ? JSON.parse(raw) : [];
-            const dbMaterialMap = new Map(dbMaterials.map((m: any) => [m.id, m]));
-            const localMaterialsToSync = Array.isArray(currentLocalMaterials)
-              ? currentLocalMaterials.filter((m: any) => !dbMaterialMap.has(m.id || m.title))
-              : [];
+        // Migração de materiais locais pendentes
+        const pendingMaterials = mergedMaterials.filter((m) => {
+          const inDb = dbMaterialMap.get(m.id);
+          return !inDb || (!inDb.file_url && m.file_url);
+        });
 
-            if (localMaterialsToSync.length > 0) {
-              const rowsToInsert = [];
-              for (const m of localMaterialsToSync.slice(0, 10)) {
-                const matId = m.id || `mat-${Date.now()}`;
-                let fileUrl = m.file_url || null;
-                if (!fileUrl && (m.sourceType === "upload" || m.rawFileName)) {
-                  try {
-                    const blob = await getRawFile(matId);
-                    if (blob) {
-                      const uploadedUrl = await uploadMaterialToSupabase(matId, blob, m.rawFileName);
-                      if (uploadedUrl) fileUrl = uploadedUrl;
-                    }
-                  } catch {}
-                }
-                rowsToInsert.push({
-                  id: matId,
-                  title: m.title,
-                  kind: m.kind,
-                  size: m.size,
-                  file_url: fileUrl,
-                  raw_file_name: m.rawFileName || null,
-                  source_type: m.sourceType || "link",
-                  mime_type: m.mimeType || null,
-                  folder_id: m.folderId || null,
-                  files: m.files || null,
-                  order_index: 0,
-                });
+        if (pendingMaterials.length > 0) {
+          (async () => {
+            const rowsToInsert = [];
+            for (const m of pendingMaterials) {
+              const matId = m.id || `mat-${Date.now()}`;
+              let fileUrl = m.file_url || null;
+              if (!fileUrl && (m.sourceType === "upload" || m.rawFileName)) {
+                try {
+                  const blob = await getRawFile(matId);
+                  if (blob) {
+                    const uploadedUrl = await uploadMaterialToSupabase(matId, blob, m.rawFileName);
+                    if (uploadedUrl) fileUrl = uploadedUrl;
+                  }
+                } catch {}
               }
-              if (rowsToInsert.length > 0) {
-                await supabase.from("materials").upsert(rowsToInsert);
-              }
+              rowsToInsert.push({
+                id: matId,
+                title: m.title,
+                kind: m.kind,
+                size: m.size,
+                file_url: fileUrl,
+                raw_file_name: m.rawFileName || null,
+                source_type: m.sourceType || "link",
+                mime_type: m.mimeType || null,
+                folder_id: m.folderId || null,
+                files: m.files || null,
+                order_index: 0,
+              });
             }
-          } catch {}
-        }, 1500);
+            if (rowsToInsert.length > 0) {
+              await supabase.from("materials").upsert(rowsToInsert);
+            }
+          })().catch(() => {});
+        }
       }
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de materiais com Supabase:", err);
