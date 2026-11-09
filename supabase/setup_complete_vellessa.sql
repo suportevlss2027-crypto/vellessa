@@ -1,17 +1,24 @@
 -- ==============================================================================
--- VELLESSA AFILIADOS - SQL COMPLETO DEFINITIVO (ONBOARDING + CRIATIVOS + STORAGE)
+-- VELLESSA AFILIADOS - SQL COMPLETO DEFINITIVO (CORRIGIDO SEM DEPENDÊNCIAS)
 -- ==============================================================================
--- INSTRUÇÃO:
--- 1. Abra o Supabase Dashboard (https://supabase.com/dashboard)
--- 2. No menu lateral, clique em "SQL Editor"
--- 3. Clique em "+ New query"
--- 4. Cole TODO este código e clique no botão verde "Run" (ou aperte Ctrl+Enter)
+-- Pode apagar TUDO o que estava no SQL Editor e colar este bloco inteiro!
 -- ==============================================================================
 
 -- 1. EXTENSÃO UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. COLUNAS DE ONBOARDING E TRÁFEGO PAGO NA TABELA PROFILES
+-- 2. GARANTIR FUNÇÃO is_admin() ANTES DE QUALQUER POLÍTICA
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- 3. COLUNAS DE ONBOARDING E TRÁFEGO PAGO NA TABELA PROFILES
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS phone                TEXT,
   ADD COLUMN IF NOT EXISTS traffic_experience   TEXT,
@@ -22,14 +29,14 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS onboarding_answers   JSONB,
   ADD COLUMN IF NOT EXISTS pix_key              TEXT;
 
--- Atualizar usuários existentes que já possuíam telefone
+-- Atualizar usuários existentes que já possuíam telefone para liberar acesso
 UPDATE public.profiles
 SET onboarding_completed = TRUE
 WHERE phone IS NOT NULL
   AND LENGTH(TRIM(phone)) >= 10
   AND (onboarding_completed IS NULL OR onboarding_completed = FALSE);
 
--- 3. POLÍTICAS RLS NA TABELA PROFILES (Permitir salvar dados de onboarding)
+-- 4. POLÍTICAS RLS NA TABELA PROFILES (Permissivas e Seguras)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow users to update own profile" ON public.profiles;
@@ -51,10 +58,9 @@ CREATE POLICY "Allow authenticated users to read all profiles"
   TO authenticated
   USING (true);
 
--- 4. TABELA DE GRUPOS/PASTAS DE CRIATIVOS (Kiwify 16:9)
+-- 5. TABELA DE GRUPOS/PASTAS DE CRIATIVOS (Kiwify 16:9)
 CREATE TABLE IF NOT EXISTS public.creative_folders (
   id TEXT PRIMARY KEY,
-  tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
   color TEXT DEFAULT 'gold',
@@ -83,10 +89,9 @@ CREATE POLICY "Admins and authenticated can manage creative folders"
   USING (true)
   WITH CHECK (true);
 
--- 5. TABELA DE CRIATIVOS (Vídeos, Imagens, Reels, Copy)
+-- 6. TABELA DE CRIATIVOS (Vídeos, Imagens, Reels, Copy)
 CREATE TABLE IF NOT EXISTS public.creatives (
   id TEXT PRIMARY KEY,
-  tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   type TEXT NOT NULL,
   format TEXT NOT NULL DEFAULT '1080×1080',
@@ -111,7 +116,7 @@ ALTER TABLE public.creatives ADD COLUMN IF NOT EXISTS file_size TEXT;
 ALTER TABLE public.creatives ADD COLUMN IF NOT EXISTS storage_type TEXT DEFAULT 'supabase';
 ALTER TABLE public.creatives ADD COLUMN IF NOT EXISTS storage_path TEXT;
 
--- Chave estrangeira flexível com ON DELETE SET NULL (nunca bloqueia exclusões)
+-- Chave estrangeira flexível com ON DELETE SET NULL (nunca quebra inserção nem exclusão)
 ALTER TABLE public.creatives DROP CONSTRAINT IF EXISTS creatives_folder_id_fkey;
 ALTER TABLE public.creatives
   ADD CONSTRAINT creatives_folder_id_fkey
@@ -134,7 +139,7 @@ CREATE POLICY "Admins and authenticated can manage creatives"
   USING (true)
   WITH CHECK (true);
 
--- 6. STORAGE BUCKETS PÚBLICOS PARA UPLOADS (criativos e materiais)
+-- 7. STORAGE BUCKETS PÚBLICOS PARA UPLOADS (criativos e materiais)
 INSERT INTO storage.buckets (id, name, public)
 VALUES 
   ('criativos', 'criativos', true),
@@ -191,7 +196,7 @@ CREATE POLICY "Authenticated delete materiais"
   TO authenticated
   USING (bucket_id = 'materiais');
 
--- 7. DIAGNÓSTICO FINAL DE CONFIRMAÇÃO
+-- 8. DIAGNÓSTICO FINAL DE CONFIRMAÇÃO
 SELECT 
   'Banco de dados, tabelas, storage e políticas RLS configurados com sucesso!' AS status,
   (SELECT count(*) FROM public.profiles) AS total_perfis,
