@@ -58,8 +58,8 @@ export interface PlatformFeatureSettings {
 
 export type BillboardTheme = "emerald" | "gold" | "sapphire" | "ruby" | "purple";
 
-export interface BillboardSettings {
-  enabled: boolean;
+export interface BillboardItem {
+  id: string;
   badgeText: string;
   title: string;
   subtitle: string;
@@ -67,6 +67,21 @@ export interface BillboardSettings {
   buttonUrl: string;
   theme: BillboardTheme;
   showPulse: boolean;
+  enabled: boolean;
+}
+
+export interface BillboardSettings {
+  enabled: boolean;
+  intervalSeconds: number;
+  items: BillboardItem[];
+  // Campos legados mantidos para 100% de retrocompatibilidade
+  badgeText?: string;
+  title?: string;
+  subtitle?: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  theme?: BillboardTheme;
+  showPulse?: boolean;
 }
 
 export interface AnnouncementItem {
@@ -395,8 +410,46 @@ export const DEFAULT_FEATURE_SETTINGS: PlatformFeatureSettings = {
   communityEnabled: false,
 };
 
+export const DEFAULT_BILLBOARD_ITEMS: BillboardItem[] = [
+  {
+    id: "item-logzz",
+    badgeText: "LQZZ",
+    title: "Parceria Oficial Logzz COD",
+    subtitle: "Até 60% de comissão via Pix no checkout oficial",
+    buttonText: "Acessar Logzz",
+    buttonUrl: "https://app.logzz.com.br",
+    theme: "emerald",
+    showPulse: true,
+    enabled: true,
+  },
+  {
+    id: "item-escala",
+    badgeText: "ESCALA",
+    title: "Campanha Especial de Frete Grátis Ativa",
+    subtitle: "Aproveite a alta conversão nos kits de 3 e 5 frascos",
+    buttonText: "Ver Ofertas",
+    buttonUrl: "/materiais",
+    theme: "gold",
+    showPulse: true,
+    enabled: true,
+  },
+  {
+    id: "item-criativos",
+    badgeText: "NOVO",
+    title: "Novos Criativos em Alta Resolução Disponíveis",
+    subtitle: "Vídeos e imagens validados para anúncios de alta conversão",
+    buttonText: "Baixar Peças",
+    buttonUrl: "/criativos",
+    theme: "sapphire",
+    showPulse: true,
+    enabled: true,
+  },
+];
+
 export const DEFAULT_BILLBOARD_SETTINGS: BillboardSettings = {
   enabled: true,
+  intervalSeconds: 5,
+  items: DEFAULT_BILLBOARD_ITEMS,
   badgeText: "LQZZ",
   title: "Parceria Oficial Logzz COD",
   subtitle: "Até 60% de comissão via Pix no checkout oficial",
@@ -406,11 +459,68 @@ export const DEFAULT_BILLBOARD_SETTINGS: BillboardSettings = {
   showPulse: true,
 };
 
+export function normalizeBillboardSettings(raw: any): BillboardSettings {
+  if (!raw || typeof raw !== "object") return DEFAULT_BILLBOARD_SETTINGS;
+
+  const intervalSeconds =
+    typeof raw.intervalSeconds === "number" && raw.intervalSeconds >= 2
+      ? raw.intervalSeconds
+      : 5;
+
+  let items: BillboardItem[] = [];
+
+  if (Array.isArray(raw.items) && raw.items.length > 0) {
+    items = raw.items.map((it: any, idx: number) => ({
+      id: it.id || `item-${Date.now()}-${idx}`,
+      badgeText: (it.badgeText || "AVISO").slice(0, 12),
+      title: it.title || "Título do Outdoor",
+      subtitle: it.subtitle || "",
+      buttonText: it.buttonText || "Acessar",
+      buttonUrl: it.buttonUrl || "",
+      theme: (it.theme as BillboardTheme) || "emerald",
+      showPulse: it.showPulse !== false,
+      enabled: it.enabled !== false,
+    }));
+  } else if (raw.title) {
+    items = [
+      {
+        id: "item-legacy",
+        badgeText: (raw.badgeText || "LQZZ").slice(0, 12),
+        title: raw.title,
+        subtitle: raw.subtitle || "",
+        buttonText: raw.buttonText || "Acessar",
+        buttonUrl: raw.buttonUrl || "",
+        theme: (raw.theme as BillboardTheme) || "emerald",
+        showPulse: raw.showPulse !== false,
+        enabled: raw.enabled !== false,
+      },
+    ];
+  } else {
+    items = DEFAULT_BILLBOARD_ITEMS;
+  }
+
+  const firstItem = items[0] || DEFAULT_BILLBOARD_ITEMS[0];
+
+  return {
+    enabled: raw.enabled !== false,
+    intervalSeconds,
+    items,
+    badgeText: firstItem.badgeText,
+    title: firstItem.title,
+    subtitle: firstItem.subtitle,
+    buttonText: firstItem.buttonText,
+    buttonUrl: firstItem.buttonUrl,
+    theme: firstItem.theme,
+    showPulse: firstItem.showPulse,
+  };
+}
+
 export interface BillboardPreset {
   id: string;
   label: string;
   tag: string;
   description: string;
+  item: Omit<BillboardItem, "id" | "enabled">;
   settings: BillboardSettings;
 }
 
@@ -420,8 +530,31 @@ export const BILLBOARD_PRESETS: BillboardPreset[] = [
     label: "Parceria Logzz COD",
     tag: "LQZZ",
     description: "Checkout COD oficial e comissões Pix de até 60%",
+    item: {
+      badgeText: "LQZZ",
+      title: "Parceria Oficial Logzz COD",
+      subtitle: "Até 60% de comissão via Pix no checkout oficial",
+      buttonText: "Acessar Logzz",
+      buttonUrl: "https://app.logzz.com.br",
+      theme: "emerald",
+      showPulse: true,
+    },
     settings: {
       enabled: true,
+      intervalSeconds: 5,
+      items: [
+        {
+          id: "logzz-item",
+          badgeText: "LQZZ",
+          title: "Parceria Oficial Logzz COD",
+          subtitle: "Até 60% de comissão via Pix no checkout oficial",
+          buttonText: "Acessar Logzz",
+          buttonUrl: "https://app.logzz.com.br",
+          theme: "emerald",
+          showPulse: true,
+          enabled: true,
+        },
+      ],
       badgeText: "LQZZ",
       title: "Parceria Oficial Logzz COD",
       subtitle: "Até 60% de comissão via Pix no checkout oficial",
@@ -436,8 +569,31 @@ export const BILLBOARD_PRESETS: BillboardPreset[] = [
     label: "Campanha de Escala",
     tag: "ESCALA",
     description: "Frete grátis e kits com maior margem de lucro",
+    item: {
+      badgeText: "ESCALA",
+      title: "Campanha Especial de Frete Grátis Ativa",
+      subtitle: "Aproveite a alta conversão nos kits de 3 e 5 frascos",
+      buttonText: "Ver Ofertas",
+      buttonUrl: "/materiais",
+      theme: "gold",
+      showPulse: true,
+    },
     settings: {
       enabled: true,
+      intervalSeconds: 5,
+      items: [
+        {
+          id: "campaign-item",
+          badgeText: "ESCALA",
+          title: "Campanha Especial de Frete Grátis Ativa",
+          subtitle: "Aproveite a alta conversão nos kits de 3 e 5 frascos",
+          buttonText: "Ver Ofertas",
+          buttonUrl: "/materiais",
+          theme: "gold",
+          showPulse: true,
+          enabled: true,
+        },
+      ],
       badgeText: "ESCALA",
       title: "Campanha Especial de Frete Grátis Ativa",
       subtitle: "Aproveite a alta conversão nos kits de 3 e 5 frascos",
@@ -452,8 +608,31 @@ export const BILLBOARD_PRESETS: BillboardPreset[] = [
     label: "Novos Criativos",
     tag: "NOVO",
     description: "Vídeos e imagens validados para tráfego pago",
+    item: {
+      badgeText: "NOVO",
+      title: "Novos Criativos em Alta Resolução Disponíveis",
+      subtitle: "Vídeos e imagens validados para anúncios de alta conversão",
+      buttonText: "Baixar Peças",
+      buttonUrl: "/criativos",
+      theme: "sapphire",
+      showPulse: true,
+    },
     settings: {
       enabled: true,
+      intervalSeconds: 5,
+      items: [
+        {
+          id: "creatives-item",
+          badgeText: "NOVO",
+          title: "Novos Criativos em Alta Resolução Disponíveis",
+          subtitle: "Vídeos e imagens validados para anúncios de alta conversão",
+          buttonText: "Baixar Peças",
+          buttonUrl: "/criativos",
+          theme: "sapphire",
+          showPulse: true,
+          enabled: true,
+        },
+      ],
       badgeText: "NOVO",
       title: "Novos Criativos em Alta Resolução Disponíveis",
       subtitle: "Vídeos e imagens validados para anúncios de alta conversão",
@@ -468,8 +647,31 @@ export const BILLBOARD_PRESETS: BillboardPreset[] = [
     label: "Aviso Urgente",
     tag: "AVISO",
     description: "Comunicados cruciais da gerência para todos os afiliados",
+    item: {
+      badgeText: "AVISO",
+      title: "Comunicado Oficial da Operação Vellessa",
+      subtitle: "Informações importantes sobre estoque e processamento",
+      buttonText: "Ler Comunicado",
+      buttonUrl: "/comunidade",
+      theme: "ruby",
+      showPulse: true,
+    },
     settings: {
       enabled: true,
+      intervalSeconds: 5,
+      items: [
+        {
+          id: "urgent-item",
+          badgeText: "AVISO",
+          title: "Comunicado Oficial da Operação Vellessa",
+          subtitle: "Informações importantes sobre estoque e processamento",
+          buttonText: "Ler Comunicado",
+          buttonUrl: "/comunidade",
+          theme: "ruby",
+          showPulse: true,
+          enabled: true,
+        },
+      ],
       badgeText: "AVISO",
       title: "Comunicado Oficial da Operação Vellessa",
       subtitle: "Informações importantes sobre estoque e processamento",
@@ -1627,15 +1829,16 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       if (!error && rows) {
         const billboardRow = rows.find((r: any) => r.key === "billboard_settings");
         if (billboardRow && billboardRow.value) {
-          setBillboardSettings(billboardRow.value);
+          const normalized = normalizeBillboardSettings(billboardRow.value);
+          setBillboardSettings(normalized);
           try {
-            localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(billboardRow.value));
+            localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(normalized));
           } catch {}
         } else {
           const localBb = (() => {
             try {
               const raw = localStorage.getItem(STORAGE_KEYS.BILLBOARD_SETTINGS);
-              return raw ? JSON.parse(raw) : null;
+              return raw ? normalizeBillboardSettings(JSON.parse(raw)) : null;
             } catch {
               return null;
             }
@@ -3152,10 +3355,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       const saved = localStorage.getItem(STORAGE_KEYS.BILLBOARD_SETTINGS);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          ...DEFAULT_BILLBOARD_SETTINGS,
-          ...parsed,
-        };
+        return normalizeBillboardSettings(parsed);
       }
     } catch (e) {
       console.error(e);
@@ -3165,7 +3365,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
   const updateBillboardSettings = useCallback((settings: Partial<BillboardSettings>) => {
     setBillboardSettings((prev) => {
-      const next = { ...prev, ...settings };
+      const rawNext = { ...prev, ...settings };
+      const next = normalizeBillboardSettings(rawNext);
       try {
         localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(next));
       } catch {}
@@ -3176,7 +3377,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           updated_at: new Date().toISOString(),
         }).then(() => {}).catch(() => {});
       }
-      toast.success("Outdoor do painel atualizado com sucesso!");
+      toast.success("Outdoors do painel atualizados com sucesso!");
       return next;
     });
   }, []);
@@ -3193,7 +3394,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         updated_at: new Date().toISOString(),
       }).then(() => {}).catch(() => {});
     }
-    toast.info("Outdoor restaurado para o padrão Logzz.");
+    toast.info("Outdoors restaurados para o padrão de luxo.");
   }, []);
 
   // 7. Community Posts

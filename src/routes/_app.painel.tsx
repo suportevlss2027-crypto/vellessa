@@ -1,6 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef } from "react";
-import { ArrowUpRight, BookOpen, CheckCircle, CheckCircle2, Image, Link2, Pin, Play, ShieldCheck, Sparkles, TrendingUp, Users } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowUpRight,
+  BookOpen,
+  CheckCircle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Image,
+  Link2,
+  Pin,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { ProgressBar } from "@/components/AppShell";
 import { useAffiliateStore, BILLBOARD_THEMES } from "@/lib/affiliate-store";
 
@@ -57,8 +72,55 @@ function Dashboard() {
     return () => observer.disconnect();
   }, []);
 
-  const billboardTheme =
-    BILLBOARD_THEMES[billboardSettings?.theme || "emerald"] || BILLBOARD_THEMES.emerald;
+  // Carrossel de Outdoors Dinâmicos
+  const activeBillboardItems = useMemo(() => {
+    if (!billboardSettings?.enabled) return [];
+    if (Array.isArray(billboardSettings.items) && billboardSettings.items.length > 0) {
+      return billboardSettings.items.filter((it) => it.enabled !== false);
+    }
+    if (billboardSettings?.title) {
+      return [
+        {
+          id: "legacy",
+          badgeText: billboardSettings.badgeText || "AVISO",
+          title: billboardSettings.title,
+          subtitle: billboardSettings.subtitle || "",
+          buttonText: billboardSettings.buttonText || "Acessar",
+          buttonUrl: billboardSettings.buttonUrl || "",
+          theme: billboardSettings.theme || "emerald",
+          showPulse: billboardSettings.showPulse !== false,
+          enabled: true,
+        },
+      ];
+    }
+    return [];
+  }, [billboardSettings]);
+
+  const [currentBillboardIndex, setCurrentBillboardIndex] = useState(0);
+  const [isBillboardHovered, setIsBillboardHovered] = useState(false);
+
+  // Auto-rotação com o tempo definido na configuração (intervalSeconds)
+  useEffect(() => {
+    if (activeBillboardItems.length <= 1 || isBillboardHovered) return;
+
+    const intervalTime = Math.max(2, billboardSettings?.intervalSeconds || 5) * 1000;
+    const timer = setInterval(() => {
+      setCurrentBillboardIndex((prev) => (prev + 1) % activeBillboardItems.length);
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [activeBillboardItems.length, billboardSettings?.intervalSeconds, isBillboardHovered]);
+
+  useEffect(() => {
+    if (currentBillboardIndex >= activeBillboardItems.length && activeBillboardItems.length > 0) {
+      setCurrentBillboardIndex(0);
+    }
+  }, [activeBillboardItems.length, currentBillboardIndex]);
+
+  const currentBillboard = activeBillboardItems[currentBillboardIndex] || activeBillboardItems[0];
+  const billboardTheme = currentBillboard
+    ? BILLBOARD_THEMES[currentBillboard.theme] || BILLBOARD_THEMES.emerald
+    : BILLBOARD_THEMES.emerald;
 
   const shortcuts = useMemo(
     () => [
@@ -113,49 +175,108 @@ function Dashboard() {
                 : `Você concluiu ${progressPercentage}% da jornada oficial. Continue de onde parou e prepare suas próximas campanhas.`}
             </p>
 
-            {/* Outdoor Promocional Dinâmico (Configurável no Painel Admin) */}
-            {billboardSettings?.enabled && (
+            {/* Outdoor Promocional em Carrossel Dinâmico (Configurável no Painel Admin) */}
+            {activeBillboardItems.length > 0 && currentBillboard && (
               <div
-                className={`mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-3.5 backdrop-blur-md shadow-lg transition-all duration-300 max-w-lg ${billboardTheme.border} ${billboardTheme.bg}`}
-                style={{ boxShadow: `0 8px 24px -6px ${billboardTheme.glow}` }}
+                className="mt-4 max-w-lg group relative"
+                onMouseEnter={() => setIsBillboardHovered(true)}
+                onMouseLeave={() => setIsBillboardHovered(false)}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl shadow-xs font-display text-[9px] font-black tracking-tight ${billboardTheme.badgeBg} ${billboardTheme.badgeText}`}
-                  >
-                    {billboardSettings.badgeText || "AVISO"}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-bold text-white tracking-tight truncate">
-                        {billboardSettings.title}
-                      </p>
-                      {billboardSettings.showPulse && (
-                        <span className="relative flex h-2 w-2 shrink-0 ml-2">
-                          <span
-                            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${billboardTheme.pulseColor}`}
-                          />
-                          <span
-                            className={`relative inline-flex rounded-full h-2 w-2 ${billboardTheme.pulseColor}`}
-                          />
-                        </span>
-                      )}
+                <div
+                  key={currentBillboard.id || currentBillboardIndex}
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-3.5 backdrop-blur-md shadow-lg transition-all duration-300 animate-in fade-in duration-300 ${billboardTheme.border} ${billboardTheme.bg}`}
+                  style={{ boxShadow: `0 8px 24px -6px ${billboardTheme.glow}` }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 pr-6 sm:pr-0">
+                    <div
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl shadow-xs font-display text-[9px] font-black tracking-tight ${billboardTheme.badgeBg} ${billboardTheme.badgeText}`}
+                    >
+                      {currentBillboard.badgeText || "AVISO"}
                     </div>
-                    <p className={`text-[11px] font-medium truncate ${billboardTheme.text}`}>
-                      {billboardSettings.subtitle}
-                    </p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold text-white tracking-tight truncate">
+                          {currentBillboard.title}
+                        </p>
+                        {currentBillboard.showPulse && (
+                          <span className="relative flex h-2 w-2 shrink-0 ml-2">
+                            <span
+                              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${billboardTheme.pulseColor}`}
+                            />
+                            <span
+                              className={`relative inline-flex rounded-full h-2 w-2 ${billboardTheme.pulseColor}`}
+                            />
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-[11px] font-medium truncate ${billboardTheme.text}`}>
+                        {currentBillboard.subtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                    {currentBillboard.buttonUrl && (
+                      <a
+                        href={currentBillboard.buttonUrl}
+                        target={currentBillboard.buttonUrl.startsWith("http") ? "_blank" : undefined}
+                        rel={currentBillboard.buttonUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition hover:scale-[1.02] hover:brightness-110 active:scale-95 ${billboardTheme.buttonBg} ${billboardTheme.buttonBorder} ${billboardTheme.buttonText}`}
+                      >
+                        <span>{currentBillboard.buttonText || "Acessar"}</span>
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
                 </div>
-                {billboardSettings.buttonUrl && (
-                  <a
-                    href={billboardSettings.buttonUrl}
-                    target={billboardSettings.buttonUrl.startsWith("http") ? "_blank" : undefined}
-                    rel={billboardSettings.buttonUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition shrink-0 self-start sm:self-auto hover:scale-[1.02] hover:brightness-110 active:scale-95 ${billboardTheme.buttonBg} ${billboardTheme.buttonBorder} ${billboardTheme.buttonText}`}
-                  >
-                    <span>{billboardSettings.buttonText}</span>
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
+
+                {/* Controles Sutis do Carrossel (apenas quando houver mais de 1 outdoor ativo) */}
+                {activeBillboardItems.length > 1 && (
+                  <div className="flex items-center justify-between pt-1.5 px-1">
+                    <div className="flex items-center gap-1">
+                      {activeBillboardItems.map((_, dotIdx) => (
+                        <button
+                          key={dotIdx}
+                          type="button"
+                          onClick={() => setCurrentBillboardIndex(dotIdx)}
+                          className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                            dotIdx === currentBillboardIndex
+                              ? "w-5 bg-gold shadow-xs"
+                              : "w-1.5 bg-white/20 hover:bg-white/40"
+                          }`}
+                          aria-label={`Ir para outdoor ${dotIdx + 1}`}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80 font-mono">
+                      <span>
+                        {currentBillboardIndex + 1}/{activeBillboardItems.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentBillboardIndex(
+                            (prev) => (prev - 1 + activeBillboardItems.length) % activeBillboardItems.length
+                          )
+                        }
+                        className="grid h-4 w-4 place-items-center rounded hover:text-white transition cursor-pointer"
+                        aria-label="Outdoor anterior"
+                      >
+                        <ChevronLeft className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentBillboardIndex((prev) => (prev + 1) % activeBillboardItems.length)
+                        }
+                        className="grid h-4 w-4 place-items-center rounded hover:text-white transition cursor-pointer"
+                        aria-label="Próximo outdoor"
+                      >
+                        <ChevronRight className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

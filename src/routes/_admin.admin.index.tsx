@@ -320,7 +320,9 @@ function AdminDashboard() {
                 {billboardSettings.enabled ? "Ativo no Painel" : "Desativado"}
               </span>
               <span className="text-[10px] font-semibold text-gold">
-                Tema: {BILLBOARD_THEMES[billboardSettings.theme]?.name}
+                {(billboardSettings.items || []).filter(i => i.enabled).length > 1
+                  ? `Carrossel: ${(billboardSettings.items || []).filter(i => i.enabled).length} outdoors (${billboardSettings.intervalSeconds || 5}s)`
+                  : `Tema: ${BILLBOARD_THEMES[billboardSettings.theme || 'emerald']?.name || 'Esmeralda'}`}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
