@@ -248,6 +248,137 @@ export async function uploadIndexedDbCreativeToCloud(
   }
 }
 
+// ─── GOOGLE DRIVE IMPORT UTILITIES ───────────────────────────────────────────
+
+export type DriveItemType = "video" | "image" | "unknown";
+
+export interface DriveImportItem {
+  id: string;
+  originalUrl: string;
+  driveFileId: string;
+  embedUrl: string;
+  thumbnailUrl: string;
+  title: string;
+  type: "Feed" | "Stories" | "Reels" | "Copy";
+  format: string;
+  isVideo: boolean;
+  isValid: boolean;
+  detectedKind: DriveItemType;
+}
+
+/**
+ * Extrai o ID do arquivo do Google Drive de qualquer formato de URL do Drive.
+ * Suporta: /file/d/ID/view, /file/d/ID/edit, open?id=ID
+ * Retorna null para links de pasta (drive/folders/...) ou URLs inválidas.
+ */
+export function getDriveFileId(url: string): string | null {
+  const trimmed = url.trim();
+
+  // Bloqueia links de pasta explicitamente
+  if (/drive\.google\.com\/drive\/folders\//.test(trimmed)) return null;
+
+  // Extrai de formatos: /file/d/ID/... ou open?id=ID ou id=ID
+  const match = trimmed.match(
+    /drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]{10,})|[?&]id=([a-zA-Z0-9_-]{10,})/
+  );
+  if (match) return match[1] || match[2] || null;
+
+  // uc?export=download&id=ID format
+  const ucMatch = trimmed.match(/drive\.google\.com\/uc.*[?&]id=([a-zA-Z0-9_-]{10,})/);
+  if (ucMatch) return ucMatch[1];
+
+  return null;
+}
+
+/**
+ * Verifica se a URL é um link de pasta do Google Drive (não suportado para listagem automática).
+ */
+export function isDriveFolderUrl(url: string): boolean {
+  return /drive\.google\.com\/drive\/folders\//.test(url.trim());
+}
+
+/**
+ * Gera a URL de embed do player do Google Drive para reprodução inline.
+ */
+export function getDriveEmbedUrl(fileId: string): string {
+  return `https://drive.google.com/file/d/${fileId}/preview`;
+}
+
+/**
+ * Gera a URL de thumbnail/miniatura do Google Drive com largura configurável.
+ */
+export function getDriveThumbnailUrl(fileId: string, width = 400): string {
+  return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${width}`;
+}
+
+/**
+ * Gera a URL de download direto do Google Drive.
+ */
+export function getDriveDirectDownloadUrl(fileId: string): string {
+  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+}
+
+/**
+ * Infere heuristicamente se um arquivo do Drive é provável vídeo ou imagem,
+ * com base no nome/título e URL fornecidos.
+ */
+function inferDriveItemKind(title: string, url: string): DriveItemType {
+  const lc = (title + " " + url).toLowerCase();
+  if (/\.(mp4|mov|webm|m4v|avi|mkv|flv|wmv)/.test(lc)) return "video";
+  if (/\.(jpg|jpeg|png|webp|gif|svg|bmp|avif)/.test(lc)) return "image";
+  if (/reels?|vídeo|video|vid_|clip|footage|story|stories/.test(lc)) return "video";
+  if (/feed|photo|foto|imagem|image|banner|cover|capa|post/.test(lc)) return "image";
+  // Padrão: vídeo (mais comum para criativos de afiliados)
+  return "video";
+}
+
+/**
+ * Processa uma string com múltiplos links do Google Drive (separados por nova linha,
+ * vírgula ou ponto-e-vírgula) e retorna um array de DriveImportItem prontos para preview.
+ * Links de pasta são identificados e marcados como inválidos com aviso.
+ */
+export function parseDriveImportLinks(raw: string): DriveImportItem[] {
+  const rawLinks = raw
+    .split(/[\n,;]+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 10 && l.includes("drive.google.com"));
+
+  const seen = new Set<string>();
+  const items: DriveImportItem[] = [];
+
+  rawLinks.forEach((url, idx) => {
+    // Deduplicação
+    if (seen.has(url)) return;
+    seen.add(url);
+
+    const isFolder = isDriveFolderUrl(url);
+    const fileId = isFolder ? null : getDriveFileId(url);
+    const isValid = !isFolder && fileId !== null;
+
+    const id = `drive-import-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`;
+    const detectedKind = isValid ? inferDriveItemKind("", url) : "unknown";
+    const isVideo = detectedKind === "video" || detectedKind === "unknown";
+
+    items.push({
+      id,
+      originalUrl: url,
+      driveFileId: fileId || "",
+      embedUrl: fileId ? getDriveEmbedUrl(fileId) : "",
+      thumbnailUrl: fileId ? getDriveThumbnailUrl(fileId, 400) : "",
+      title: `Criativo ${items.length + 1}`,
+      type: isVideo ? "Reels" : "Feed",
+      format: isVideo ? "1080×1920 · Vídeo" : "1080×1080",
+      isVideo,
+      isValid,
+      detectedKind,
+    });
+  });
+
+  return items;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Detecta se uma URL externa é de serviço de vídeo embutido (Google Drive, YouTube, Vimeo, Loom, Panda)
  * e retorna a URL adequada para renderização em iframe, ou null se não for embed.

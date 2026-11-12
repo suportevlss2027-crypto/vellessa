@@ -43,6 +43,10 @@ import {
   uploadCreativeFile,
   processCreativeThumbnail,
   resolveCreativeDownload,
+  parseDriveImportLinks,
+  getDriveFileId,
+  isDriveFolderUrl,
+  type DriveImportItem,
 } from "@/lib/creative-storage";
 
 export const Route = createFileRoute("/_admin/admin/criativos")({
@@ -272,8 +276,16 @@ function AdminCriativosPage() {
   const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── IMPORTAÇÃO GOOGLE DRIVE ───────────────────────────────────────────────
+  const [showDriveImportModal, setShowDriveImportModal] = useState(false);
+  const [driveLinksInput, setDriveLinksInput] = useState("");
+  const [driveImportItems, setDriveImportItems] = useState<DriveImportItem[]>([]);
+  const [isDriveProcessing, setIsDriveProcessing] = useState(false);
+  const [isDrivePublishing, setIsDrivePublishing] = useState(false);
+  const [driveImportFolderId, setDriveImportFolderId] = useState("");
+
   // Scroll lock
-  const anyModalOpen = showCreateModal || editId !== null || showFolderModal;
+  const anyModalOpen = showCreateModal || editId !== null || showFolderModal || showDriveImportModal;
   useEffect(() => {
     if (anyModalOpen) {
       document.body.style.overflow = "hidden";
@@ -796,6 +808,83 @@ function AdminCriativosPage() {
     }
   };
 
+  // ── HANDLERS GOOGLE DRIVE IMPORT ─────────────────────────────────────────
+  const openDriveImportModal = () => {
+    setDriveLinksInput("");
+    setDriveImportItems([]);
+    setDriveImportFolderId(currentFolderId || creativeFoldersList[0]?.id || "");
+    setShowDriveImportModal(true);
+  };
+
+  const handleDriveProcessLinks = () => {
+    if (!driveLinksInput.trim()) return;
+    setIsDriveProcessing(true);
+    try {
+      const items = parseDriveImportLinks(driveLinksInput);
+      if (items.length === 0) {
+        toast.error("Nenhum link válido do Google Drive encontrado. Verifique os links colados.");
+        setIsDriveProcessing(false);
+        return;
+      }
+      const hasFolderLinks = driveLinksInput
+        .split(/[\n,;]+/)
+        .some((l) => isDriveFolderUrl(l.trim()));
+      if (hasFolderLinks) {
+        toast.warning(
+          "Links de pasta detectados foram ignorados. Cole os links de cada arquivo individualmente.",
+          { duration: 5000 }
+        );
+      }
+      setDriveImportItems(items);
+      toast.success(`${items.filter((i) => i.isValid).length} link(s) prontos para publicar!`, { icon: "🗂️" });
+    } catch {
+      toast.error("Erro ao processar os links. Tente novamente.");
+    } finally {
+      setIsDriveProcessing(false);
+    }
+  };
+
+  const updateDriveImportItem = (id: string, patch: Partial<DriveImportItem>) => {
+    setDriveImportItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  const removeDriveImportItem = (id: string) => {
+    setDriveImportItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleDrivePublishAll = async () => {
+    const validItems = driveImportItems.filter((i) => i.isValid);
+    if (validItems.length === 0) {
+      toast.error("Nenhum item válido para publicar.");
+      return;
+    }
+    setIsDrivePublishing(true);
+    const folderId = driveImportFolderId || currentFolderId || creativeFoldersList[0]?.id;
+    try {
+      const batch = validItems.map((item) => ({
+        id: `c-drive-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        title: item.title.trim() || `Criativo Drive`,
+        type: item.type as "Feed" | "Stories" | "Reels" | "Copy",
+        format: item.format,
+        folderId: folderId || undefined,
+        externalDownloadUrl: item.originalUrl,
+        storageType: "external" as const,
+      }));
+      await createCreativesBatch(batch);
+      toast.success(
+        `${batch.length} criativo(s) do Google Drive publicados com sucesso! Consumo no Supabase: 0 MB.`,
+        { icon: "🎉", duration: 5000 }
+      );
+      setShowDriveImportModal(false);
+      setDriveLinksInput("");
+      setDriveImportItems([]);
+    } catch {
+      toast.error("Erro ao publicar criativos. Tente novamente.");
+    } finally {
+      setIsDrivePublishing(false);
+    }
+  };
+
   const typeBadge: Record<CreativeType, string> = {
     Feed: "bg-blue-500/15 text-blue-400 border border-blue-500/30",
     Stories: "bg-violet-500/15 text-violet-400 border border-violet-500/30",
@@ -842,6 +931,15 @@ function AdminCriativosPage() {
           >
             <FolderPlus className="h-4 w-4 text-gold" />
             <span>Novo Grupo (Kiwify)</span>
+          </button>
+
+          <button
+            onClick={openDriveImportModal}
+            className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3.5 py-2.5 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 hover:border-sky-500/70 transition shadow-xs cursor-pointer"
+            title="Importar criativos via links do Google Drive — sem upload pesado"
+          >
+            <FolderOpen className="h-4 w-4" />
+            <span>Importar do Drive</span>
           </button>
 
           <button
@@ -2189,6 +2287,252 @@ function AdminCriativosPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+    </div>
+
+      {/* ── MODAL: IMPORTAR DO GOOGLE DRIVE ──────────────────────────────── */}
+      {showDriveImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-2xl flex flex-col max-h-[94vh] rounded-3xl border border-sky-500/30 bg-card shadow-2xl animate-in zoom-in-95">
+
+            {/* Header fixo */}
+            <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-sky-500/15 border border-sky-500/30">
+                  <FolderOpen className="h-4.5 w-4.5 text-sky-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Importar do Google Drive</h3>
+                  <p className="text-[11px] text-muted-foreground">Cole links de arquivos do Drive — 0 MB no Supabase</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowDriveImportModal(false); setDriveImportItems([]); setDriveLinksInput(""); }}
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Corpo rolável */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar overscroll-contain">
+
+              {/* Instrução de como obter links */}
+              <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  <span>Como obter os links dos arquivos do Google Drive:</span>
+                </div>
+                <ol className="text-[11px] text-muted-foreground space-y-1 pl-4 list-decimal">
+                  <li>Abra a pasta no Google Drive que contém seus criativos.</li>
+                  <li>Clique com o botão direito em um arquivo → <strong className="text-foreground">Obter link</strong>.</li>
+                  <li>Certifique-se que o acesso está em <strong className="text-foreground">"Qualquer pessoa com o link"</strong>.</li>
+                  <li>Cole o link abaixo — um por linha, ou vários ao mesmo tempo.</li>
+                </ol>
+                <p className="text-[10px] text-sky-400/70 font-mono pt-1">
+                  ⚡ Vídeos e imagens são detectados automaticamente sem nenhum upload.
+                </p>
+              </div>
+
+              {/* Textarea de links */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5 text-sky-400" />
+                  Links do Google Drive (um por linha):
+                </label>
+                <textarea
+                  value={driveLinksInput}
+                  onChange={(e) => setDriveLinksInput(e.target.value)}
+                  placeholder={"https://drive.google.com/file/d/ABCDEF.../view\nhttps://drive.google.com/file/d/GHIJKL.../view\nhttps://drive.google.com/file/d/MNOPQR.../view"}
+                  rows={5}
+                  className="w-full rounded-xl border border-border/80 bg-background px-3 py-2.5 text-xs font-mono outline-none focus:border-sky-500/60 resize-none custom-scrollbar"
+                />
+                <button
+                  type="button"
+                  onClick={handleDriveProcessLinks}
+                  disabled={!driveLinksInput.trim() || isDriveProcessing}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-sky-500/15 border border-sky-500/40 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isDriveProcessing ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      Processando links…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Processar Links e Gerar Pré-visualizações
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Cards de pré-visualização */}
+              {driveImportItems.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">
+                      Pré-visualização dos Criativos ({driveImportItems.filter((i) => i.isValid).length} válidos)
+                    </span>
+                    {/* Selector de grupo */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] text-muted-foreground">Grupo:</label>
+                      <select
+                        value={driveImportFolderId}
+                        onChange={(e) => setDriveImportFolderId(e.target.value)}
+                        className="h-7 rounded-lg border border-border/80 bg-background px-2 text-xs outline-none focus:border-sky-500/60"
+                      >
+                        {creativeFoldersList.map((f) => (
+                          <option key={f.id} value={f.id}>✨ {f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {driveImportItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`rounded-2xl border p-3 space-y-2.5 transition ${
+                          item.isValid
+                            ? "border-border/50 bg-card/70"
+                            : "border-red-500/30 bg-red-500/5"
+                        }`}
+                      >
+                        {item.isValid ? (
+                          <div className="flex items-start gap-3">
+                            {/* Prévia iframe Drive */}
+                            <div className="shrink-0 w-28 h-20 overflow-hidden rounded-xl border border-border/50 bg-black/40 relative">
+                              <iframe
+                                src={item.embedUrl}
+                                title={item.title}
+                                allow="autoplay"
+                                className="absolute inset-0 w-full h-full scale-[1.5] origin-center pointer-events-none"
+                                sandbox="allow-scripts allow-same-origin"
+                              />
+                              <div className="absolute inset-0 bg-black/10" />
+                              <div className="absolute bottom-1 left-1 rounded-full bg-black/85 px-1.5 py-0.5 text-[8px] font-bold text-sky-400 border border-sky-500/30">
+                                {item.isVideo ? "▶ Vídeo" : "🖼 Imagem"}
+                              </div>
+                            </div>
+
+                            {/* Campos editáveis */}
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) => updateDriveImportItem(item.id, { title: e.target.value })}
+                                placeholder="Título do criativo"
+                                className="w-full rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs font-medium outline-none focus:border-sky-500/60 transition"
+                              />
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <select
+                                  value={item.type}
+                                  onChange={(e) =>
+                                    updateDriveImportItem(item.id, {
+                                      type: e.target.value as "Feed" | "Stories" | "Reels" | "Copy",
+                                      isVideo: e.target.value === "Reels",
+                                    })
+                                  }
+                                  className="rounded-lg border border-border/60 bg-background px-2 py-1 text-[11px] outline-none focus:border-sky-500/60"
+                                >
+                                  <option value="Reels">Reels / TikTok</option>
+                                  <option value="Stories">Stories</option>
+                                  <option value="Feed">Feed</option>
+                                  <option value="Copy">Copy</option>
+                                </select>
+                                <input
+                                  type="text"
+                                  value={item.format}
+                                  onChange={(e) => updateDriveImportItem(item.id, { format: e.target.value })}
+                                  className="w-28 rounded-lg border border-border/60 bg-background px-2 py-1 text-[11px] font-mono outline-none focus:border-sky-500/60"
+                                  placeholder="1080×1920"
+                                />
+                                <span className="text-[10px] text-sky-400/80 flex items-center gap-1 font-mono">
+                                  <ExternalLink className="h-2.5 w-2.5" />
+                                  Drive
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground font-mono truncate">
+                                {item.originalUrl.substring(0, 55)}…
+                              </p>
+                            </div>
+
+                            {/* Remover */}
+                            <button
+                              type="button"
+                              onClick={() => removeDriveImportItem(item.id)}
+                              className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          /* Link inválido (pasta ou URL não reconhecida) */
+                          <div className="flex items-center gap-3">
+                            <div className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/15 text-red-400 shrink-0">
+                              <X className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-red-400">Link inválido ou é uma pasta</p>
+                              <p className="text-[10px] text-muted-foreground font-mono truncate">{item.originalUrl}</p>
+                              <p className="text-[10px] text-red-400/70">
+                                Links de pasta não são suportados. Cole o link de cada arquivo individualmente.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeDriveImportItem(item.id)}
+                              className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-400 transition"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer fixo */}
+            <div className="shrink-0 flex items-center justify-between gap-2 px-6 py-4 border-t border-white/10 bg-card/95 backdrop-blur-sm rounded-b-3xl">
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+                <Sparkles className="h-3 w-3" />
+                <span>0 MB no Supabase · Streaming ilimitado via Drive</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowDriveImportModal(false); setDriveImportItems([]); setDriveLinksInput(""); }}
+                  className="rounded-xl border border-border/80 px-4 py-2 text-xs font-semibold hover:bg-muted transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDrivePublishAll}
+                  disabled={isDrivePublishing || driveImportItems.filter((i) => i.isValid).length === 0}
+                  className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-400 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  {isDrivePublishing ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      Publicando…
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-3.5 w-3.5" />
+                      Publicar {driveImportItems.filter((i) => i.isValid).length} Criativo(s)
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
