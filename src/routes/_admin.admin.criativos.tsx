@@ -2289,7 +2289,6 @@ function AdminCriativosPage() {
           </form>
         </div>
       )}
-    </div>
 
       {/* ── MODAL: IMPORTAR DO GOOGLE DRIVE ──────────────────────────────── */}
       {showDriveImportModal && (
@@ -2300,7 +2299,7 @@ function AdminCriativosPage() {
             <div className="shrink-0 flex items-center justify-between border-b border-white/10 px-6 py-4 bg-card/95 backdrop-blur-sm rounded-t-3xl">
               <div className="flex items-center gap-2.5">
                 <div className="grid h-9 w-9 place-items-center rounded-xl bg-sky-500/15 border border-sky-500/30">
-                  <FolderOpen className="h-4.5 w-4.5 text-sky-400" />
+                  <FolderOpen className="h-5 w-5 text-sky-400" />
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-foreground">Importar do Google Drive</h3>
