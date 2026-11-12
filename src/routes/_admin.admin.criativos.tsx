@@ -226,6 +226,7 @@ function AdminCriativosPage() {
   const [folderDescription, setFolderDescription] = useState("");
   const [folderColor, setFolderColor] = useState("gold");
   const [folderCoverImage, setFolderCoverImage] = useState("");
+  const [folderDriveUrl, setFolderDriveUrl] = useState("");
 
   // ── MODAL DE CRIATIVO ─────────────────────────────────────────────────────
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -310,18 +311,16 @@ function AdminCriativosPage() {
     [creativeFoldersList, currentFolderId]
   );
 
-  // Contagem de peças por grupo (com fallback de legados para o primeiro grupo)
+  // Contagem estrita e real de peças por grupo (sem fallbacks arbitrários que inflavam a primeira pasta)
   const countByFolder = useMemo(() => {
     const map: Record<string, number> = {};
-    const firstFolderId = creativeFoldersList[0]?.id;
     for (const c of creativesList) {
-      const fId = c.folderId || firstFolderId;
-      if (fId) {
-        map[fId] = (map[fId] || 0) + 1;
+      if (c.folderId) {
+        map[c.folderId] = (map[c.folderId] || 0) + 1;
       }
     }
     return map;
-  }, [creativesList, creativeFoldersList]);
+  }, [creativesList]);
 
   // Criativos exibidos (apenas se dentro de pasta ou em busca ativa)
   const displayedCreatives = useMemo(() => {
@@ -341,13 +340,13 @@ function AdminCriativosPage() {
       }
 
       if (currentFolderId) {
-        const isFirstFolder = creativeFoldersList[0]?.id === currentFolderId;
-        return c.folderId === currentFolderId || (isFirstFolder && !c.folderId);
+        // Isolamento estrito: só exibe peças cujo folderId corresponde exatamente à pasta aberta
+        return c.folderId === currentFolderId;
       }
 
       return false; // Na raiz, exibimos apenas as coleções
     });
-  }, [creativesList, currentFolderId, searchQuery, filterType, creativeFoldersList]);
+  }, [creativesList, currentFolderId, searchQuery, filterType]);
 
   // ── SELEÇÃO EM MASSA HANDLERS ─────────────────────────────────────────────
   const toggleSelectOne = (id: string) => {
@@ -615,6 +614,7 @@ function AdminCriativosPage() {
     setFolderDescription("");
     setFolderColor("gold");
     setFolderCoverImage("");
+    setFolderDriveUrl("");
     setShowFolderModal(true);
   };
 
@@ -624,6 +624,7 @@ function AdminCriativosPage() {
     setFolderDescription(f.description || "");
     setFolderColor(f.color || "gold");
     setFolderCoverImage(f.coverImage || "");
+    setFolderDriveUrl(f.driveUrl || "");
     setShowFolderModal(true);
   };
 
@@ -637,6 +638,7 @@ function AdminCriativosPage() {
         description: folderDescription,
         color: folderColor,
         coverImage: folderCoverImage,
+        driveUrl: folderDriveUrl.trim() || undefined,
       });
     } else {
       const createdId = await createCreativeFolder({
@@ -644,6 +646,7 @@ function AdminCriativosPage() {
         description: folderDescription,
         color: folderColor,
         coverImage: folderCoverImage,
+        driveUrl: folderDriveUrl.trim() || undefined,
       });
       if (createdId) {
         setCurrentFolderId(createdId);
@@ -809,10 +812,12 @@ function AdminCriativosPage() {
   };
 
   // ── HANDLERS GOOGLE DRIVE IMPORT ─────────────────────────────────────────
-  const openDriveImportModal = () => {
+  const openDriveImportModal = (targetFolderId?: string) => {
     setDriveLinksInput("");
     setDriveImportItems([]);
-    setDriveImportFolderId(currentFolderId || creativeFoldersList[0]?.id || "");
+    // Vinculação contextual estrita: se receber targetFolderId ou estiver dentro de uma pasta, fixa nela
+    const resolvedFolderId = targetFolderId || currentFolderId || (creativeFoldersList.length > 0 ? creativeFoldersList[0].id : "");
+    setDriveImportFolderId(resolvedFolderId);
     setShowDriveImportModal(true);
   };
 
@@ -858,21 +863,25 @@ function AdminCriativosPage() {
       toast.error("Nenhum item válido para publicar.");
       return;
     }
+    const targetFolder = driveImportFolderId || currentFolderId;
+    if (!targetFolder) {
+      toast.error("Por favor, selecione uma coleção/grupo de destino antes de publicar.");
+      return;
+    }
     setIsDrivePublishing(true);
-    const folderId = driveImportFolderId || currentFolderId || creativeFoldersList[0]?.id;
     try {
-      const batch = validItems.map((item) => ({
-        id: `c-drive-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        title: item.title.trim() || `Criativo Drive`,
+      const batch = validItems.map((item, idx) => ({
+        id: `c-drive-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        title: item.title.trim() || `Criativo Drive ${idx + 1}`,
         type: item.type as "Feed" | "Stories" | "Reels" | "Copy",
         format: item.format,
-        folderId: folderId || undefined,
+        folderId: targetFolder,
         externalDownloadUrl: item.originalUrl,
         storageType: "external" as const,
       }));
       await createCreativesBatch(batch);
       toast.success(
-        `${batch.length} criativo(s) do Google Drive publicados com sucesso! Consumo no Supabase: 0 MB.`,
+        `${batch.length} criativo(s) do Google Drive publicados com sucesso no grupo! Consumo no Supabase: 0 MB.`,
         { icon: "🎉", duration: 5000 }
       );
       setShowDriveImportModal(false);
@@ -1186,6 +1195,13 @@ function AdminCriativosPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
+                            onClick={() => openDriveImportModal(folder.id)}
+                            className="p-1.5 rounded-lg bg-black/80 text-sky-400 hover:text-sky-300 hover:bg-sky-500/20 border border-sky-500/30 transition backdrop-blur-md cursor-pointer"
+                            title={`Importar do Google Drive direto em "${folder.name}"`}
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={() => openEditFolderModal(folder)}
                             className="p-1.5 rounded-lg bg-black/80 text-white/80 hover:text-gold border border-white/20 transition backdrop-blur-md cursor-pointer"
                             title="Editar grupo"
@@ -1293,12 +1309,20 @@ function AdminCriativosPage() {
                 ? "Tente buscar por outro termo ou limpe o campo de busca."
                 : "Adicione peças em vídeo (MP4), imagens (PNG/JPG), roteiros em PDF ou copys persuasivas para seus afiliados."}
             </p>
-            <button
-              onClick={openCreateModal}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition cursor-pointer"
-            >
-              <Plus className="h-4 w-4" /> Cadastrar Primeiro Criativo
-            </button>
+            <div className="mt-5 flex items-center gap-3 flex-wrap justify-center">
+              <button
+                onClick={() => openDriveImportModal(currentFolderId || undefined)}
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 hover:border-sky-500/70 transition shadow-xs cursor-pointer"
+              >
+                <FolderOpen className="h-4 w-4" /> Importar do Google Drive (0 MB)
+              </button>
+              <button
+                onClick={openCreateModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition cursor-pointer"
+              >
+                <Plus className="h-4 w-4" /> Cadastrar Manualmente
+              </button>
+            </div>
           </div>
         ) : viewMode === "grid" ? (
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -1686,6 +1710,24 @@ function AdminCriativosPage() {
                   placeholder="Ex: Peças validadas para topo de funil com gancho rápido de 3 segundos"
                   className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-sm outline-none focus:border-gold transition"
                 />
+              </label>
+
+              {/* Link da Pasta Raiz no Google Drive (Opcional) */}
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5 text-sky-400" />
+                  <span>Link da Pasta Raiz no Google Drive (Opcional)</span>
+                </span>
+                <input
+                  type="url"
+                  value={folderDriveUrl}
+                  onChange={(e) => setFolderDriveUrl(e.target.value)}
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  className="mt-1 h-10 w-full rounded-xl border border-border/80 bg-background px-3 text-xs outline-none focus:border-sky-500/60 font-mono transition"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Se preenchido, os afiliados poderão acessar todos os materiais desta pasta diretamente no Google Drive com 1 clique.
+                </p>
               </label>
 
               {/* Upload de Capa Estilo Kiwify */}
@@ -2318,6 +2360,41 @@ function AdminCriativosPage() {
             {/* Corpo rolável */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar overscroll-contain">
 
+              {/* Seletor de Coleção / Pasta de Destino — Sempre visível no topo */}
+              <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Folder className="h-4 w-4 text-sky-400" />
+                    <span>Coleção / Grupo de Destino:</span>
+                  </label>
+                  {driveImportFolderId ? (
+                    <span className="text-[10px] text-sky-400 font-mono font-medium">
+                      ✓ Vinculado
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-400 font-mono font-medium">
+                      ⚠️ Selecione uma pasta
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={driveImportFolderId}
+                  onChange={(e) => setDriveImportFolderId(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-sky-500/40 bg-background px-3 text-xs font-medium text-foreground outline-none focus:border-sky-400 transition"
+                  required
+                >
+                  <option value="">Selecione o grupo onde as peças entrarão...</option>
+                  {creativeFoldersList.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      📁 {f.name} {f.id === currentFolderId ? "(Coleção Atual)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground">
+                  As peças importadas entrarão exclusivamente nesta coleção e ficarão 100% isoladas das outras pastas.
+                </p>
+              </div>
+
               {/* Instrução de como obter links */}
               <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs">
@@ -2375,18 +2452,10 @@ function AdminCriativosPage() {
                     <span className="text-xs font-semibold text-foreground">
                       Pré-visualização dos Criativos ({driveImportItems.filter((i) => i.isValid).length} válidos)
                     </span>
-                    {/* Selector de grupo */}
-                    <div className="flex items-center gap-2">
-                      <label className="text-[11px] text-muted-foreground">Grupo:</label>
-                      <select
-                        value={driveImportFolderId}
-                        onChange={(e) => setDriveImportFolderId(e.target.value)}
-                        className="h-7 rounded-lg border border-border/80 bg-background px-2 text-xs outline-none focus:border-sky-500/60"
-                      >
-                        {creativeFoldersList.map((f) => (
-                          <option key={f.id} value={f.id}>✨ {f.name}</option>
-                        ))}
-                      </select>
+                    {/* Indicador de destino */}
+                    <div className="text-[11px] text-sky-400 font-medium font-mono flex items-center gap-1">
+                      <Folder className="h-3 w-3" />
+                      <span>Destino: {creativeFoldersList.find((f) => f.id === driveImportFolderId)?.name || "Selecione acima"}</span>
                     </div>
                   </div>
 
@@ -2514,13 +2583,18 @@ function AdminCriativosPage() {
                 <button
                   type="button"
                   onClick={handleDrivePublishAll}
-                  disabled={isDrivePublishing || driveImportItems.filter((i) => i.isValid).length === 0}
+                  disabled={isDrivePublishing || !driveImportFolderId || driveImportItems.filter((i) => i.isValid).length === 0}
                   className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-400 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                   {isDrivePublishing ? (
                     <>
                       <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                       Publicando…
+                    </>
+                  ) : !driveImportFolderId ? (
+                    <>
+                      <Folder className="h-3.5 w-3.5" />
+                      Selecione uma pasta acima
                     </>
                   ) : (
                     <>

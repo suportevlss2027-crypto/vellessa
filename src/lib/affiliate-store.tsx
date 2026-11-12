@@ -121,6 +121,7 @@ export interface CreativeFolder {
   icon?: string;
   color?: string;
   coverImage?: string; // Capa 16:9 estilo Kiwify (1920x1080)
+  driveUrl?: string; // Link da pasta no Google Drive (opcional)
   createdAt?: string;
 }
 
@@ -243,8 +244,8 @@ interface AffiliateStoreContextType {
   deleteFolder: (id: string) => Promise<void>;
 
   // Creative Folders Actions (Grupos / Coleções Estilo Kiwify)
-  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<string>;
-  updateCreativeFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string }) => Promise<void>;
+  createCreativeFolder: (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string; driveUrl?: string }) => Promise<string>;
+  updateCreativeFolder: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string; driveUrl?: string }) => Promise<void>;
   deleteCreativeFolder: (id: string) => Promise<void>;
   moveCreativesToFolder: (creativeIds: string[], targetFolderId?: string) => Promise<void>;
   deleteCreativesBatch: (creativeIds: string[]) => Promise<void>;
@@ -1501,14 +1502,22 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         // Identifica criativos locais que ainda não estão no banco (Zero Data Loss)
         const localOnly = localList.filter((lc) => !dbCreativeMap.has(lc.id));
 
-        // Mesclagem segura: preserva locais pendentes no topo + registros do banco
+        // Mesclagem segura: preserva locais pendentes no topo + registros do banco sem perda de pasta ou link
         const mergedList: Creative[] = [
           ...localOnly,
           ...formattedRemote.map((rc) => {
             const localMatch = localList.find((lc) => lc.id === rc.id);
-            // Se o banco não tiver fileUrl mas o local tiver (ou tiver fallback), preserva
-            if (localMatch && !rc.fileUrl && localMatch.fileUrl) {
-              return { ...rc, fileUrl: localMatch.fileUrl, storageType: localMatch.storageType };
+            if (localMatch) {
+              return {
+                ...rc,
+                // Preserva integridade de arquivo, pasta e nuvem caso o banco retorne vazio
+                fileUrl: rc.fileUrl || localMatch.fileUrl,
+                folderId: rc.folderId || localMatch.folderId,
+                externalDownloadUrl: rc.externalDownloadUrl || localMatch.externalDownloadUrl,
+                storageType: rc.storageType || localMatch.storageType,
+                fileType: rc.fileType || localMatch.fileType,
+                fileSize: rc.fileSize || localMatch.fileSize,
+              };
             }
             return rc;
           }),
@@ -2570,9 +2579,28 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       storagePath: item.storagePath,
     }));
 
-    // 1. Atualização Funcional do Estado React (imune a Stale Closure)
+    // 1. Atualização Funcional do Estado React (com Deduplicação Atômica por ID e URL de Nuvem)
+    let finalAddedCreatives: Creative[] = [];
     setCreativesList((prev) => {
-      const updated = [...newCreatives, ...prev];
+      const existingIds = new Set(prev.map((p) => p.id));
+      const existingFolderUrls = new Set(
+        prev
+          .filter((p) => p.folderId && p.externalDownloadUrl)
+          .map((p) => `${p.folderId}:::${p.externalDownloadUrl}`)
+      );
+
+      // Filtra itens já existentes para evitar duplicações/triplicações de upload
+      finalAddedCreatives = newCreatives.filter((c) => {
+        if (existingIds.has(c.id)) return false;
+        if (c.folderId && c.externalDownloadUrl) {
+          const key = `${c.folderId}:::${c.externalDownloadUrl}`;
+          if (existingFolderUrls.has(key)) return false;
+          existingFolderUrls.add(key);
+        }
+        return true;
+      });
+
+      const updated = [...finalAddedCreatives, ...prev];
       try {
         localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(updated));
       } catch (err) {
@@ -2582,10 +2610,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
 
     // 2. Persistência em Lote no Supabase (chunks de 50 para evitar limites de payload)
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && finalAddedCreatives.length > 0) {
       try {
         // Assegura que todas as pastas de destino existam no Supabase antes de inserir as peças (evita FK violation)
-        const referencedFolderIds = Array.from(new Set(newCreatives.map((c) => c.folderId).filter(Boolean))) as string[];
+        const referencedFolderIds = Array.from(new Set(finalAddedCreatives.map((c) => c.folderId).filter(Boolean))) as string[];
         if (referencedFolderIds.length > 0) {
           const allKnownFolders = (() => {
             try {
@@ -2607,7 +2635,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           }
         }
 
-        const rowsToInsert = newCreatives.map((c) => ({
+        const rowsToInsert = finalAddedCreatives.map((c) => ({
           id: c.id,
           title: c.title,
           type: c.type,
@@ -3041,7 +3069,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Pasta removida. Os materiais foram movidos para Geral.");
   };
 
-  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string }): Promise<string> => {
+  const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string; driveUrl?: string }): Promise<string> => {
     const newFolder: CreativeFolder = {
       id: `cfolder-${Date.now()}`,
       name: data.name.trim(),
@@ -3049,23 +3077,28 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       color: data.color || "gold",
       icon: data.icon || "Folder",
       coverImage: data.coverImage?.trim(),
+      driveUrl: data.driveUrl?.trim(),
       createdAt: new Date().toISOString(),
     };
-    const updated = [...creativeFoldersList, newFolder];
-    setCreativeFoldersList(updated);
 
-    try {
-      localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
-    } catch (storageErr) {
-      console.warn("[AffiliateStore] Cota de localStorage excedida no grupo, salvando versão segura:", storageErr);
+    let updatedFolders: CreativeFolder[] = [];
+    setCreativeFoldersList((prev) => {
+      if (prev.some((f) => f.id === newFolder.id)) return prev;
+      updatedFolders = [...prev, newFolder];
       try {
-        const safeFolders = updated.map((f) => ({
-          ...f,
-          coverImage: f.coverImage?.startsWith("data:") ? undefined : f.coverImage,
-        }));
-        localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(safeFolders));
-      } catch {}
-    }
+        localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updatedFolders));
+      } catch (storageErr) {
+        console.warn("[AffiliateStore] Cota de localStorage excedida no grupo, salvando versão segura:", storageErr);
+        try {
+          const safeFolders = updatedFolders.map((f) => ({
+            ...f,
+            coverImage: f.coverImage?.startsWith("data:") ? undefined : f.coverImage,
+          }));
+          localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(safeFolders));
+        } catch {}
+      }
+      return updatedFolders;
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -3088,20 +3121,25 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     return newFolder.id;
   };
 
-  const updateCreativeFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string }) => {
-    const updated = creativeFoldersList.map((f) => {
-      if (f.id !== id) return f;
-      return {
-        ...f,
-        name: data.name?.trim() ?? f.name,
-        description: data.description?.trim() ?? f.description,
-        color: data.color ?? f.color,
-        icon: data.icon ?? f.icon,
-        coverImage: data.coverImage !== undefined ? data.coverImage?.trim() : f.coverImage,
-      };
+  const updateCreativeFolder = async (id: string, data: { name?: string; description?: string; color?: string; icon?: string; coverImage?: string; driveUrl?: string }) => {
+    setCreativeFoldersList((prev) => {
+      const updated = prev.map((f) => {
+        if (f.id !== id) return f;
+        return {
+          ...f,
+          name: data.name?.trim() ?? f.name,
+          description: data.description?.trim() ?? f.description,
+          color: data.color ?? f.color,
+          icon: data.icon ?? f.icon,
+          coverImage: data.coverImage !== undefined ? data.coverImage?.trim() : f.coverImage,
+          driveUrl: data.driveUrl !== undefined ? data.driveUrl?.trim() : f.driveUrl,
+        };
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
+      } catch {}
+      return updated;
     });
-    setCreativeFoldersList(updated);
-    localStorage.setItem(STORAGE_KEYS.CREATIVE_FOLDERS, JSON.stringify(updated));
 
     if (isSupabaseConfigured && supabase) {
       try {
