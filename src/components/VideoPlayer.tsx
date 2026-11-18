@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Maximize2, Minimize2, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Maximize2, Minimize2, Pause, Play, RotateCcw, Volume2, VolumeX, Tv } from "lucide-react";
 import { detectVideoDuration, formatSecondsToDuration } from "@/lib/video-duration";
 
 interface VideoPlayerProps {
@@ -7,6 +7,8 @@ interface VideoPlayerProps {
   title: string;
   duration?: string;
   videoUrl?: string;
+  theaterMode?: boolean;
+  onToggleTheater?: () => void;
   onAutoComplete?: () => void;
   onDurationDetected?: (duration: string) => void;
 }
@@ -27,8 +29,8 @@ function getEmbedUrl(url?: string): string | null {
     return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
   }
 
-  // Google Drive
-  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+  // Google Drive (Compatível com /file/d/ID, ?id=ID, /preview, /view, /edit, uc?id=)
+  const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?.*id=)([a-zA-Z0-9_-]+)/);
   if (driveMatch && driveMatch[1]) {
     return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
   }
@@ -51,6 +53,8 @@ export function VideoPlayer({
   title,
   duration,
   videoUrl,
+  theaterMode = false,
+  onToggleTheater,
   onAutoComplete,
   onDurationDetected,
 }: VideoPlayerProps) {
@@ -158,6 +162,7 @@ export function VideoPlayer({
   };
 
   const embedUrl = getEmbedUrl(videoUrl);
+  const isGoogleDrive = Boolean(videoUrl && videoUrl.includes("drive.google.com"));
   const isDirectVideo = Boolean(
     videoUrl &&
       (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(videoUrl.trim()) ||
@@ -172,13 +177,40 @@ export function VideoPlayer({
       className="group relative aspect-video w-full overflow-hidden rounded-3xl bg-black shadow-2xl select-none"
     >
       {isPlaying && embedUrl ? (
-        <iframe
-          src={embedUrl}
-          title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          className="absolute inset-0 h-full w-full border-0"
-        />
+        <div className="relative h-full w-full">
+          <iframe
+            src={embedUrl}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allowFullScreen
+            className="absolute inset-0 h-full w-full border-0"
+          />
+          {/* Controles Flutuantes Superiores Durante a Reprodução */}
+          <div className="pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-2">
+            {isGoogleDrive && (
+              <span className="pointer-events-auto rounded-full bg-black/85 px-3 py-1 text-[11px] font-medium text-emerald-300 backdrop-blur-md border border-emerald-500/30 shadow-lg hidden md:inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                HD 1080p · Dica: ⚙️ no player para alta definição
+              </span>
+            )}
+            {onToggleTheater && (
+              <button
+                type="button"
+                onClick={onToggleTheater}
+                className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-md border transition shadow-lg flex items-center gap-1.5 ${
+                  theaterMode
+                    ? "bg-gold text-primary-foreground border-gold/40 shadow-gold"
+                    : "bg-black/80 hover:bg-black/95 text-white border-white/20"
+                }`}
+                title={theaterMode ? "Voltar ao layout padrão" : "Modo Teatro (Widescreen expandido para Notebook)"}
+                aria-label="Alternar Modo Teatro"
+              >
+                <Tv className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{theaterMode ? "Sair do Teatro" : "Modo Teatro"}</span>
+              </button>
+            )}
+          </div>
+        </div>
       ) : isPlaying && isDirectVideo ? (
         <video
           ref={videoRef}
@@ -214,7 +246,7 @@ export function VideoPlayer({
           )}
 
           {/* Ambient gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
 
           {/* Center Big Play/Pause Button */}
           {!isPlaying && (
@@ -222,7 +254,7 @@ export function VideoPlayer({
               <button
                 onClick={togglePlay}
                 aria-label="Reproduzir vídeo da aula"
-                className="grid h-20 w-20 place-items-center rounded-full bg-gold-gradient text-primary-foreground shadow-gold transition hover:scale-110 active:scale-95"
+                className="grid h-20 w-20 place-items-center rounded-full bg-gold-gradient text-primary-foreground shadow-gold transition hover:scale-110 active:scale-95 cursor-pointer"
               >
                 <Play className="ml-1 h-8 w-8 fill-current" />
               </button>
@@ -230,15 +262,39 @@ export function VideoPlayer({
           )}
 
           {/* Top Title Overlay */}
-          <div className="absolute left-6 top-6 right-6 flex items-center justify-between text-white/90">
-            <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold backdrop-blur-md border border-white/10">
-              Academia Vellessa · HD 1080p
-            </span>
-            {isPlaying && (
-              <span className="flex items-center gap-1.5 rounded-full bg-gold/20 px-3 py-1 text-xs font-semibold text-gold backdrop-blur-md border border-gold/30">
-                <span className="h-2 w-2 rounded-full bg-gold animate-pulse" />
-                Reproduzindo
+          <div className="absolute left-6 top-6 right-6 flex items-center justify-between text-white/90 z-10 pointer-events-none">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold backdrop-blur-md border border-white/10">
+                Academia Vellessa · HD 1080p
               </span>
+              {isGoogleDrive && (
+                <span className="rounded-full bg-emerald-950/80 px-3 py-1 text-xs font-semibold text-emerald-300 backdrop-blur-md border border-emerald-500/30">
+                  Google Drive · 0 MB
+                </span>
+              )}
+              {isPlaying && (
+                <span className="flex items-center gap-1.5 rounded-full bg-gold/20 px-3 py-1 text-xs font-semibold text-gold backdrop-blur-md border border-gold/30">
+                  <span className="h-2 w-2 rounded-full bg-gold animate-pulse" />
+                  Reproduzindo
+                </span>
+              )}
+            </div>
+
+            {onToggleTheater && (
+              <button
+                type="button"
+                onClick={onToggleTheater}
+                className={`pointer-events-auto rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-md border transition shadow-lg flex items-center gap-1.5 ${
+                  theaterMode
+                    ? "bg-gold text-primary-foreground border-gold/40 shadow-gold"
+                    : "bg-black/60 hover:bg-black/80 text-white border-white/10"
+                }`}
+                title={theaterMode ? "Sair do Modo Teatro (Padrão)" : "Modo Teatro (Expandir para Notebook)"}
+                aria-label="Alternar Modo Teatro"
+              >
+                <Tv className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{theaterMode ? "Sair do Teatro" : "Modo Teatro"}</span>
+              </button>
             )}
           </div>
 
@@ -294,6 +350,23 @@ export function VideoPlayer({
               </div>
 
               <div className="flex items-center gap-2">
+                {onToggleTheater && (
+                  <button
+                    type="button"
+                    onClick={onToggleTheater}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition flex items-center gap-1.5 ${
+                      theaterMode
+                        ? "bg-gold text-primary-foreground shadow-gold"
+                        : "bg-white/10 hover:bg-white/25 text-white"
+                    }`}
+                    title={theaterMode ? "Sair do Modo Teatro (Padrão)" : "Modo Teatro (Expandir na tela de Notebook)"}
+                    aria-label="Alternar Modo Teatro"
+                  >
+                    <Tv className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{theaterMode ? "Padrão" : "Teatro"}</span>
+                  </button>
+                )}
+
                 <button
                   onClick={cycleSpeed}
                   className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-semibold hover:bg-white/25 transition"

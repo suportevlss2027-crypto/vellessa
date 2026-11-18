@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -29,6 +29,29 @@ function LessonPage() {
     modulesList,
     updateLesson,
   } = useAffiliateStore();
+
+  const [theaterMode, setTheaterMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("vellessa_theater_mode") === "true";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  const toggleTheaterMode = useCallback(() => {
+    setTheaterMode((prev) => {
+      const nextVal = !prev;
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("vellessa_theater_mode", String(nextVal));
+        } catch {}
+      }
+      return nextVal;
+    });
+  }, []);
 
   const idx = allLessonsList.findIndex((l) => l.id === id);
   const lesson = allLessonsList[idx] ?? allLessonsList[0];
@@ -70,128 +93,157 @@ function LessonPage() {
     [lesson?.id, lesson?.duration, lesson?.module?.id, updateLesson]
   );
 
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-      <div>
-        <Link
-          to="/aulas"
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gold transition"
+  const playerComponent = (
+    <VideoPlayer
+      cover={lesson.module.cover}
+      title={lesson.title}
+      duration={lesson.duration}
+      videoUrl={lesson.video_url}
+      theaterMode={theaterMode}
+      onToggleTheater={toggleTheaterMode}
+      onAutoComplete={handleAutoComplete}
+      onDurationDetected={handleDurationDetected}
+    />
+  );
+
+  const lessonDetailsComponent = (
+    <>
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">{lesson.module.title}</p>
+          <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{lesson.title}</h1>
+        </div>
+        <button
+          onClick={() => toggleLessonDone(lesson.id)}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition shadow-sm",
+            done
+              ? "border-gold bg-gold/15 text-gold hover:bg-gold/25"
+              : "hover:border-gold hover:text-gold hover:bg-card"
+          )}
         >
-          <ChevronLeft className="h-4 w-4" /> Todas as aulas
-        </Link>
+          <CheckCircle2 className={cn("h-4 w-4", done && "text-gold fill-gold/20")} />
+          {done ? "Aula Concluída" : "Marcar como concluída"}
+        </button>
+      </div>
 
-        {/* Reprodutor de Vídeo Interativo */}
-        <VideoPlayer
-          cover={lesson.module.cover}
-          title={lesson.title}
-          duration={lesson.duration}
-          videoUrl={lesson.video_url}
-          onAutoComplete={handleAutoComplete}
-          onDurationDetected={handleDurationDetected}
-        />
+      <p className="mt-4 max-w-2xl leading-relaxed text-muted-foreground">
+        {lesson.description ||
+          "Nesta aula você vai entender, de forma prática, como aplicar este conteúdo na sua rotina de divulgação do Sérum Vellessa — com exemplos reais, scripts de alta conversão e os erros mais comuns para evitar."}
+      </p>
 
-        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">{lesson.module.title}</p>
-            <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{lesson.title}</h1>
-          </div>
-          <button
-            onClick={() => toggleLessonDone(lesson.id)}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition shadow-sm",
-              done
-                ? "border-gold bg-gold/15 text-gold hover:bg-gold/25"
-                : "hover:border-gold hover:text-gold hover:bg-card"
-            )}
-          >
-            <CheckCircle2 className={cn("h-4 w-4", done && "text-gold fill-gold/20")} />
-            {done ? "Aula Concluída" : "Marcar como concluída"}
-          </button>
-        </div>
-
-        <p className="mt-4 max-w-2xl leading-relaxed text-muted-foreground">
-          {lesson.description ||
-            "Nesta aula você vai entender, de forma prática, como aplicar este conteúdo na sua rotina de divulgação do Sérum Vellessa — com exemplos reais, scripts de alta conversão e os erros mais comuns para evitar."}
-        </p>
-
-        <div className="mt-6 rounded-2xl border bg-card p-5">
-          <p className="font-semibold text-foreground">Materiais complementares da aula</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {["Resumo da aula.pdf", "Checklist prático.pdf"].map((f) => (
-              <button
-                key={f}
-                onClick={() => handleDownloadMaterial(f)}
-                className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3 text-sm transition hover:bg-muted hover:text-gold border border-transparent hover:border-gold/30"
-              >
-                <span className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-gold" />
-                  {f}
-                </span>
-                <Download className="h-4 w-4 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-between gap-3">
-          {prev ? (
-            <Link
-              to="/aulas/$id"
-              params={{ id: prev.id }}
-              className="inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm hover:border-gold hover:text-gold transition"
+      <div className="mt-6 rounded-2xl border bg-card p-5">
+        <p className="font-semibold text-foreground">Materiais complementares da aula</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {["Resumo da aula.pdf", "Checklist prático.pdf"].map((f) => (
+            <button
+              key={f}
+              onClick={() => handleDownloadMaterial(f)}
+              className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3 text-sm transition hover:bg-muted hover:text-gold border border-transparent hover:border-gold/30"
             >
-              <ChevronLeft className="h-4 w-4" /> Anterior
-            </Link>
-          ) : (
-            <span />
-          )}
-
-          {next && (
-            <Link
-              to="/aulas/$id"
-              params={{ id: next.id }}
-              className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-5 py-2 text-sm font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
-            >
-              Próxima aula <ChevronRight className="h-4 w-4" />
-            </Link>
-          )}
+              <span className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-gold" />
+                {f}
+              </span>
+              <Download className="h-4 w-4 text-muted-foreground" />
+            </button>
+          ))}
         </div>
       </div>
 
-      <aside className="h-fit rounded-3xl border bg-card p-3 xl:sticky xl:top-24">
-        {modulesList.map((m, mi) => (
-          <div key={m.id} className="p-2">
-            <p className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Módulo {mi + 1} · {m.title}
-            </p>
-            {m.lessons.map((l) => {
-              const lessonIsDone = isLessonDone(l.id);
-              const isCurrent = l.id === id;
-              return (
-                <Link
-                  key={l.id}
-                  to="/aulas/$id"
-                  params={{ id: l.id }}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
-                    isCurrent
-                      ? "bg-accent text-foreground font-medium shadow-xs"
-                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  )}
-                >
-                  {lessonIsDone ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-gold" />
-                  ) : (
-                    <Play className={cn("h-4 w-4 shrink-0", isCurrent && "text-gold")} />
-                  )}
-                  <span className="flex-1 truncate">{l.title}</span>
-                  <span className="text-xs">{l.duration}</span>
-                </Link>
-              );
-            })}
+      <div className="mt-6 flex justify-between gap-3">
+        {prev ? (
+          <Link
+            to="/aulas/$id"
+            params={{ id: prev.id }}
+            className="inline-flex items-center gap-1 rounded-full border px-4 py-2 text-sm hover:border-gold hover:text-gold transition"
+          >
+            <ChevronLeft className="h-4 w-4" /> Anterior
+          </Link>
+        ) : (
+          <span />
+        )}
+
+        {next && (
+          <Link
+            to="/aulas/$id"
+            params={{ id: next.id }}
+            className="inline-flex items-center gap-1 rounded-full bg-gold-gradient px-5 py-2 text-sm font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+          >
+            Próxima aula <ChevronRight className="h-4 w-4" />
+          </Link>
+        )}
+      </div>
+    </>
+  );
+
+  const sidebarComponent = (
+    <aside className="h-fit rounded-3xl border bg-card p-3 xl:sticky xl:top-24">
+      {modulesList.map((m, mi) => (
+        <div key={m.id} className="p-2">
+          <p className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Módulo {mi + 1} · {m.title}
+          </p>
+          {m.lessons.map((l) => {
+            const lessonIsDone = isLessonDone(l.id);
+            const isCurrent = l.id === id;
+            return (
+              <Link
+                key={l.id}
+                to="/aulas/$id"
+                params={{ id: l.id }}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
+                  isCurrent
+                    ? "bg-accent text-foreground font-medium shadow-xs"
+                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                )}
+              >
+                {lessonIsDone ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-gold" />
+                ) : (
+                  <Play className={cn("h-4 w-4 shrink-0", isCurrent && "text-gold")} />
+                )}
+                <span className="flex-1 truncate">{l.title}</span>
+                <span className="text-xs">{l.duration}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </aside>
+  );
+
+  return (
+    <div className="space-y-4">
+      <Link
+        to="/aulas"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-gold transition"
+      >
+        <ChevronLeft className="h-4 w-4" /> Todas as aulas
+      </Link>
+
+      {theaterMode ? (
+        /* MODO TEATRO ATIVADO: Widescreen 16:9 expandido na tela inteira (perfeito para Notebooks) */
+        <div className="space-y-6 animate-in fade-in">
+          <div className="w-full">
+            {playerComponent}
           </div>
-        ))}
-      </aside>
+          <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+            <div>{lessonDetailsComponent}</div>
+            {sidebarComponent}
+          </div>
+        </div>
+      ) : (
+        /* MODO PADRÃO: Grid lado a lado com a sidebar de aulas */
+        <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+          <div>
+            {playerComponent}
+            {lessonDetailsComponent}
+          </div>
+          {sidebarComponent}
+        </div>
+      )}
     </div>
   );
 }

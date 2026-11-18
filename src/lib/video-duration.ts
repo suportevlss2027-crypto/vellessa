@@ -215,13 +215,19 @@ async function detectDirectVideoDuration(url: string): Promise<string | null> {
  */
 export async function detectVideoDuration(url: string): Promise<{
   duration: string | null;
-  platform: "YouTube" | "Panda / VTurb" | "Vimeo" | "MP4 Direto" | "Outro";
+  platform: "YouTube" | "Google Drive" | "Panda / VTurb" | "Vimeo" | "MP4 Direto" | "Outro";
 }> {
   if (!url || !url.trim()) {
     return { duration: null, platform: "Outro" };
   }
 
   const trimmed = url.trim();
+
+  // Google Drive (Identificação direta sem timeout de APIs externas)
+  if (trimmed.includes("drive.google.com")) {
+    return { duration: null, platform: "Google Drive" };
+  }
+
   const ytId = extractYouTubeId(trimmed);
 
   if (ytId) {
