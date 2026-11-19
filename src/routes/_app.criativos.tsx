@@ -22,6 +22,8 @@ import {
   resolveCreativeDownload,
   isCreativeVideo,
   getEmbedVideoUrl,
+  getDriveFileId,
+  getDriveThumbnailUrl,
 } from "@/lib/creative-storage";
 import { toast } from "sonner";
 
@@ -200,27 +202,33 @@ function Criativos() {
     [creativeFoldersList, currentFolderId]
   );
 
-  // Contagem de peças por grupo (com fallback de criativos órfãos para a primeira pasta)
+  // Auxiliar para obter a miniatura real da peça (prioriza c.image e faz fallback automático para o Google Drive)
+  const getCreativeThumbnail = (c: Creative): string | null => {
+    if (c.image) return c.image;
+    const driveUrl = c.externalDownloadUrl || (c.fileUrl?.includes("drive.google.com") ? c.fileUrl : null);
+    if (driveUrl) {
+      const fileId = getDriveFileId(driveUrl);
+      if (fileId) return getDriveThumbnailUrl(fileId, 1280);
+    }
+    return null;
+  };
+
+  // Contagem estrita de peças por grupo (100% isolado por pasta)
   const countByFolder = useMemo(() => {
     const map: Record<string, number> = {};
-    const firstFolderId = creativeFoldersList[0]?.id;
     for (const c of creativesList) {
-      const fId = c.folderId || firstFolderId;
-      if (fId) {
-        map[fId] = (map[fId] || 0) + 1;
+      if (c.folderId) {
+        map[c.folderId] = (map[c.folderId] || 0) + 1;
       }
     }
     return map;
-  }, [creativesList, creativeFoldersList]);
+  }, [creativesList]);
 
-  // Criativos ativos de acordo com o grupo atual (sempre dentro de uma pasta)
+  // Criativos ativos de acordo com o grupo atual (100% isolados na pasta aberta)
   const activeCreatives = useMemo(() => {
     if (!currentFolderId) return [];
-    const isFirstFolder = creativeFoldersList[0]?.id === currentFolderId;
-    return creativesList.filter(
-      (c) => c.folderId === currentFolderId || (isFirstFolder && !c.folderId)
-    );
-  }, [creativesList, currentFolderId, creativeFoldersList]);
+    return creativesList.filter((c) => c.folderId === currentFolderId);
+  }, [creativesList, currentFolderId]);
 
   const visualItems = activeCreatives.filter((c) => c.type !== "Copy");
   const copyItems = activeCreatives.filter((c) => c.type === "Copy");
@@ -488,10 +496,10 @@ function Criativos() {
                       onClick={() => setOpen(c)}
                       className="relative aspect-[9/16] w-full overflow-hidden bg-muted/80 text-left block cursor-pointer"
                     >
-                      {/* Capa: thumbnail do arquivo ou imagem estática */}
-                      {c.image ? (
+                      {/* Capa: thumbnail do arquivo ou imagem estática (com auto-thumbnail do Drive) */}
+                      {getCreativeThumbnail(c) ? (
                         <img
-                          src={c.image}
+                          src={getCreativeThumbnail(c)!}
                           alt={c.title}
                           loading="lazy"
                           decoding="async"
@@ -675,9 +683,9 @@ function Criativos() {
                 <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
                   <div className="h-10 w-10 animate-spin rounded-full border-2 border-gold border-t-transparent shadow-gold" />
                   <p className="text-xs font-semibold text-gold">Carregando reprodução do vídeo...</p>
-                  {open.image && (
+                  {getCreativeThumbnail(open) && (
                     <img
-                      src={open.image}
+                      src={getCreativeThumbnail(open)!}
                       alt={open.title}
                       className="max-h-36 sm:max-h-48 w-auto rounded-lg opacity-40 object-contain mt-1"
                     />
@@ -689,7 +697,12 @@ function Criativos() {
                   title={open.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
-                  className="h-full w-full max-h-[34vh] md:max-h-[84vh] aspect-video rounded-xl shadow-2xl border-0"
+                  className={cn(
+                    "h-full w-full max-h-[34vh] md:max-h-[84vh] rounded-xl shadow-2xl border-0",
+                    open.type === "Reels" || open.type === "Stories"
+                      ? "aspect-[9/16] max-w-[360px]"
+                      : "aspect-video"
+                  )}
                 />
               ) : previewVideoUrl ? (
                 <div className="relative h-full w-full flex items-center justify-center">
@@ -697,7 +710,7 @@ function Criativos() {
                     ref={videoRef}
                     key={previewVideoUrl}
                     src={previewVideoUrl}
-                    poster={open.image}
+                    poster={getCreativeThumbnail(open) || undefined}
                     controls
                     autoPlay
                     muted={isMuted}
@@ -747,9 +760,9 @@ function Criativos() {
                     O arquivo original foi cadastrado localmente e precisa ser sincronizado no painel do administrador para visualização em outros dispositivos.
                   </p>
                 </div>
-              ) : open.image ? (
+              ) : getCreativeThumbnail(open) ? (
                 <img
-                  src={open.image}
+                  src={getCreativeThumbnail(open)!}
                   alt={open.title}
                   className="max-h-full max-w-full object-contain rounded-xl"
                 />

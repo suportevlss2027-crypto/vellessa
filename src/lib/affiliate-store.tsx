@@ -1565,8 +1565,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           }
         })();
 
+        const dbFolderNames = new Set(dbFolders.map((f: any) => f.name.toLowerCase().trim()));
         const localFoldersToSync = Array.isArray(currentLocalFolders)
-          ? currentLocalFolders.filter((f: any) => !dbFolderMap.has(f.id))
+          ? currentLocalFolders.filter((f: any) => !dbFolderMap.has(f.id) && !dbFolderNames.has(f.name.toLowerCase().trim()))
           : [];
 
         if (canWriteGlobalContent && localFoldersToSync.length > 0) {
@@ -1580,16 +1581,26 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           await supabase.from("creative_folders").upsert(rowsToInsert);
         }
 
-        const formattedFolders: CreativeFolder[] = dbFolders.map((f: any) => ({
-          id: f.id,
-          name: f.name,
-          description: f.description || "",
-          color: f.color || "gold",
-          coverImage: f.cover_image || undefined,
-        }));
+        // Deduplica pastas por id e por nome em minúsculas (mantém apenas uma por nome)
+        const seenFolderNames = new Set<string>();
+        const formattedFolders: CreativeFolder[] = [];
+        for (const f of dbFolders) {
+          const normName = f.name.toLowerCase().trim();
+          if (seenFolderNames.has(normName)) continue;
+          seenFolderNames.add(normName);
+          formattedFolders.push({
+            id: f.id,
+            name: f.name,
+            description: f.description || "",
+            color: f.color || "gold",
+            coverImage: f.cover_image || undefined,
+          });
+        }
 
         localFoldersToSync.forEach((lf: any) => {
-          if (!formattedFolders.some((f) => f.id === lf.id)) {
+          const normName = lf.name.toLowerCase().trim();
+          if (!seenFolderNames.has(normName) && !formattedFolders.some((f) => f.id === lf.id)) {
+            seenFolderNames.add(normName);
             formattedFolders.push(lf);
           }
         });
@@ -1636,8 +1647,14 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
         const dbCreativeMap = new Map(formattedRemote.map((c) => [c.id, c]));
 
-        // Identifica criativos locais que ainda não estão no banco (Zero Data Loss)
-        const localOnly = localList.filter((lc) => !dbCreativeMap.has(lc.id));
+        // Identifica criativos locais que ainda não estão no banco (Zero Data Loss para uploads reais em andamento)
+        // Evita ressuscitar links externos que foram expurgados/deduplicados na nuvem
+        const localOnly = localList.filter((lc) => {
+          if (dbCreativeMap.has(lc.id)) return false;
+          if (lc.storageType === "external" || lc.externalDownloadUrl) return false;
+          if (lc.fileUrl?.startsWith("indexeddb://")) return true;
+          return false;
+        });
 
         // Mesclagem segura: preserva locais pendentes no topo + registros do banco sem perda de pasta ou link
         const mergedList: Creative[] = [
@@ -3333,9 +3350,16 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   };
 
   const createCreativeFolder = async (data: { name: string; description?: string; color?: string; icon?: string; coverImage?: string; driveUrl?: string }): Promise<string> => {
+    const trimmedName = data.name.trim();
+    const existingByName = creativeFoldersList.find((f) => f.name.toLowerCase().trim() === trimmedName.toLowerCase());
+    if (existingByName) {
+      toast.info(`O grupo "${existingByName.name}" já existe. Selecionado.`);
+      return existingByName.id;
+    }
+
     const newFolder: CreativeFolder = {
       id: `cfolder-${Date.now()}`,
-      name: data.name.trim(),
+      name: trimmedName,
       description: data.description?.trim(),
       color: data.color || "gold",
       icon: data.icon || "Folder",

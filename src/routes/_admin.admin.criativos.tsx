@@ -45,6 +45,7 @@ import {
   resolveCreativeDownload,
   parseDriveImportLinks,
   getDriveFileId,
+  getDriveThumbnailUrl,
   isDriveFolderUrl,
   type DriveImportItem,
 } from "@/lib/creative-storage";
@@ -321,6 +322,17 @@ function AdminCriativosPage() {
     }
     return map;
   }, [creativesList]);
+
+  // Auxiliar para miniatura com auto-fallback para thumbnail de alta resolução do Google Drive
+  const getCreativeThumbnail = (c: Creative): string | null => {
+    if (c.image) return c.image;
+    const driveUrl = c.externalDownloadUrl || (c.fileUrl?.includes("drive.google.com") ? c.fileUrl : null);
+    if (driveUrl) {
+      const fileId = getDriveFileId(driveUrl);
+      if (fileId) return getDriveThumbnailUrl(fileId, 1280);
+    }
+    return null;
+  };
 
   // Criativos exibidos (apenas se dentro de pasta ou em busca ativa)
   const displayedCreatives = useMemo(() => {
@@ -720,12 +732,20 @@ function AdminCriativosPage() {
       finalStorageType = "external";
     }
 
+    let finalImageUrl = imageUrl || undefined;
+    if (!finalImageUrl && externalDownloadUrl && externalDownloadUrl.includes("drive.google.com")) {
+      const driveId = getDriveFileId(externalDownloadUrl);
+      if (driveId) {
+        finalImageUrl = getDriveThumbnailUrl(driveId, 1280);
+      }
+    }
+
     await createCreative({
       id: creativeId,
       title: title.trim(),
       type,
       format: format.trim(),
-      image: imageUrl || undefined,
+      image: finalImageUrl,
       text: copyBody.trim() || undefined,
       folderId: selectedFolderId || currentFolderId || creativeFoldersList[0]?.id || undefined,
       fileUrl: finalFileUrl,
@@ -780,11 +800,19 @@ function AdminCriativosPage() {
       }
     }
 
+    let finalImageUrl = editImageUrl || undefined;
+    if (!finalImageUrl && editExternalDownloadUrl && editExternalDownloadUrl.includes("drive.google.com")) {
+      const driveId = getDriveFileId(editExternalDownloadUrl);
+      if (driveId) {
+        finalImageUrl = getDriveThumbnailUrl(driveId, 1280);
+      }
+    }
+
     await updateCreative(editId, {
       title: editTitle.trim(),
       type: editType,
       format: editFormat.trim(),
-      image: editImageUrl || undefined,
+      image: finalImageUrl,
       text: editCopyBody.trim() || undefined,
       folderId: editSelectedFolderId || currentFolderId || creativeFoldersList[0]?.id || undefined,
       fileUrl: finalFileUrl,
@@ -875,6 +903,7 @@ function AdminCriativosPage() {
         title: item.title.trim() || `Criativo Drive ${idx + 1}`,
         type: item.type as "Feed" | "Stories" | "Reels" | "Copy",
         format: item.format,
+        image: item.thumbnailUrl || (item.driveFileId ? getDriveThumbnailUrl(item.driveFileId, 1280) : undefined),
         folderId: targetFolder,
         externalDownloadUrl: item.originalUrl,
         storageType: "external" as const,
@@ -1358,11 +1387,11 @@ function AdminCriativosPage() {
                   <Check className="h-3.5 w-3.5" />
                 </div>
 
-                {/* Capa / Imagem da Peça em 9:16 Vertical */}
-                {c.image ? (
+                {/* Capa / Imagem da Peça em 9:16 Vertical (com fallback para thumbnail do Drive) */}
+                {getCreativeThumbnail(c) ? (
                   <div className="relative aspect-[9/16] w-full overflow-hidden bg-muted/60">
                     <img
-                      src={c.image}
+                      src={getCreativeThumbnail(c)!}
                       alt={c.title}
                       loading="lazy"
                       decoding="async"
@@ -1509,9 +1538,9 @@ function AdminCriativosPage() {
                     <Check className="h-3 w-3" />
                   </div>
 
-                  {c.image ? (
+                  {getCreativeThumbnail(c) ? (
                     <img
-                      src={c.image}
+                      src={getCreativeThumbnail(c)!}
                       alt={c.title}
                       className="h-10 w-10 rounded-lg object-cover border border-border/50 shrink-0"
                     />
