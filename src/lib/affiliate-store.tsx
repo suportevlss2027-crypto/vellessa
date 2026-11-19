@@ -213,6 +213,7 @@ interface AffiliateStoreContextType {
 
   // Sincronização forçada com Supabase (Admin → Force Push de todos os dados locais)
   forceSyncAllData: () => Promise<void>;
+  syncModulesWithSupabase: (force?: boolean) => Promise<void>;
 
   // Dynamic Course & Lessons State
   modulesList: DynamicModule[];
@@ -1412,17 +1413,98 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
+  const hasSyncedModulesRef = useRef(false);
   const hasSyncedCreativesRef = useRef(false);
   const hasSyncedMaterialsRef = useRef(false);
   const hasSyncedLinksRef = useRef(false);
   const hasSyncedSettingsRef = useRef(false);
 
   // Escala Massiva: TTL de 3 minutos de retenção em cache na leitura para poupar 80% de chamadas ao Supabase
+  const lastSyncModulesTimeRef = useRef<number>(0);
   const lastSyncCreativesTimeRef = useRef<number>(0);
   const lastSyncMaterialsTimeRef = useRef<number>(0);
   const lastSyncLinksTimeRef = useRef<number>(0);
   const lastSyncSettingsTimeRef = useRef<number>(0);
   const SYNC_CACHE_TTL_MS = 3 * 60 * 1000;
+
+  // ── Salva Módulos e Aulas na Nuvem Supabase (Zero Data Loss) ──
+  const saveModulesToCloud = useCallback(async (modulesToSave: DynamicModule[]) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      await supabase.from("platform_settings").upsert({
+        key: "academy_modules_v1",
+        value: modulesToSave,
+        updated_at: new Date().toISOString(),
+      });
+      console.log(`[SYNC] ✅ ${modulesToSave.length} módulos e aulas sincronizados na nuvem Supabase.`);
+    } catch (err) {
+      console.warn("[AffiliateStore] Falha ao persistir módulos na nuvem Supabase:", err);
+    }
+  }, []);
+
+  // ── Sincronização Global de Módulos e Aulas com Supabase (Cross-Device & Afiliados em Massa) ──
+  const syncModulesWithSupabase = useCallback(async (force = false) => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const now = Date.now();
+    if (!force && hasSyncedModulesRef.current && now - lastSyncModulesTimeRef.current < SYNC_CACHE_TTL_MS) {
+      return;
+    }
+    hasSyncedModulesRef.current = true;
+    lastSyncModulesTimeRef.current = now;
+
+    const canWriteGlobalContent = Boolean(isAdmin || isTitular);
+
+    try {
+      const { data: rows, error } = await supabase
+        .from("platform_settings")
+        .select("*")
+        .eq("key", "academy_modules_v1");
+
+      const cloudRow = rows && rows.length > 0 ? rows[0] : null;
+      const cloudModules: DynamicModule[] = cloudRow && Array.isArray(cloudRow.value)
+        ? cloudRow.value
+        : [];
+
+      // Lê os módulos locais existentes (onde estão as aulas cadastradas pelo titular)
+      const currentLocalModules = (() => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEYS.MODULES);
+          return raw ? JSON.parse(raw) : [];
+        } catch {
+          return [];
+        }
+      })();
+      const localList: DynamicModule[] = Array.isArray(currentLocalModules) ? currentLocalModules : [];
+
+      if (cloudModules.length > 0) {
+        // Se houver módulos locais do Titular que não estejam na nuvem, faz merge seguro (Zero Data Loss)
+        if (canWriteGlobalContent && localList.length > 0) {
+          const cloudIds = new Set(cloudModules.map((m) => m.id));
+          const localOnly = localList.filter((lm) => !cloudIds.has(lm.id));
+          if (localOnly.length > 0) {
+            const merged = [...cloudModules, ...localOnly];
+            setModulesList(merged);
+            try {
+              localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(merged));
+            } catch {}
+            await saveModulesToCloud(merged);
+            return;
+          }
+        }
+        setModulesList(cloudModules);
+        try {
+          localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(cloudModules));
+        } catch {}
+        console.log(`[SYNC] ✅ ${cloudModules.length} módulo(s) de aulas carregados da nuvem.`);
+      } else if (canWriteGlobalContent && localList.length > 0) {
+        // Auto-Cloud Migration: se a nuvem estiver vazia e o Titular tiver aulas cadastradas localmente, envia para a nuvem!
+        await saveModulesToCloud(localList);
+        console.log(`[SYNC] 🚀 Auto-Cloud Migration: ${localList.length} módulo(s) locais do Titular enviados para a nuvem.`);
+      }
+    } catch (err) {
+      console.warn("[AffiliateStore] Aviso na sincronização de módulos com Supabase:", err);
+    }
+  }, [isAdmin, isTitular, saveModulesToCloud]);
 
   // ── Sincronização Inteligente de Criativos com Supabase (Zero-Data-Loss & Single-Flight) ──
   const syncCreativesWithSupabase = useCallback(async (force = false) => {
@@ -1918,12 +2000,14 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     checkSupabaseSession();
+    syncModulesWithSupabase();
     syncCreativesWithSupabase();
     syncMaterialsWithSupabase();
     syncLinksWithSupabase();
     syncPlatformSettingsWithSupabase();
   }, [
     checkSupabaseSession,
+    syncModulesWithSupabase,
     syncCreativesWithSupabase,
     syncMaterialsWithSupabase,
     syncLinksWithSupabase,
@@ -1936,10 +2020,12 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       toast.error("Supabase não configurado. Configure as variáveis de ambiente primeiro.");
       return;
     }
+    hasSyncedModulesRef.current = false;
     hasSyncedCreativesRef.current = false;
     hasSyncedMaterialsRef.current = false;
     hasSyncedLinksRef.current = false;
     hasSyncedSettingsRef.current = false;
+    lastSyncModulesTimeRef.current = 0;
     lastSyncCreativesTimeRef.current = 0;
     lastSyncMaterialsTimeRef.current = 0;
     lastSyncLinksTimeRef.current = 0;
@@ -1948,6 +2034,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.info("Sincronizando dados com a nuvem...", { duration: 2000 });
     try {
       await Promise.all([
+        syncModulesWithSupabase(true),
         syncCreativesWithSupabase(true),
         syncMaterialsWithSupabase(true),
         syncLinksWithSupabase(true),
@@ -1959,7 +2046,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       toast.error("Erro ao sincronizar. Verifique o console para detalhes.");
       console.error("[SYNC] Erro no force sync:", err);
     }
-  }, [syncCreativesWithSupabase, syncMaterialsWithSupabase, syncLinksWithSupabase, syncPlatformSettingsWithSupabase]);
+  }, [syncModulesWithSupabase, syncCreativesWithSupabase, syncMaterialsWithSupabase, syncLinksWithSupabase, syncPlatformSettingsWithSupabase]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     setAuthLoading(true);
@@ -2439,7 +2526,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.info("Você saiu da plataforma.");
   };
 
-  // 6. Admin CMS Methods
+  // 6. Admin CMS Methods (Persistência Simultânea em Nuvem Supabase + Cache Local)
   const createModule = async (data: { title: string; subtitle: string; cover?: string }) => {
     const newMod: DynamicModule = {
       id: `mod-${Date.now()}`,
@@ -2451,7 +2538,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     const updated = [...modulesList, newMod];
     setModulesList(updated);
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
-    toast.success("Novo módulo criado na Academia!");
+    await saveModulesToCloud(updated);
+    toast.success("Novo módulo criado na Academia e sincronizado na nuvem!");
   };
 
   const updateModule = async (id: string, data: { title?: string; subtitle?: string; cover?: string }) => {
@@ -2466,14 +2554,16 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
     setModulesList(updated);
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
-    toast.success("Módulo atualizado com sucesso!");
+    await saveModulesToCloud(updated);
+    toast.success("Módulo atualizado e sincronizado na nuvem!");
   };
 
   const deleteModule = async (id: string) => {
     const updated = modulesList.filter((m) => m.id !== id);
     setModulesList(updated);
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
-    toast.success("Módulo removido.");
+    await saveModulesToCloud(updated);
+    toast.success("Módulo removido e atualizado na nuvem.");
   };
 
   const createLesson = async (data: {
@@ -2502,7 +2592,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
     setModulesList(updated);
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
-    toast.success("Nova aula cadastrada com sucesso!");
+    await saveModulesToCloud(updated);
+    toast.success("Nova aula cadastrada e sincronizada na nuvem!");
   };
 
   const updateLesson = async (
@@ -2535,7 +2626,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     });
     setModulesList(updated);
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
-    toast.success("Aula atualizada com sucesso!");
+    await saveModulesToCloud(updated);
+    toast.success("Aula atualizada e sincronizada na nuvem!");
   };
 
   const deleteLesson = async (lessonId: string) => {
@@ -2545,7 +2637,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }));
     setModulesList(updated);
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
-    toast.success("Aula removida.");
+    await saveModulesToCloud(updated);
+    toast.success("Aula removida e atualizada na nuvem.");
   };
 
   const createCreative = async (data: {
@@ -3658,6 +3751,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       isTitular,
       updateProfile,
       forceSyncAllData,
+      syncModulesWithSupabase,
       modulesList,
       allLessonsList,
       completedLessonIds,

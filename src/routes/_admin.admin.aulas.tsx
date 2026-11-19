@@ -24,6 +24,7 @@ import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { type Lesson, type LessonMaterial } from "@/data/content";
 import { detectVideoDuration } from "@/lib/video-duration";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_admin/admin/aulas")({
   head: () => ({
@@ -69,7 +70,19 @@ function AdminAulasPage() {
     createLesson,
     updateLesson,
     deleteLesson,
+    forceSyncAllData,
   } = useAffiliateStore();
+
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleForceSync = async () => {
+    setIsSyncing(true);
+    try {
+      await forceSyncAllData();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Modal / Form state for Creating Module
   const [showModuleModal, setShowModuleModal] = useState(false);
@@ -339,7 +352,17 @@ function AdminAulasPage() {
             Crie novos módulos com capa personalizada, configure links de vídeo e organize a trilha de capacitação dos afiliados.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleForceSync}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-card/60 px-4 py-2.5 text-xs font-semibold text-foreground hover:border-gold/40 hover:text-gold transition disabled:opacity-50"
+            title="Garante que todas as aulas estejam salvas na nuvem para visualização de todos os afiliados do Brasil"
+          >
+            <RefreshCw className={cn("h-4 w-4 text-gold", isSyncing && "animate-spin")} />
+            <span>{isSyncing ? "Sincronizando..." : "Sincronizar com a Nuvem"}</span>
+          </button>
           <button
             onClick={() => setShowModuleModal(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
