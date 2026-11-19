@@ -1647,14 +1647,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
         const dbCreativeMap = new Map(formattedRemote.map((c) => [c.id, c]));
 
-        // Identifica criativos locais que ainda não estão no banco (Zero Data Loss para uploads reais em andamento)
-        // Evita ressuscitar links externos que foram expurgados/deduplicados na nuvem
-        const localOnly = localList.filter((lc) => {
-          if (dbCreativeMap.has(lc.id)) return false;
-          if (lc.storageType === "external" || lc.externalDownloadUrl) return false;
-          if (lc.fileUrl?.startsWith("indexeddb://")) return true;
-          return false;
-        });
+        // Identifica criativos locais que ainda não estão no banco (Zero Data Loss)
+        // Preserva TODOS os tipos: externos (Drive), indexeddb e uploads locais.
+        // A limpeza de orphans é responsabilidade do banco (via script admin), não da UI.
+        const localOnly = localList.filter((lc) => !dbCreativeMap.has(lc.id));
 
         // Mesclagem segura: preserva locais pendentes no topo + registros do banco sem perda de pasta ou link
         const mergedList: Creative[] = [
@@ -2905,13 +2901,34 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           })();
           const foldersToEnsure = allKnownFolders.filter((f: any) => referencedFolderIds.includes(f.id));
           for (const f of foldersToEnsure) {
-            await supabase.from("creative_folders").upsert({
+            const { error: folderUpsertErr } = await supabase.from("creative_folders").upsert({
               id: f.id,
               name: f.name,
               description: f.description || null,
               color: f.color || "gold",
               cover_image: f.coverImage || null,
-            }).catch(() => {});
+            });
+            if (folderUpsertErr) {
+              console.warn(
+                "[createCreativesBatch] Falha ao garantir pasta no Supabase:",
+                folderUpsertErr.message,
+                "| folder_id:", f.id
+              );
+            }
+          }
+
+          // Verifica quais pastas foram realmente confirmadas no banco antes de inserir criativos
+          const { data: confirmedFolders } = await supabase
+            .from("creative_folders")
+            .select("id")
+            .in("id", referencedFolderIds);
+          const confirmedFolderIds = new Set((confirmedFolders || []).map((f: any) => f.id));
+          const missingFolderIds = referencedFolderIds.filter((id) => !confirmedFolderIds.has(id));
+          if (missingFolderIds.length > 0) {
+            console.warn(
+              "[createCreativesBatch] Pastas ausentes no Supabase após upsert (FK violation iminente):",
+              missingFolderIds
+            );
           }
         }
 
