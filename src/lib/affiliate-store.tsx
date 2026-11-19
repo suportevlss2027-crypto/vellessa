@@ -1504,12 +1504,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       const localList: DynamicModule[] = Array.isArray(currentLocalModules) ? currentLocalModules : [];
 
       if (cloudModules.length > 0) {
-        // Se houver módulos locais do Titular que não estejam na nuvem, faz merge seguro (Zero Data Loss)
+        // A nuvem Supabase é a fonte autoritativa de verdade (Single Source of Truth).
+        // Apenas preserva módulos locais genuinamente novos (criados offline após a última gravação na nuvem).
+        // Evita estritamente que módulos excluídos no ADM ressuscitem via cache local.
         if (canWriteGlobalContent && localList.length > 0) {
           const cloudIds = new Set(cloudModules.map((m) => m.id));
-          const localOnly = localList.filter((lm) => !cloudIds.has(lm.id));
-          if (localOnly.length > 0) {
-            const merged = [...cloudModules, ...localOnly];
+          const cloudUpdatedAt = cloudRow?.updated_at ? new Date(cloudRow.updated_at).getTime() : 0;
+
+          const trulyNewLocal = localList.filter((lm) => {
+            if (cloudIds.has(lm.id)) return false;
+            // Extrai o timestamp de criação do ID (ex: "mod-1795052744275")
+            const tsMatch = String(lm.id).match(/\d+/);
+            const lmTs = tsMatch ? parseInt(tsMatch[0], 10) : 0;
+            // Só preserva se foi criado DEPOIS da última gravação na nuvem
+            return lmTs > cloudUpdatedAt;
+          });
+
+          if (trulyNewLocal.length > 0) {
+            const merged = [...cloudModules, ...trulyNewLocal];
             setModulesList(merged);
             try {
               localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(merged));
@@ -2082,7 +2094,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
 
     const handleVisibilityOrFocus = () => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        syncModulesWithSupabase(false);
+        syncModulesWithSupabase(true);
       }
     };
     window.addEventListener("focus", handleVisibilityOrFocus);
@@ -2642,8 +2654,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   const deleteModule = async (id: string) => {
     const updated = modulesList.filter((m) => m.id !== id);
     setModulesList(updated);
-    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    } catch {}
     await saveModulesToCloud(updated);
+    hasSyncedModulesRef.current = false;
     toast.success("Módulo removido e atualizado na nuvem.");
   };
 
@@ -2740,8 +2755,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       lessons: m.lessons.filter((l) => l.id !== lessonId),
     }));
     setModulesList(updated);
-    localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    } catch {}
     await saveModulesToCloud(updated);
+    hasSyncedModulesRef.current = false;
     toast.success("Aula removida e atualizada na nuvem.");
   };
 

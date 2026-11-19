@@ -20,9 +20,9 @@ export const Route = createFileRoute("/_app/aulas/")({
 function Aulas() {
   const { isLessonDone, modulesList, syncModulesWithSupabase } = useAffiliateStore();
 
-  // Garante que o afiliado sempre visualize a ordem mais recente salva pelo titular
+  // Garante que o afiliado sempre visualize a lista e ordem mais recentes salvas pelo titular
   useEffect(() => {
-    syncModulesWithSupabase(false);
+    syncModulesWithSupabase(true);
   }, [syncModulesWithSupabase]);
 
   return (

@@ -74,9 +74,15 @@ function AdminAulasPage() {
     forceSyncAllData,
     reorderModules,
     reorderLessons,
+    syncModulesWithSupabase,
   } = useAffiliateStore();
 
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Garante que o Admin sempre visualize a lista mais recente do Supabase ao abrir a página
+  useEffect(() => {
+    syncModulesWithSupabase(true);
+  }, [syncModulesWithSupabase]);
 
   // ── Drag & Drop state ──────────────────────────────────────────────────────
   const [draggedModuleIdx, setDraggedModuleIdx] = useState<number | null>(null);
