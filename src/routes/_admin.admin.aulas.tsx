@@ -3,13 +3,11 @@ import { useState, useEffect } from "react";
 import {
   FolderPlus,
   Plus,
-  Play,
   Trash2,
   Video,
   Clock,
   Pencil,
   Image as ImageIcon,
-  ExternalLink,
   Eye,
   X,
   Sparkles,
@@ -18,6 +16,12 @@ import {
   RefreshCw,
   AlertTriangle,
   FileText,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  Link2,
+  File,
+  AlignLeft,
 } from "lucide-react";
 import { useAffiliateStore, type DynamicModule } from "@/lib/affiliate-store";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
@@ -38,27 +42,24 @@ function isDriveFolderUrl(url?: string): boolean {
   return url.includes("/drive/folders/") || url.includes("/folders/");
 }
 
-function getVideoBadge(url?: string) {
-  if (!url) {
-    return { label: "Sem vídeo", color: "bg-muted text-muted-foreground border-border/40" };
-  }
+type ContentType = "video" | "pdf" | "link" | "text";
+
+function getLessonBadge(lesson: { video_url?: string; contentType?: ContentType; contentUrl?: string }) {
+  const ct = lesson.contentType;
+  if (ct === "pdf") return { label: "Documento PDF", color: "bg-amber-500/10 text-amber-400 border-amber-500/30", Icon: File };
+  if (ct === "link") return { label: "Link / Ferramenta", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30", Icon: Link2 };
+  if (ct === "text") return { label: "Material de Leitura", color: "bg-violet-500/10 text-violet-400 border-violet-500/30", Icon: AlignLeft };
+
+  // fallback: detectar pela URL do vídeo
+  const url = lesson.video_url || "";
+  if (!url) return { label: "Sem conteúdo", color: "bg-muted text-muted-foreground border-border/40", Icon: Video };
   const low = url.toLowerCase();
-  if (low.includes("drive.google.com")) {
-    return { label: "Google Drive (0 MB)", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" };
-  }
-  if (low.includes("youtube") || low.includes("youtu.be")) {
-    return { label: "YouTube", color: "bg-red-500/10 text-red-400 border-red-500/30" };
-  }
-  if (low.includes("pandavideo") || low.includes("vturb")) {
-    return { label: "Panda / VTurb", color: "bg-purple-500/10 text-purple-400 border-purple-500/30" };
-  }
-  if (low.includes("vimeo")) {
-    return { label: "Vimeo", color: "bg-blue-500/10 text-blue-400 border-blue-500/30" };
-  }
-  if (low.includes(".mp4") || low.includes(".webm")) {
-    return { label: "MP4 Direto", color: "bg-gold/10 text-gold border-gold/30" };
-  }
-  return { label: "Vídeo Externo", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" };
+  if (low.includes("drive.google.com")) return { label: "Google Drive (0 MB)", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", Icon: Video };
+  if (low.includes("youtube") || low.includes("youtu.be")) return { label: "YouTube", color: "bg-red-500/10 text-red-400 border-red-500/30", Icon: Video };
+  if (low.includes("pandavideo") || low.includes("vturb")) return { label: "Panda / VTurb", color: "bg-purple-500/10 text-purple-400 border-purple-500/30", Icon: Video };
+  if (low.includes("vimeo")) return { label: "Vimeo", color: "bg-blue-500/10 text-blue-400 border-blue-500/30", Icon: Video };
+  if (low.includes(".mp4") || low.includes(".webm")) return { label: "MP4 Direto", color: "bg-gold/10 text-gold border-gold/30", Icon: Video };
+  return { label: "Vídeo Externo", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30", Icon: Video };
 }
 
 function AdminAulasPage() {
@@ -71,9 +72,17 @@ function AdminAulasPage() {
     updateLesson,
     deleteLesson,
     forceSyncAllData,
+    reorderModules,
+    reorderLessons,
   } = useAffiliateStore();
 
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // ── Drag & Drop state ──────────────────────────────────────────────────────
+  const [draggedModuleIdx, setDraggedModuleIdx] = useState<number | null>(null);
+  const [dragOverModuleIdx, setDragOverModuleIdx] = useState<number | null>(null);
+  const [draggedLesson, setDraggedLesson] = useState<{ moduleId: string; index: number } | null>(null);
+  const [dragOverLesson, setDragOverLesson] = useState<{ moduleId: string; index: number } | null>(null);
 
   const handleForceSync = async () => {
     setIsSyncing(true);
@@ -103,6 +112,8 @@ function AdminAulasPage() {
   const [lessonDuration, setLessonDuration] = useState("");
   const [lessonVideoUrl, setLessonVideoUrl] = useState("");
   const [lessonDescription, setLessonDescription] = useState("");
+  const [lessonContentType, setLessonContentType] = useState<ContentType>("video");
+  const [lessonContentUrl, setLessonContentUrl] = useState("");
   const [hasMaterialsNew, setHasMaterialsNew] = useState(false);
   const [materialsNew, setMaterialsNew] = useState<LessonMaterial[]>([]);
   const [isDetectingNew, setIsDetectingNew] = useState(false);
@@ -114,6 +125,8 @@ function AdminAulasPage() {
   const [editLessonDuration, setEditLessonDuration] = useState("");
   const [editLessonVideoUrl, setEditLessonVideoUrl] = useState("");
   const [editLessonDescription, setEditLessonDescription] = useState("");
+  const [editLessonContentType, setEditLessonContentType] = useState<ContentType>("video");
+  const [editLessonContentUrl, setEditLessonContentUrl] = useState("");
   const [hasMaterialsEdit, setHasMaterialsEdit] = useState(false);
   const [materialsEdit, setMaterialsEdit] = useState<LessonMaterial[]>([]);
   const [isDetectingEdit, setIsDetectingEdit] = useState(false);
@@ -177,6 +190,77 @@ function AdminAulasPage() {
       cover: editModCover.trim(),
     });
     setEditingModule(null);
+  };
+
+  // ── Reorder Helpers ──────────────────────────────────────────────────────
+  const handleMoveModule = (index: number, direction: "up" | "down") => {
+    const newList = [...modulesList];
+    const targetIdx = direction === "up" ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= newList.length) return;
+    [newList[index], newList[targetIdx]] = [newList[targetIdx], newList[index]];
+    reorderModules(newList);
+  };
+
+  const handleMoveLesson = (moduleId: string, lessonIndex: number, direction: "up" | "down") => {
+    const mod = modulesList.find((m) => m.id === moduleId);
+    if (!mod) return;
+    const newLessons = [...mod.lessons];
+    const targetIdx = direction === "up" ? lessonIndex - 1 : lessonIndex + 1;
+    if (targetIdx < 0 || targetIdx >= newLessons.length) return;
+    [newLessons[lessonIndex], newLessons[targetIdx]] = [newLessons[targetIdx], newLessons[lessonIndex]];
+    reorderLessons(moduleId, newLessons);
+  };
+
+  // ── Module Drag & Drop ───────────────────────────────────────────────────
+  const handleModuleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedModuleIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleModuleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverModuleIdx(index);
+  };
+  const handleModuleDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (draggedModuleIdx === null || draggedModuleIdx === targetIdx) {
+      setDraggedModuleIdx(null);
+      setDragOverModuleIdx(null);
+      return;
+    }
+    const newList = [...modulesList];
+    const [removed] = newList.splice(draggedModuleIdx, 1);
+    newList.splice(targetIdx, 0, removed);
+    reorderModules(newList);
+    setDraggedModuleIdx(null);
+    setDragOverModuleIdx(null);
+  };
+
+  // ── Lesson Drag & Drop ───────────────────────────────────────────────────
+  const handleLessonDragStart = (e: React.DragEvent, moduleId: string, index: number) => {
+    setDraggedLesson({ moduleId, index });
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleLessonDragOver = (e: React.DragEvent, moduleId: string, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverLesson({ moduleId, index });
+  };
+  const handleLessonDrop = (e: React.DragEvent, targetModuleId: string, targetIdx: number) => {
+    e.preventDefault();
+    if (!draggedLesson || draggedLesson.moduleId !== targetModuleId || draggedLesson.index === targetIdx) {
+      setDraggedLesson(null);
+      setDragOverLesson(null);
+      return;
+    }
+    const mod = modulesList.find((m) => m.id === targetModuleId);
+    if (!mod) return;
+    const newLessons = [...mod.lessons];
+    const [removed] = newLessons.splice(draggedLesson.index, 1);
+    newLessons.splice(targetIdx, 0, removed);
+    reorderLessons(targetModuleId, newLessons);
+    setDraggedLesson(null);
+    setDragOverLesson(null);
   };
 
   // Video Duration Auto-Detection Handlers
@@ -294,14 +378,18 @@ function AdminAulasPage() {
       moduleId: selectedModuleId,
       title: lessonTitle.trim(),
       duration: lessonDuration.trim() || "",
-      videoUrl: lessonVideoUrl.trim(),
+      videoUrl: lessonContentType === "video" ? lessonVideoUrl.trim() : "",
       description: lessonDescription.trim(),
       materials: filteredMaterials,
+      contentType: lessonContentType,
+      contentUrl: lessonContentType !== "video" ? lessonContentUrl.trim() : undefined,
     });
     setLessonTitle("");
     setLessonDuration("");
     setLessonVideoUrl("");
     setLessonDescription("");
+    setLessonContentType("video");
+    setLessonContentUrl("");
     setHasMaterialsNew(false);
     setMaterialsNew([]);
     setIsDetectingNew(false);
@@ -316,6 +404,8 @@ function AdminAulasPage() {
     setEditLessonDuration(lesson.duration || "");
     setEditLessonVideoUrl(lesson.video_url || "");
     setEditLessonDescription(lesson.description || "");
+    setEditLessonContentType((lesson.contentType as ContentType) || "video");
+    setEditLessonContentUrl(lesson.contentUrl || "");
     setHasMaterialsEdit(existingMats.length > 0);
     setMaterialsEdit(existingMats);
     setIsDetectingEdit(false);
@@ -335,9 +425,11 @@ function AdminAulasPage() {
     await updateLesson(editingLesson.moduleId, editingLesson.lesson.id, {
       title: editLessonTitle.trim(),
       duration: editLessonDuration.trim() || "",
-      videoUrl: editLessonVideoUrl.trim(),
+      videoUrl: editLessonContentType === "video" ? editLessonVideoUrl.trim() : "",
       description: editLessonDescription.trim(),
       materials: filteredMaterials,
+      contentType: editLessonContentType,
+      contentUrl: editLessonContentType !== "video" ? editLessonContentUrl.trim() : undefined,
     });
     setEditingLesson(null);
   };
@@ -390,10 +482,51 @@ function AdminAulasPage() {
           </div>
         ) : (
           modulesList.map((m, mIdx) => (
-            <div key={m.id} className="rounded-3xl border border-white/10 bg-card p-6 shadow-xs space-y-4">
-              {/* Cabeçalho do Módulo com Foto de Capa Visível */}
+            <div
+              key={m.id}
+              draggable
+              onDragStart={(e) => handleModuleDragStart(e, mIdx)}
+              onDragOver={(e) => handleModuleDragOver(e, mIdx)}
+              onDrop={(e) => handleModuleDrop(e, mIdx)}
+              onDragEnd={() => { setDraggedModuleIdx(null); setDragOverModuleIdx(null); }}
+              className={cn(
+                "rounded-3xl border bg-card p-6 shadow-xs space-y-4 transition-all duration-150",
+                draggedModuleIdx === mIdx ? "opacity-40 scale-[0.98] border-gold/30" : "border-white/10",
+                dragOverModuleIdx === mIdx && draggedModuleIdx !== mIdx ? "border-gold ring-1 ring-gold/30 bg-card/80" : ""
+              )}
+            >
+              {/* Cabeçalho do Módulo */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-5">
                 <div className="flex items-center gap-4">
+                  {/* Drag Handle + Reorder Arrows */}
+                  <div className="flex flex-col items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      title="Arrastar para reordenar"
+                      className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-gold transition"
+                    >
+                      <GripVertical className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={mIdx === 0}
+                      onClick={() => handleMoveModule(mIdx, "up")}
+                      title="Mover módulo para cima"
+                      className="grid h-5 w-5 place-items-center rounded text-muted-foreground/50 hover:text-gold hover:bg-gold/10 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={mIdx === modulesList.length - 1}
+                      onClick={() => handleMoveModule(mIdx, "down")}
+                      title="Mover módulo para baixo"
+                      className="grid h-5 w-5 place-items-center rounded text-muted-foreground/50 hover:text-gold hover:bg-gold/10 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
                   {/* Miniatura da Capa no Admin */}
                   <div className="relative h-16 w-24 sm:h-20 sm:w-32 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-muted">
                     {m.cover ? (
@@ -459,26 +592,74 @@ function AdminAulasPage() {
               <div className="divide-y divide-border/30">
                 {m.lessons.length === 0 ? (
                   <div className="py-8 text-center text-xs text-muted-foreground border border-dashed border-border/30 rounded-2xl my-2 bg-muted/10">
-                    Nenhuma aula cadastrada neste módulo. Clique em &quot;Adicionar Aula&quot; para publicar o primeiro vídeo.
+                    Nenhuma aula cadastrada neste módulo. Clique em &quot;Adicionar Aula&quot; para publicar o primeiro conteúdo.
                   </div>
                 ) : (
                   m.lessons.map((lesson, lIdx) => {
-                    const badge = getVideoBadge(lesson.video_url);
+                    const badge = getLessonBadge(lesson);
+                    const BadgeIcon = badge.Icon;
+                    const isDraggingThis = draggedLesson?.moduleId === m.id && draggedLesson?.index === lIdx;
+                    const isDragOverThis = dragOverLesson?.moduleId === m.id && dragOverLesson?.index === lIdx;
                     return (
-                      <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 hover:bg-accent/20 px-2 rounded-xl transition">
-                        <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        key={lesson.id}
+                        draggable
+                        onDragStart={(e) => handleLessonDragStart(e, m.id, lIdx)}
+                        onDragOver={(e) => handleLessonDragOver(e, m.id, lIdx)}
+                        onDrop={(e) => handleLessonDrop(e, m.id, lIdx)}
+                        onDragEnd={() => { setDraggedLesson(null); setDragOverLesson(null); }}
+                        className={cn(
+                          "flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 px-2 rounded-xl transition",
+                          isDraggingThis ? "opacity-40" : "hover:bg-accent/20",
+                          isDragOverThis && !isDraggingThis ? "bg-gold/5 border border-gold/20" : ""
+                        )}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {/* Lesson reorder controls */}
+                          <div className="flex flex-col items-center gap-0 shrink-0">
+                            <button
+                              type="button"
+                              title="Arrastar para reordenar aula"
+                              className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-gold/60 transition"
+                            >
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={lIdx === 0}
+                              onClick={() => handleMoveLesson(m.id, lIdx, "up")}
+                              title="Subir aula"
+                              className="grid h-4 w-4 place-items-center rounded text-muted-foreground/40 hover:text-gold hover:bg-gold/10 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={lIdx === m.lessons.length - 1}
+                              onClick={() => handleMoveLesson(m.id, lIdx, "down")}
+                              title="Descer aula"
+                              className="grid h-4 w-4 place-items-center rounded text-muted-foreground/40 hover:text-gold hover:bg-gold/10 transition disabled:opacity-20 disabled:cursor-not-allowed"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </button>
+                          </div>
+
                           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gold/10 text-gold text-xs font-mono font-bold border border-gold/20">
                             {lIdx + 1}
                           </div>
                           <div className="min-w-0">
                             <p className="font-semibold text-sm text-foreground truncate">{lesson.title}</p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
-                                <Clock className="h-3 w-3" /> {lesson.duration}
-                              </span>
-                              <span className="text-border">·</span>
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.2 text-[9px] font-semibold border ${badge.color}`}>
-                                <Video className="h-2.5 w-2.5" /> {badge.label}
+                              {lesson.duration && (
+                                <>
+                                  <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
+                                    <Clock className="h-3 w-3" /> {lesson.duration}
+                                  </span>
+                                  <span className="text-border">·</span>
+                                </>
+                              )}
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border ${badge.color}`}>
+                                <BadgeIcon className="h-2.5 w-2.5" /> {badge.label}
                               </span>
                             </div>
                           </div>
@@ -709,38 +890,60 @@ function AdminAulasPage() {
                 />
               </label>
 
-              {/* Link do Vídeo - Largura Total com Detecção Automática */}
+              {/* Tipo de Aula — Segmented Control */}
               <div className="space-y-2">
-                <label className="block">
-                  <span className="text-xs font-semibold text-foreground">Link do Vídeo (Google Drive, YouTube, Panda ou MP4)</span>
-                  <input
-                    value={lessonVideoUrl}
-                    onChange={(e) => handleNewVideoUrlChange(e.target.value)}
-                    placeholder="https://drive.google.com/file/d/... ou YouTube, Panda, MP4"
-                    className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
-                  />
-                </label>
+                <span className="text-xs font-semibold text-foreground">Tipo de Aula</span>
+                <div className="mt-1 grid grid-cols-4 gap-1 rounded-xl border border-white/10 bg-background p-1">
+                  {([ ["video", "🎥", "Vídeo Aula"], ["pdf", "📄", "PDF / Doc"], ["link", "🔗", "Link"], ["text", "📝", "Texto"] ] as const).map(([ct, icon, label]) => (
+                    <button
+                      key={ct}
+                      type="button"
+                      onClick={() => setLessonContentType(ct)}
+                      className={cn(
+                        "flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition",
+                        lessonContentType === ct
+                          ? "bg-gold text-black shadow"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                {/* Aviso Inteligente se o usuário colar link de pasta do Google Drive */}
-                {isDriveFolderUrl(lessonVideoUrl) && (
-                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200 animate-in fade-in">
-                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="block font-semibold text-amber-300">Link de Pasta do Google Drive Detectado</strong>
-                      <span className="leading-relaxed">
-                        Para aulas individuais, abra a pasta no Google Drive, clique com o botão direito no arquivo de vídeo específico desta aula e selecione &quot;Compartilhar &gt; Copiar link&quot;.
-                      </span>
+              {/* Campos condicionais por tipo */}
+              {lessonContentType === "video" && (
+                <div className="space-y-2">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-foreground">Link do Vídeo (Google Drive, YouTube, Panda ou MP4)</span>
+                    <input
+                      value={lessonVideoUrl}
+                      onChange={(e) => handleNewVideoUrlChange(e.target.value)}
+                      placeholder="https://drive.google.com/file/d/... ou YouTube, Panda, MP4"
+                      className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                    />
+                  </label>
+
+                  {isDriveFolderUrl(lessonVideoUrl) && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200 animate-in fade-in">
+                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-semibold text-amber-300">Link de Pasta do Google Drive Detectado</strong>
+                        <span className="leading-relaxed">
+                          Para aulas individuais, abra a pasta no Google Drive, clique com o botão direito no arquivo de vídeo específico desta aula e selecione &quot;Compartilhar &gt; Copiar link&quot;.
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Confirmação de Vídeo do Google Drive */}
-                {lessonVideoUrl.includes("drive.google.com") && !isDriveFolderUrl(lessonVideoUrl) && (
-                  <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs text-emerald-300 animate-in fade-in">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Vídeo do <strong>Google Drive</strong> conectado com sucesso · <strong>0 MB consumidos no Supabase</strong></span>
-                  </div>
-                )}
+                  {lessonVideoUrl.includes("drive.google.com") && !isDriveFolderUrl(lessonVideoUrl) && (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs text-emerald-300 animate-in fade-in">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <span>Vídeo do <strong>Google Drive</strong> conectado com sucesso · <strong>0 MB consumidos no Supabase</strong></span>
+                    </div>
+                  )}
 
                 {/* Status Dinâmico de Duração */}
                 {isDetectingNew ? (
@@ -796,6 +999,41 @@ function AdminAulasPage() {
                   Compatível com <strong>Google Drive</strong> (custo 0 de storage, certifique-se de que o acesso está como &quot;Qualquer pessoa com o link&quot;), <strong>YouTube</strong> (não listado), <strong>Panda Video</strong> e arquivos <strong>MP4</strong>.
                 </p>
               </div>
+              )}
+
+              {/* Campos para PDF e Link */}
+              {(lessonContentType === "pdf" || lessonContentType === "link") && (
+                <label className="block animate-in fade-in">
+                  <span className="text-xs font-semibold text-foreground">
+                    {lessonContentType === "pdf" ? "URL do Documento / PDF" : "URL do Link / Ferramenta"}
+                  </span>
+                  <input
+                    value={lessonContentUrl}
+                    onChange={(e) => setLessonContentUrl(e.target.value)}
+                    placeholder={lessonContentType === "pdf" ? "https://drive.google.com/file/d/... ou link direto do PDF" : "https://app.minha-ferramenta.com/..."}
+                    className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                  />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {lessonContentType === "pdf"
+                      ? "Cole o link de compartilhamento do Google Drive ou uma URL pública do PDF."
+                      : "Cole a URL da ferramenta, curso externo, ou recurso que o aluno vai acessar."}
+                  </p>
+                </label>
+              )}
+
+              {/* Campo de texto rico para aulas do tipo Texto */}
+              {lessonContentType === "text" && (
+                <label className="block animate-in fade-in">
+                  <span className="text-xs font-semibold text-foreground">Conteúdo de Leitura</span>
+                  <textarea
+                    value={lessonContentUrl}
+                    onChange={(e) => setLessonContentUrl(e.target.value)}
+                    rows={6}
+                    placeholder="Escreva o material de leitura desta aula aqui..."
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
+                  />
+                </label>
+              )}
 
               <label className="block">
                 <span className="text-xs font-semibold text-foreground">Descrição / Objetivos da Aula</span>
@@ -929,95 +1167,152 @@ function AdminAulasPage() {
                 />
               </label>
 
-              {/* Link do Vídeo - Largura Total com Detecção Automática */}
+              {/* Tipo de Aula — Segmented Control */}
               <div className="space-y-2">
-                <label className="block">
-                  <span className="text-xs font-semibold text-foreground">Link do Vídeo (Google Drive, YouTube, Panda ou MP4)</span>
+                <span className="text-xs font-semibold text-foreground">Tipo de Aula</span>
+                <div className="mt-1 grid grid-cols-4 gap-1 rounded-xl border border-white/10 bg-background p-1">
+                  {([ ["video", "🎥", "Vídeo Aula"], ["pdf", "📄", "PDF / Doc"], ["link", "🔗", "Link"], ["text", "📝", "Texto"] ] as const).map(([ct, icon, label]) => (
+                    <button
+                      key={ct}
+                      type="button"
+                      onClick={() => setEditLessonContentType(ct)}
+                      className={cn(
+                        "flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-semibold transition",
+                        editLessonContentType === ct
+                          ? "bg-gold text-black shadow"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Campos condicionais por tipo */}
+              {editLessonContentType === "video" && (
+                <div className="space-y-2">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-foreground">Link do Vídeo (Google Drive, YouTube, Panda ou MP4)</span>
+                    <input
+                      value={editLessonVideoUrl}
+                      onChange={(e) => handleEditVideoUrlChange(e.target.value)}
+                      placeholder="https://drive.google.com/file/d/... ou YouTube, Panda, MP4"
+                      className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
+                    />
+                  </label>
+
+                  {isDriveFolderUrl(editLessonVideoUrl) && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200 animate-in fade-in">
+                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block font-semibold text-amber-300">Link de Pasta do Google Drive Detectado</strong>
+                        <span className="leading-relaxed">
+                          Para aulas individuais, abra a pasta no Google Drive, clique com o botão direito no arquivo de vídeo específico desta aula e selecione &quot;Compartilhar &gt; Copiar link&quot;.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {editLessonVideoUrl.includes("drive.google.com") && !isDriveFolderUrl(editLessonVideoUrl) && (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs text-emerald-300 animate-in fade-in">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <span>Vídeo do <strong>Google Drive</strong> conectado com sucesso · <strong>0 MB consumidos no Supabase</strong></span>
+                    </div>
+                  )}
+
+                  {/* Status de Duração Automática */}
+                  {isDetectingEdit ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+                      <span>Identificando plataforma e duração do vídeo...</span>
+                    </div>
+                  ) : editLessonDuration ? (
+                    <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-300">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <span>Duração: <strong className="font-mono text-emerald-200">{editLessonDuration}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <button
+                          type="button"
+                          onClick={recheckEditDuration}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-gold transition"
+                          title="Recalcular duração pelo link"
+                        >
+                          <RefreshCw className="h-3 w-3" /> Recalcular
+                        </button>
+                        <span className="text-muted-foreground/40">·</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowManualEdit(!showManualEdit)}
+                          className="text-[11px] text-muted-foreground hover:text-gold transition underline"
+                        >
+                          {showManualEdit ? "Ocultar" : "Ajustar"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Ajuste manual obrigatório para Google Drive */}
+                  {showManualEdit && (
+                    <div className="pt-1 animate-in fade-in space-y-1.5">
+                      <label className="block">
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          Minutagem da Aula (MM:SS)
+                        </span>
+                        <input
+                          value={editLessonDuration}
+                          onChange={(e) => setEditLessonDuration(e.target.value)}
+                          placeholder="Ex: 14:20"
+                          autoFocus
+                          className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                        />
+                      </label>
+                      {!editLessonDuration.trim() && (
+                        <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                          ⚠️ Informe o tempo real do vídeo (ex: 14:20) — o Google Drive não fornece duração automaticamente.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PDF / Link URL field */}
+              {(editLessonContentType === "pdf" || editLessonContentType === "link") && (
+                <label className="block animate-in fade-in">
+                  <span className="text-xs font-semibold text-foreground">
+                    {editLessonContentType === "pdf" ? "URL do Documento / PDF" : "URL do Link / Ferramenta"}
+                  </span>
                   <input
-                    value={editLessonVideoUrl}
-                    onChange={(e) => handleEditVideoUrlChange(e.target.value)}
-                    placeholder="https://drive.google.com/file/d/... ou YouTube, Panda, MP4"
+                    value={editLessonContentUrl}
+                    onChange={(e) => setEditLessonContentUrl(e.target.value)}
+                    placeholder={editLessonContentType === "pdf" ? "https://drive.google.com/file/d/... ou link direto do PDF" : "https://app.minha-ferramenta.com/..."}
                     className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
                   />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {editLessonContentType === "pdf"
+                      ? "Cole o link de compartilhamento do Google Drive ou uma URL pública do PDF."
+                      : "Cole a URL da ferramenta, curso externo, ou recurso que o aluno vai acessar."}
+                  </p>
                 </label>
+              )}
 
-                {/* Aviso Inteligente se o usuário colar link de pasta do Google Drive */}
-                {isDriveFolderUrl(editLessonVideoUrl) && (
-                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200 animate-in fade-in">
-                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="block font-semibold text-amber-300">Link de Pasta do Google Drive Detectado</strong>
-                      <span className="leading-relaxed">
-                        Para aulas individuais, abra a pasta no Google Drive, clique com o botão direito no arquivo de vídeo específico desta aula e selecione &quot;Compartilhar &gt; Copiar link&quot;.
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Confirmação de Vídeo do Google Drive */}
-                {editLessonVideoUrl.includes("drive.google.com") && !isDriveFolderUrl(editLessonVideoUrl) && (
-                  <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs text-emerald-300 animate-in fade-in">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Vídeo do <strong>Google Drive</strong> conectado com sucesso · <strong>0 MB consumidos no Supabase</strong></span>
-                  </div>
-                )}
-
-                {/* Status de Duração Automática */}
-                {isDetectingEdit ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
-                    <span>Identificando plataforma e duração do vídeo...</span>
-                  </div>
-                ) : editLessonDuration ? (
-                  <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
-                    <div className="flex items-center gap-2 text-emerald-300">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                      <span>Duração: <strong className="font-mono text-emerald-200">{editLessonDuration}</strong></span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <button
-                        type="button"
-                        onClick={recheckEditDuration}
-                        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-gold transition"
-                        title="Recalcular duração pelo link"
-                      >
-                        <RefreshCw className="h-3 w-3" /> Recalcular
-                      </button>
-                      <span className="text-muted-foreground/40">·</span>
-                      <button
-                        type="button"
-                        onClick={() => setShowManualEdit(!showManualEdit)}
-                        className="text-[11px] text-muted-foreground hover:text-gold transition underline"
-                      >
-                        {showManualEdit ? "Ocultar" : "Ajustar"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Ajuste manual obrigatório para Google Drive */}
-                {showManualEdit && (
-                  <div className="pt-1 animate-in fade-in space-y-1.5">
-                    <label className="block">
-                      <span className="text-[11px] font-medium text-muted-foreground">
-                        Minutagem da Aula (MM:SS)
-                      </span>
-                      <input
-                        value={editLessonDuration}
-                        onChange={(e) => setEditLessonDuration(e.target.value)}
-                        placeholder="Ex: 14:20"
-                        autoFocus
-                        className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
-                      />
-                    </label>
-                    {!editLessonDuration.trim() && (
-                      <p className="text-[11px] text-amber-400 flex items-center gap-1">
-                        ⚠️ Informe o tempo real do vídeo (ex: 14:20) — o Google Drive não fornece duração automaticamente.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+              {/* Texto de leitura */}
+              {editLessonContentType === "text" && (
+                <label className="block animate-in fade-in">
+                  <span className="text-xs font-semibold text-foreground">Conteúdo de Leitura</span>
+                  <textarea
+                    value={editLessonContentUrl}
+                    onChange={(e) => setEditLessonContentUrl(e.target.value)}
+                    rows={6}
+                    placeholder="Escreva o material de leitura desta aula aqui..."
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
+                  />
+                </label>
+              )}
 
               <label className="block">
                 <span className="text-xs font-semibold text-foreground">Descrição / Objetivos da Aula</span>

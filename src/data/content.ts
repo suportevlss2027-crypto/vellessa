@@ -26,6 +26,8 @@ export type Lesson = {
   video_url?: string;
   description?: string;
   materials?: LessonMaterial[];
+  contentType?: "video" | "pdf" | "link" | "text";
+  contentUrl?: string;
 };
 
 export type Module = {

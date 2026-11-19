@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useState, useEffect } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play, ExternalLink } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play, ExternalLink, Link2, File, AlignLeft } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { cn } from "@/lib/utils";
@@ -96,7 +96,11 @@ function LessonPage() {
     [lesson?.id, lesson?.duration, lesson?.module?.id, updateLesson]
   );
 
-  const playerComponent = (
+  const isVideoLesson = Boolean(lesson.video_url);
+  const contentType = lesson.contentType;
+  const contentUrl = lesson.contentUrl;
+
+  const playerComponent = isVideoLesson ? (
     <VideoPlayer
       cover={lesson.module.cover}
       title={lesson.title}
@@ -107,6 +111,86 @@ function LessonPage() {
       onAutoComplete={handleAutoComplete}
       onDurationDetected={handleDurationDetected}
     />
+  ) : contentType === "pdf" || (!contentType && contentUrl?.toLowerCase().includes(".pdf")) ? (
+    /* ── Luxury PDF Card ── */
+    <div className="overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/30 via-card to-card shadow-2xl">
+      <div className="flex flex-col items-center justify-center gap-6 px-8 py-14 text-center">
+        <div className="grid h-20 w-20 place-items-center rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-lg">
+          <File className="h-10 w-10 text-amber-400" />
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-400 mb-2">Documento / PDF</p>
+          <h2 className="text-2xl font-bold text-foreground leading-tight">{lesson.title}</h2>
+          {lesson.description && (
+            <p className="mt-2 text-sm text-muted-foreground max-w-md">{lesson.description}</p>
+          )}
+        </div>
+        {contentUrl && (
+          <a
+            href={contentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-8 py-3 text-sm font-bold text-black shadow-lg hover:bg-amber-400 transition"
+          >
+            <File className="h-4 w-4" />
+            Abrir / Baixar Documento PDF ↗
+          </a>
+        )}
+      </div>
+    </div>
+  ) : contentType === "link" || (!contentType && contentUrl) ? (
+    /* ── Luxury Link Card ── */
+    <div className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/30 via-card to-card shadow-2xl">
+      <div className="flex flex-col items-center justify-center gap-6 px-8 py-14 text-center">
+        <div className="grid h-20 w-20 place-items-center rounded-2xl bg-cyan-500/10 border border-cyan-500/20 shadow-lg">
+          <Link2 className="h-10 w-10 text-cyan-400" />
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-400 mb-2">Link / Ferramenta</p>
+          <h2 className="text-2xl font-bold text-foreground leading-tight">{lesson.title}</h2>
+          {lesson.description && (
+            <p className="mt-2 text-sm text-muted-foreground max-w-md">{lesson.description}</p>
+          )}
+        </div>
+        {contentUrl && (
+          <a
+            href={contentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-cyan-500 px-8 py-3 text-sm font-bold text-black shadow-lg hover:bg-cyan-400 transition"
+          >
+            <Link2 className="h-4 w-4" />
+            Acessar Ferramenta Externa ↗
+          </a>
+        )}
+      </div>
+    </div>
+  ) : contentType === "text" ? (
+    /* ── Luxury Reading Card ── */
+    <div className="overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/30 via-card to-card shadow-2xl">
+      <div className="px-8 py-10">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/10 border border-violet-500/20">
+            <AlignLeft className="h-5 w-5 text-violet-400" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-400">Material de Leitura</p>
+            <p className="text-lg font-bold text-foreground">{lesson.title}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-background/50 p-6">
+          <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+            {contentUrl || lesson.description || "Nenhum conteúdo cadastrado."}
+          </p>
+        </div>
+      </div>
+    </div>
+  ) : (
+    /* ── Fallback: empty state ── */
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/30 bg-muted/10 py-16 text-center">
+      <FileText className="h-10 w-10 text-muted-foreground/30" />
+      <p className="text-sm text-muted-foreground">Conteúdo desta aula não configurado ainda.</p>
+    </div>
   );
 
   const lessonDetailsComponent = (

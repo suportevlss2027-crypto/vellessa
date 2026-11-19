@@ -257,9 +257,32 @@ interface AffiliateStoreContextType {
   createModule: (data: { title: string; subtitle: string; cover?: string }) => Promise<void>;
   updateModule: (id: string, data: { title?: string; subtitle?: string; cover?: string }) => Promise<void>;
   deleteModule: (id: string) => Promise<void>;
-  createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string; materials?: LessonMaterial[] }) => Promise<void>;
-  updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string; materials?: LessonMaterial[] }) => Promise<void>;
+  reorderModules: (newOrderedModules: DynamicModule[]) => Promise<void>;
+  createLesson: (data: {
+    moduleId: string;
+    title: string;
+    duration: string;
+    videoUrl?: string;
+    description?: string;
+    materials?: LessonMaterial[];
+    contentType?: "video" | "pdf" | "link" | "text";
+    contentUrl?: string;
+  }) => Promise<void>;
+  updateLesson: (
+    moduleId: string,
+    lessonId: string,
+    data: {
+      title?: string;
+      duration?: string;
+      videoUrl?: string;
+      description?: string;
+      materials?: LessonMaterial[];
+      contentType?: "video" | "pdf" | "link" | "text";
+      contentUrl?: string;
+    }
+  ) => Promise<void>;
   deleteLesson: (lessonId: string) => Promise<void>;
+  reorderLessons: (moduleId: string, newOrderedLessons: Lesson[]) => Promise<void>;
   createCreative: (data: {
     id?: string;
     title: string;
@@ -2566,6 +2589,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Módulo removido e atualizado na nuvem.");
   };
 
+  const reorderModules = async (newOrderedModules: DynamicModule[]) => {
+    setModulesList(newOrderedModules);
+    try {
+      localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(newOrderedModules));
+    } catch {}
+    await saveModulesToCloud(newOrderedModules);
+    toast.success("Ordem dos módulos atualizada com sucesso!");
+  };
+
   const createLesson = async (data: {
     moduleId: string;
     title: string;
@@ -2573,14 +2605,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     videoUrl?: string;
     description?: string;
     materials?: LessonMaterial[];
+    contentType?: "video" | "pdf" | "link" | "text";
+    contentUrl?: string;
   }) => {
     const newLesson: Lesson = {
       id: `l-${Date.now()}`,
       title: data.title,
-      duration: data.duration || "10:00",
+      duration:
+        data.duration ||
+        (data.contentType === "pdf"
+          ? "Documento PDF"
+          : data.contentType === "link"
+          ? "Link / Ferramenta"
+          : "10:00"),
       video_url: data.videoUrl,
       description: data.description,
       materials: data.materials || [],
+      contentType: data.contentType || (data.videoUrl ? "video" : "pdf"),
+      contentUrl: data.contentUrl,
       done: false,
     };
     const updated = modulesList.map((m) => {
@@ -2605,6 +2647,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       videoUrl?: string;
       description?: string;
       materials?: LessonMaterial[];
+      contentType?: "video" | "pdf" | "link" | "text";
+      contentUrl?: string;
     }
   ) => {
     const updated = modulesList.map((m) => {
@@ -2620,6 +2664,8 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             video_url: data.videoUrl !== undefined ? data.videoUrl : l.video_url,
             description: data.description !== undefined ? data.description : l.description,
             materials: data.materials !== undefined ? data.materials : (l.materials || []),
+            contentType: data.contentType !== undefined ? data.contentType : l.contentType,
+            contentUrl: data.contentUrl !== undefined ? data.contentUrl : l.contentUrl,
           };
         }),
       };
@@ -2639,6 +2685,22 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
     await saveModulesToCloud(updated);
     toast.success("Aula removida e atualizada na nuvem.");
+  };
+
+  const reorderLessons = async (moduleId: string, newOrderedLessons: Lesson[]) => {
+    const updated = modulesList.map((m) => {
+      if (m.id !== moduleId) return m;
+      return {
+        ...m,
+        lessons: newOrderedLessons,
+      };
+    });
+    setModulesList(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(updated));
+    } catch {}
+    await saveModulesToCloud(updated);
+    toast.success("Ordem das aulas atualizada com sucesso!");
   };
 
   const createCreative = async (data: {
@@ -3788,9 +3850,11 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       createModule,
       updateModule,
       deleteModule,
+      reorderModules,
       createLesson,
       updateLesson,
       deleteLesson,
+      reorderLessons,
       createCreative,
       createCreativesBatch,
       updateCreative,
