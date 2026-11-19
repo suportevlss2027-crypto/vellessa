@@ -1417,11 +1417,25 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   const hasSyncedLinksRef = useRef(false);
   const hasSyncedSettingsRef = useRef(false);
 
+  // Escala Massiva: TTL de 3 minutos de retenção em cache na leitura para poupar 80% de chamadas ao Supabase
+  const lastSyncCreativesTimeRef = useRef<number>(0);
+  const lastSyncMaterialsTimeRef = useRef<number>(0);
+  const lastSyncLinksTimeRef = useRef<number>(0);
+  const lastSyncSettingsTimeRef = useRef<number>(0);
+  const SYNC_CACHE_TTL_MS = 3 * 60 * 1000;
+
   // ── Sincronização Inteligente de Criativos com Supabase (Zero-Data-Loss & Single-Flight) ──
   const syncCreativesWithSupabase = useCallback(async (force = false) => {
     if (!isSupabaseConfigured || !supabase) return;
-    if (hasSyncedCreativesRef.current && !force) return;
+    const now = Date.now();
+    if (!force && hasSyncedCreativesRef.current && now - lastSyncCreativesTimeRef.current < SYNC_CACHE_TTL_MS) {
+      return;
+    }
     hasSyncedCreativesRef.current = true;
+    lastSyncCreativesTimeRef.current = now;
+
+    // Escala Massiva: Apenas Administrador/Titular pode gravar/migrar dados globais. Afiliados comuns fazem unicamente SELECT.
+    const canWriteGlobalContent = Boolean(isAdmin || isTitular);
 
     try {
       // 1. Sincronização de Pastas / Grupos Kiwify
@@ -1446,7 +1460,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           ? currentLocalFolders.filter((f: any) => !dbFolderMap.has(f.id))
           : [];
 
-        if (localFoldersToSync.length > 0) {
+        if (canWriteGlobalContent && localFoldersToSync.length > 0) {
           const rowsToInsert = localFoldersToSync.map((f: any) => ({
             id: f.id,
             name: f.name,
@@ -1543,13 +1557,15 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           localStorage.setItem(STORAGE_KEYS.CREATIVES, JSON.stringify(mergedList));
         } catch {}
 
-        // Migração em segundo plano: envia para o Supabase Storage qualquer arquivo que esteja apenas local
-        const itemsToMigrate = mergedList.filter((c) => {
-          const inDb = dbCreativeMap.get(c.id);
-          const notInDb = !inDb;
-          const hasIndexedDbUrl = Boolean(c.fileUrl?.startsWith("indexeddb://") || inDb?.fileUrl?.startsWith("indexeddb://"));
-          return notInDb || hasIndexedDbUrl;
-        });
+        // Migração em segundo plano: envia para o Supabase Storage qualquer arquivo que esteja apenas local (apenas se for admin/titular)
+        const itemsToMigrate = canWriteGlobalContent
+          ? mergedList.filter((c) => {
+              const inDb = dbCreativeMap.get(c.id);
+              const notInDb = !inDb;
+              const hasIndexedDbUrl = Boolean(c.fileUrl?.startsWith("indexeddb://") || inDb?.fileUrl?.startsWith("indexeddb://"));
+              return notInDb || hasIndexedDbUrl;
+            })
+          : [];
 
         if (itemsToMigrate.length > 0) {
           (async () => {
@@ -1617,13 +1633,19 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização com Supabase:", err);
     }
-  }, []);
+  }, [isAdmin, isTitular]);
 
   // ── Sincronização Inteligente de Materiais e Pastas com Supabase (Zero-Data-Loss) ──
   const syncMaterialsWithSupabase = useCallback(async (force = false) => {
     if (!isSupabaseConfigured || !supabase) return;
-    if (hasSyncedMaterialsRef.current && !force) return;
+    const now = Date.now();
+    if (!force && hasSyncedMaterialsRef.current && now - lastSyncMaterialsTimeRef.current < SYNC_CACHE_TTL_MS) {
+      return;
+    }
     hasSyncedMaterialsRef.current = true;
+    lastSyncMaterialsTimeRef.current = now;
+
+    const canWriteGlobalContent = Boolean(isAdmin || isTitular);
 
     try {
       // 1. Sincronização de Pastas Temáticas de Materiais
@@ -1647,7 +1669,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           ? currentLocalFolders.filter((f: any) => !dbFolderMap.has(f.id))
           : [];
 
-        if (localFoldersToSync.length > 0) {
+        if (canWriteGlobalContent && localFoldersToSync.length > 0) {
           const rowsToInsert = localFoldersToSync.map((f: any, idx: number) => ({
             id: f.id,
             name: f.name,
@@ -1729,11 +1751,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(mergedMaterials));
         } catch {}
 
-        // Migração de materiais locais pendentes
-        const pendingMaterials = mergedMaterials.filter((m) => {
-          const inDb = dbMaterialMap.get(m.id);
-          return !inDb || (!inDb.file_url && m.file_url);
-        });
+        // Migração de materiais locais pendentes (restrito a admin/titular)
+        const pendingMaterials = canWriteGlobalContent
+          ? mergedMaterials.filter((m) => {
+              const inDb = dbMaterialMap.get(m.id);
+              return !inDb || (!inDb.file_url && m.file_url);
+            })
+          : [];
 
         if (pendingMaterials.length > 0) {
           (async () => {
@@ -1773,13 +1797,19 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de materiais com Supabase:", err);
     }
-  }, []);
+  }, [isAdmin, isTitular]);
 
   // ── Sincronização Inteligente de Links Oficiais Logzz com Supabase ──
   const syncLinksWithSupabase = useCallback(async (force = false) => {
     if (!isSupabaseConfigured || !supabase) return;
-    if (hasSyncedLinksRef.current && !force) return;
+    const now = Date.now();
+    if (!force && hasSyncedLinksRef.current && now - lastSyncLinksTimeRef.current < SYNC_CACHE_TTL_MS) {
+      return;
+    }
     hasSyncedLinksRef.current = true;
+    lastSyncLinksTimeRef.current = now;
+
+    const canWriteGlobalContent = Boolean(isAdmin || isTitular);
 
     try {
       const { data: dbLinks, error: linksErr } = await supabase
@@ -1802,7 +1832,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           ? currentLocalLinks.filter((l: any) => !dbLinkMap.has(l.id || l.url))
           : [];
 
-        if (localLinksToSync.length > 0) {
+        if (canWriteGlobalContent && localLinksToSync.length > 0) {
           const rowsToInsert = localLinksToSync.map((l: any, idx: number) => ({
             id: l.id || `link-${Date.now()}-${idx}`,
             label: l.label,
@@ -1836,13 +1866,19 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de links com Supabase:", err);
     }
-  }, []);
+  }, [isAdmin, isTitular]);
 
   // ── Sincronização de Configurações Globais (Outdoor do Painel) ──
   const syncPlatformSettingsWithSupabase = useCallback(async (force = false) => {
     if (!isSupabaseConfigured || !supabase) return;
-    if (hasSyncedSettingsRef.current && !force) return;
+    const now = Date.now();
+    if (!force && hasSyncedSettingsRef.current && now - lastSyncSettingsTimeRef.current < SYNC_CACHE_TTL_MS) {
+      return;
+    }
     hasSyncedSettingsRef.current = true;
+    lastSyncSettingsTimeRef.current = now;
+
+    const canWriteGlobalContent = Boolean(isAdmin || isTitular);
 
     try {
       const { data: rows, error } = await supabase
@@ -1857,7 +1893,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           try {
             localStorage.setItem(STORAGE_KEYS.BILLBOARD_SETTINGS, JSON.stringify(normalized));
           } catch {}
-        } else {
+        } else if (canWriteGlobalContent) {
           const localBb = (() => {
             try {
               const raw = localStorage.getItem(STORAGE_KEYS.BILLBOARD_SETTINGS);
@@ -1878,7 +1914,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     } catch (err) {
       console.warn("[AffiliateStore] Aviso na sincronização de platform_settings:", err);
     }
-  }, []);
+  }, [isAdmin, isTitular]);
 
   useEffect(() => {
     checkSupabaseSession();
@@ -1904,6 +1940,10 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     hasSyncedMaterialsRef.current = false;
     hasSyncedLinksRef.current = false;
     hasSyncedSettingsRef.current = false;
+    lastSyncCreativesTimeRef.current = 0;
+    lastSyncMaterialsTimeRef.current = 0;
+    lastSyncLinksTimeRef.current = 0;
+    lastSyncSettingsTimeRef.current = 0;
 
     toast.info("Sincronizando dados com a nuvem...", { duration: 2000 });
     try {
