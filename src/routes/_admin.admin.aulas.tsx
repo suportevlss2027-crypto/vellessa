@@ -174,9 +174,7 @@ function AdminAulasPage() {
     if (url.includes("drive.google.com")) {
       setIsDetectingNew(false);
       setShowManualNew(true);
-      if (!lessonDuration) {
-        setLessonDuration("10:00");
-      }
+      // Não pré-preenche "10:00" falso: o admin deve informar o tempo real do vídeo
       return;
     }
 
@@ -203,9 +201,7 @@ function AdminAulasPage() {
     if (url.includes("drive.google.com")) {
       setIsDetectingEdit(false);
       setShowManualEdit(true);
-      if (!editLessonDuration) {
-        setEditLessonDuration("10:00");
-      }
+      // Não pré-preenche "10:00" falso: o admin deve informar o tempo real do vídeo
       return;
     }
 
@@ -284,7 +280,7 @@ function AdminAulasPage() {
     await createLesson({
       moduleId: selectedModuleId,
       title: lessonTitle.trim(),
-      duration: lessonDuration.trim() || "10:00",
+      duration: lessonDuration.trim() || "",
       videoUrl: lessonVideoUrl.trim(),
       description: lessonDescription.trim(),
       materials: filteredMaterials,
@@ -325,7 +321,7 @@ function AdminAulasPage() {
 
     await updateLesson(editingLesson.moduleId, editingLesson.lesson.id, {
       title: editLessonTitle.trim(),
-      duration: editLessonDuration.trim() || "10:00",
+      duration: editLessonDuration.trim() || "",
       videoUrl: editLessonVideoUrl.trim(),
       description: editLessonDescription.trim(),
       materials: filteredMaterials,
@@ -745,18 +741,26 @@ function AdminAulasPage() {
                   </div>
                 ) : null}
 
-                {/* Ajuste manual opcional (fallback) */}
+                {/* Ajuste manual obrigatório para Google Drive */}
                 {showManualNew && (
-                  <div className="pt-1 animate-in fade-in">
+                  <div className="pt-1 animate-in fade-in space-y-1.5">
                     <label className="block">
-                      <span className="text-[11px] font-medium text-muted-foreground">Minutagem da Aula (MM:SS)</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        Minutagem da Aula (MM:SS)
+                      </span>
                       <input
                         value={lessonDuration}
                         onChange={(e) => setLessonDuration(e.target.value)}
                         placeholder="Ex: 14:20"
+                        autoFocus
                         className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
                       />
                     </label>
+                    {!lessonDuration.trim() && (
+                      <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                        ⚠️ Informe o tempo real do vídeo (ex: 14:20) — o Google Drive não fornece duração automaticamente.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -968,18 +972,26 @@ function AdminAulasPage() {
                   </div>
                 ) : null}
 
-                {/* Ajuste manual opcional */}
+                {/* Ajuste manual obrigatório para Google Drive */}
                 {showManualEdit && (
-                  <div className="pt-1 animate-in fade-in">
+                  <div className="pt-1 animate-in fade-in space-y-1.5">
                     <label className="block">
-                      <span className="text-[11px] font-medium text-muted-foreground">Minutagem da Aula (MM:SS)</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        Minutagem da Aula (MM:SS)
+                      </span>
                       <input
                         value={editLessonDuration}
                         onChange={(e) => setEditLessonDuration(e.target.value)}
                         placeholder="Ex: 14:20"
+                        autoFocus
                         className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
                       />
                     </label>
+                    {!editLessonDuration.trim() && (
+                      <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                        ⚠️ Informe o tempo real do vídeo (ex: 14:20) — o Google Drive não fornece duração automaticamente.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

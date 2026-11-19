@@ -13,6 +13,36 @@ interface VideoPlayerProps {
   onDurationDetected?: (duration: string) => void;
 }
 
+export function extractDriveFileId(url?: string): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  const match = trimmed.match(
+    /drive\.google\.com\/(?:file\/d\/|(?:open|uc)\?.*id=)([a-zA-Z0-9_-]{10,})/
+  );
+  return match && match[1] ? match[1] : null;
+}
+
+export function getVideoCoverUrl(videoUrl?: string, customCover?: string): string {
+  if (!videoUrl) return customCover || "";
+  const trimmed = videoUrl.trim();
+
+  // 1. Google Drive: snapshot oficial de alta resolução gerado pelo próprio Google a partir do vídeo
+  const driveId = extractDriveFileId(trimmed);
+  if (driveId) {
+    return `https://drive.google.com/thumbnail?id=${driveId}&sz=w1280`;
+  }
+
+  // 2. YouTube: snapshot oficial do próprio vídeo
+  const ytMatch = trimmed.match(
+    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+  );
+  if (ytMatch && ytMatch[1]) {
+    return `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
+  }
+
+  return customCover || "";
+}
+
 function getEmbedUrl(url?: string): string | null {
   if (!url) return null;
   const trimmed = url.trim();
@@ -68,6 +98,15 @@ export function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const detectedUrlRef = useRef<string | null>(null);
 
+  const embedUrl = getEmbedUrl(videoUrl);
+  const isGoogleDrive = Boolean(videoUrl && videoUrl.includes("drive.google.com"));
+
+  const [currentCover, setCurrentCover] = useState(() => getVideoCoverUrl(videoUrl, cover));
+
+  useEffect(() => {
+    setCurrentCover(getVideoCoverUrl(videoUrl, cover));
+  }, [videoUrl, cover]);
+
   useEffect(() => {
     if (duration) {
       setCurrentDuration(duration);
@@ -114,8 +153,11 @@ export function VideoPlayer({
       timer = setInterval(() => {
         setCurrentTime((prev) => {
           if (prev >= totalSeconds) {
-            setIsPlaying(false);
             onAutoComplete?.();
+            // Para embeds externos (Google Drive, YouTube), o timer NUNCA derruba o iframe!
+            if (!embedUrl) {
+              setIsPlaying(false);
+            }
             return totalSeconds;
           }
           return prev + 1;
@@ -125,7 +167,7 @@ export function VideoPlayer({
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isPlaying, speed, totalSeconds, onAutoComplete]);
+  }, [isPlaying, speed, totalSeconds, onAutoComplete, embedUrl]);
 
   const togglePlay = () => setIsPlaying(!isPlaying);
 
@@ -161,8 +203,6 @@ export function VideoPlayer({
     setSpeed(speeds[nextIdx]!);
   };
 
-  const embedUrl = getEmbedUrl(videoUrl);
-  const isGoogleDrive = Boolean(videoUrl && videoUrl.includes("drive.google.com"));
   const isDirectVideo = Boolean(
     videoUrl &&
       (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(videoUrl.trim()) ||
@@ -230,11 +270,20 @@ export function VideoPlayer({
         />
       ) : (
         <>
-          {/* Background Poster / Visual Player */}
-          {cover ? (
+          {/* Background Poster / Visual Player com frame real do próprio vídeo */}
+          {currentCover ? (
             <img
-              src={cover}
+              src={currentCover}
               alt={title}
+              onError={() => {
+                if (currentCover.includes("maxresdefault")) {
+                  setCurrentCover(currentCover.replace("maxresdefault", "hqdefault"));
+                } else if (currentCover.includes("sz=w1280")) {
+                  setCurrentCover(currentCover.replace("sz=w1280", "sz=w800"));
+                } else if (cover && currentCover !== cover) {
+                  setCurrentCover(cover);
+                }
+              }}
               className={`h-full w-full object-cover transition-all duration-700 ${
                 isPlaying ? "scale-105 opacity-60 filter contrast-125" : "opacity-90"
               }`}
