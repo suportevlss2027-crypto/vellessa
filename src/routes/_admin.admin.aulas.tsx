@@ -915,90 +915,92 @@ function AdminAulasPage() {
 
               {/* Campos condicionais por tipo */}
               {lessonContentType === "video" && (
-                <div className="space-y-2">
-                  <label className="block">
-                    <span className="text-xs font-semibold text-foreground">Link do Vídeo (Google Drive, YouTube, Panda ou MP4)</span>
-                    <input
-                      value={lessonVideoUrl}
-                      onChange={(e) => handleNewVideoUrlChange(e.target.value)}
-                      placeholder="https://drive.google.com/file/d/... ou YouTube, Panda, MP4"
-                      className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
-                    />
-                  </label>
-
-                  {isDriveFolderUrl(lessonVideoUrl) && (
-                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200 animate-in fade-in">
-                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="block font-semibold text-amber-300">Link de Pasta do Google Drive Detectado</strong>
-                        <span className="leading-relaxed">
-                          Para aulas individuais, abra a pasta no Google Drive, clique com o botão direito no arquivo de vídeo específico desta aula e selecione &quot;Compartilhar &gt; Copiar link&quot;.
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {lessonVideoUrl.includes("drive.google.com") && !isDriveFolderUrl(lessonVideoUrl) && (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs text-emerald-300 animate-in fade-in">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                      <span>Vídeo do <strong>Google Drive</strong> conectado com sucesso · <strong>0 MB consumidos no Supabase</strong></span>
-                    </div>
-                  )}
-
-                {/* Status Dinâmico de Duração */}
-                {isDetectingNew ? (
-                  <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
-                    <span>Identificando plataforma e duração do vídeo...</span>
-                  </div>
-                ) : lessonDuration ? (
-                  <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
-                    <div className="flex items-center gap-2 text-emerald-300">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                      <span>Duração da aula: <strong className="font-mono text-emerald-200">{lessonDuration}</strong></span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowManualNew(!showManualNew)}
-                      className="text-[11px] text-muted-foreground hover:text-gold transition underline shrink-0 ml-2"
-                    >
-                      {showManualNew ? "Ocultar" : "Ajustar"}
-                    </button>
-                  </div>
-                ) : null}
-
-                {/* Ajuste manual obrigatório para Google Drive */}
-                {showManualNew && (
-                  <div className="pt-1 animate-in fade-in space-y-1.5">
+                <>
+                  <div className="space-y-2">
                     <label className="block">
-                      <span className="text-[11px] font-medium text-muted-foreground">
-                        Minutagem da Aula (MM:SS)
-                      </span>
+                      <span className="text-xs font-semibold text-foreground">Link do Vídeo (Google Drive, YouTube, Panda ou MP4)</span>
                       <input
-                        value={lessonDuration}
-                        onChange={(e) => setLessonDuration(e.target.value)}
-                        placeholder="Ex: 14:20"
-                        autoFocus
-                        className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                        value={lessonVideoUrl}
+                        onChange={(e) => handleNewVideoUrlChange(e.target.value)}
+                        placeholder="https://drive.google.com/file/d/... ou YouTube, Panda, MP4"
+                        className="mt-1 h-10 w-full rounded-xl border border-white/10 bg-background px-3 text-sm outline-none focus:border-gold transition font-mono text-xs"
                       />
                     </label>
-                    {!lessonDuration.trim() && (
-                      <p className="text-[11px] text-amber-400 flex items-center gap-1">
-                        ⚠️ Informe o tempo real do vídeo (ex: 14:20) — o Google Drive não fornece duração automaticamente.
-                      </p>
+
+                    {isDriveFolderUrl(lessonVideoUrl) && (
+                      <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-200 animate-in fade-in">
+                        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block font-semibold text-amber-300">Link de Pasta do Google Drive Detectado</strong>
+                          <span className="leading-relaxed">
+                            Para aulas individuais, abra a pasta no Google Drive, clique com o botão direito no arquivo de vídeo específico desta aula e selecione &quot;Compartilhar &gt; Copiar link&quot;.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {lessonVideoUrl.includes("drive.google.com") && !isDriveFolderUrl(lessonVideoUrl) && (
+                      <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs text-emerald-300 animate-in fade-in">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <span>Vídeo do <strong>Google Drive</strong> conectado com sucesso · <strong>0 MB consumidos no Supabase</strong></span>
+                      </div>
+                    )}
+
+                    {/* Status Dinâmico de Duração */}
+                    {isDetectingNew ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/5 px-3.5 py-2 text-xs text-gold animate-pulse">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-gold" />
+                        <span>Identificando plataforma e duração do vídeo...</span>
+                      </div>
+                    ) : lessonDuration ? (
+                      <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 text-xs">
+                        <div className="flex items-center gap-2 text-emerald-300">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                          <span>Duração da aula: <strong className="font-mono text-emerald-200">{lessonDuration}</strong></span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowManualNew(!showManualNew)}
+                          className="text-[11px] text-muted-foreground hover:text-gold transition underline shrink-0 ml-2"
+                        >
+                          {showManualNew ? "Ocultar" : "Ajustar"}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {/* Ajuste manual obrigatório para Google Drive */}
+                    {showManualNew && (
+                      <div className="pt-1 animate-in fade-in space-y-1.5">
+                        <label className="block">
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            Minutagem da Aula (MM:SS)
+                          </span>
+                          <input
+                            value={lessonDuration}
+                            onChange={(e) => setLessonDuration(e.target.value)}
+                            placeholder="Ex: 14:20"
+                            autoFocus
+                            className="mt-1 h-9 w-36 rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono"
+                          />
+                        </label>
+                        {!lessonDuration.trim() && (
+                          <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                            ⚠️ Informe o tempo real do vídeo (ex: 14:20) — o Google Drive não fornece duração automaticamente.
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-[11px] text-emerald-300 space-y-1">
-                <p className="font-semibold flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Dica de Hospedagem:
-                </p>
-                <p className="text-emerald-300/80 leading-relaxed">
-                  Compatível com <strong>Google Drive</strong> (custo 0 de storage, certifique-se de que o acesso está como &quot;Qualquer pessoa com o link&quot;), <strong>YouTube</strong> (não listado), <strong>Panda Video</strong> e arquivos <strong>MP4</strong>.
-                </p>
-              </div>
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-3 text-[11px] text-emerald-300 space-y-1">
+                    <p className="font-semibold flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> Dica de Hospedagem:
+                    </p>
+                    <p className="text-emerald-300/80 leading-relaxed">
+                      Compatível com <strong>Google Drive</strong> (custo 0 de storage, certifique-se de que o acesso está como &quot;Qualquer pessoa com o link&quot;), <strong>YouTube</strong> (não listado), <strong>Panda Video</strong> e arquivos <strong>MP4</strong>.
+                    </p>
+                  </div>
+                </>
               )}
 
               {/* Campos para PDF e Link */}
