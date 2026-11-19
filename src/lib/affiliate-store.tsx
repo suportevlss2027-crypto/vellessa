@@ -1442,24 +1442,28 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   const hasSyncedLinksRef = useRef(false);
   const hasSyncedSettingsRef = useRef(false);
 
-  // Escala Massiva: TTL de 3 minutos de retenção em cache na leitura para poupar 80% de chamadas ao Supabase
+  // Escala Massiva: TTL de 30 segundos de retenção em cache na leitura para poupar chamadas repetidas ao Supabase sem atrasar atualizações
   const lastSyncModulesTimeRef = useRef<number>(0);
   const lastSyncCreativesTimeRef = useRef<number>(0);
   const lastSyncMaterialsTimeRef = useRef<number>(0);
   const lastSyncLinksTimeRef = useRef<number>(0);
   const lastSyncSettingsTimeRef = useRef<number>(0);
-  const SYNC_CACHE_TTL_MS = 3 * 60 * 1000;
+  const SYNC_CACHE_TTL_MS = 30 * 1000;
 
   // ── Salva Módulos e Aulas na Nuvem Supabase (Zero Data Loss) ──
   const saveModulesToCloud = useCallback(async (modulesToSave: DynamicModule[]) => {
     if (!isSupabaseConfigured || !supabase) return;
     try {
-      await supabase.from("platform_settings").upsert({
+      const { error } = await supabase.from("platform_settings").upsert({
         key: "academy_modules_v1",
         value: modulesToSave,
         updated_at: new Date().toISOString(),
-      });
-      console.log(`[SYNC] ✅ ${modulesToSave.length} módulos e aulas sincronizados na nuvem Supabase.`);
+      }, { onConflict: "key" });
+      if (error) {
+        console.warn("[AffiliateStore] Erro ao persistir módulos na nuvem Supabase:", error);
+      } else {
+        console.log(`[SYNC] ✅ ${modulesToSave.length} módulos e aulas sincronizados na nuvem Supabase.`);
+      }
     } catch (err) {
       console.warn("[AffiliateStore] Falha ao persistir módulos na nuvem Supabase:", err);
     }
@@ -2036,6 +2040,47 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     syncLinksWithSupabase,
     syncPlatformSettingsWithSupabase,
   ]);
+
+  // ── Sincronização em Tempo Real (Supabase Realtime WebSocket) ────────────────
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel("realtime_platform_settings")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "platform_settings",
+        },
+        (payload: any) => {
+          const row = payload?.new;
+          if (row && row.key === "academy_modules_v1" && Array.isArray(row.value)) {
+            console.log(`[REALTIME] ⚡ Atualização instantânea de módulos e aulas recebida do Supabase (${row.value.length} módulos).`);
+            setModulesList(row.value);
+            try {
+              localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify(row.value));
+            } catch {}
+          }
+        }
+      )
+      .subscribe();
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        syncModulesWithSupabase(false);
+      }
+    };
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [syncModulesWithSupabase]);
 
   // ── Sincronização Forçada Total (Admin → Force Push local → Supabase) ────────
   const forceSyncAllData = useCallback(async () => {

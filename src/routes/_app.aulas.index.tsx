@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { BookOpen, PlayCircle } from "lucide-react";
 import { PageHeader, ProgressBar } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
@@ -17,7 +18,12 @@ export const Route = createFileRoute("/_app/aulas/")({
 });
 
 function Aulas() {
-  const { isLessonDone, modulesList } = useAffiliateStore();
+  const { isLessonDone, modulesList, syncModulesWithSupabase } = useAffiliateStore();
+
+  // Garante que o afiliado sempre visualize a ordem mais recente salva pelo titular
+  useEffect(() => {
+    syncModulesWithSupabase(false);
+  }, [syncModulesWithSupabase]);
 
   return (
     <>

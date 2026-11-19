@@ -28,6 +28,7 @@ function LessonPage() {
     allLessonsList,
     modulesList,
     updateLesson,
+    syncModulesWithSupabase,
   } = useAffiliateStore();
 
   const [theaterMode, setTheaterMode] = useState<boolean>(() => {
@@ -66,7 +67,8 @@ function LessonPage() {
     if (lesson?.title) {
       document.title = `${lesson.title} — Vellessa Afiliados`;
     }
-  }, [id, lesson?.title]);
+    syncModulesWithSupabase(false);
+  }, [id, lesson?.title, syncModulesWithSupabase]);
 
   if (!lesson) {
     return (

@@ -421,10 +421,18 @@ function Dashboard() {
                     {nextLesson.title}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground font-medium">
-                    {nextLesson.duration
+                    {nextLesson.contentType === "link"
+                      ? "Acesso a Link / Ferramenta"
+                      : nextLesson.contentType === "pdf"
+                      ? "Documento / Material em PDF"
+                      : nextLesson.contentType === "text"
+                      ? "Material de Leitura"
+                      : nextLesson.duration
                       ? nextLesson.duration.includes(":")
                         ? `${nextLesson.duration} de aula`
-                        : `${nextLesson.duration} min de aula`
+                        : !isNaN(Number(nextLesson.duration))
+                        ? `${nextLesson.duration} min de aula`
+                        : nextLesson.duration
                       : "Vídeo aula"}
                   </p>
                   {isCompletedAll ? (
@@ -433,7 +441,13 @@ function Dashboard() {
                     </span>
                   ) : (
                     <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-gold group-hover:underline">
-                      Assistir agora →
+                      {nextLesson.contentType === "link"
+                        ? "Acessar agora →"
+                        : nextLesson.contentType === "pdf"
+                        ? "Abrir documento →"
+                        : nextLesson.contentType === "text"
+                        ? "Ler conteúdo →"
+                        : "Assistir agora →"}
                     </span>
                   )}
                 </div>

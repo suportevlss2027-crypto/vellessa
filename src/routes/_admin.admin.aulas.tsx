@@ -238,16 +238,19 @@ function AdminAulasPage() {
 
   // ── Lesson Drag & Drop ───────────────────────────────────────────────────
   const handleLessonDragStart = (e: React.DragEvent, moduleId: string, index: number) => {
+    e.stopPropagation();
     setDraggedLesson({ moduleId, index });
     e.dataTransfer.effectAllowed = "move";
   };
   const handleLessonDragOver = (e: React.DragEvent, moduleId: string, index: number) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
     setDragOverLesson({ moduleId, index });
   };
   const handleLessonDrop = (e: React.DragEvent, targetModuleId: string, targetIdx: number) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!draggedLesson || draggedLesson.moduleId !== targetModuleId || draggedLesson.index === targetIdx) {
       setDraggedLesson(null);
       setDragOverLesson(null);
@@ -607,7 +610,11 @@ function AdminAulasPage() {
                         onDragStart={(e) => handleLessonDragStart(e, m.id, lIdx)}
                         onDragOver={(e) => handleLessonDragOver(e, m.id, lIdx)}
                         onDrop={(e) => handleLessonDrop(e, m.id, lIdx)}
-                        onDragEnd={() => { setDraggedLesson(null); setDragOverLesson(null); }}
+                        onDragEnd={(e) => {
+                          e.stopPropagation();
+                          setDraggedLesson(null);
+                          setDragOverLesson(null);
+                        }}
                         className={cn(
                           "flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 px-2 rounded-xl transition",
                           isDraggingThis ? "opacity-40" : "hover:bg-accent/20",
