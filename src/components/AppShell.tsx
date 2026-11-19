@@ -68,10 +68,19 @@ export function AppShell() {
     navigate({ to: "/" });
   };
 
+  const isLocallyMarkedDone =
+    typeof window !== "undefined" &&
+    Boolean(
+      (profile.email && localStorage.getItem(`vellessa_onboarding_done_${profile.email}`) === "true") ||
+        localStorage.getItem("vellessa_onboarding_done_current") === "true"
+    );
+
   const needsOnboarding =
     profile.role !== "admin" &&
     !isSuperAdmin(profile.email) &&
-    (!profile.phone || profile.phone.trim().length < 10 || !profile.onboardingCompleted);
+    !profile.onboardingCompleted &&
+    !isLocallyMarkedDone &&
+    (!profile.phone || profile.phone.trim().length < 10);
 
   return (
     <div className="flex min-h-screen w-full bg-background">

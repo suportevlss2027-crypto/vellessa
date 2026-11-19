@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play, ExternalLink } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -57,6 +57,16 @@ function LessonPage() {
   const lesson = allLessonsList[idx] ?? allLessonsList[0];
   const prev = idx > 0 ? allLessonsList[idx - 1] : undefined;
   const next = idx >= 0 && idx < allLessonsList.length - 1 ? allLessonsList[idx + 1] : undefined;
+
+  // QA-Senior: Scroll suave ao topo e sincronização do título dinâmico da página ao alternar aulas
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (lesson?.title) {
+      document.title = `${lesson.title} — Vellessa Afiliados`;
+    }
+  }, [id, lesson?.title]);
 
   if (!lesson) {
     return (

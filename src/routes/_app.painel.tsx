@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ProgressBar } from "@/components/AppShell";
 import { useAffiliateStore, BILLBOARD_THEMES } from "@/lib/affiliate-store";
+import { getVideoCoverUrl } from "@/components/VideoPlayer";
 
 export const Route = createFileRoute("/_app/painel")({
   head: () => ({
@@ -401,8 +402,8 @@ function Dashboard() {
               >
                 <div className="relative aspect-video w-full overflow-hidden rounded-xl sm:w-56 shrink-0 bg-muted border border-white/10 shadow-xs">
                   <img
-                    src={nextLesson.module.cover}
-                    alt=""
+                    src={getVideoCoverUrl(nextLesson.video_url, nextLesson.module.cover)}
+                    alt={nextLesson.title}
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     loading="lazy"
                   />
@@ -419,7 +420,13 @@ function Dashboard() {
                   <p className="mt-0.5 font-display text-base sm:text-lg font-bold text-foreground leading-snug group-hover:text-gold transition truncate sm:whitespace-normal">
                     {nextLesson.title}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground font-medium">{nextLesson.duration} min de aula</p>
+                  <p className="mt-1 text-xs text-muted-foreground font-medium">
+                    {nextLesson.duration
+                      ? nextLesson.duration.includes(":")
+                        ? `${nextLesson.duration} de aula`
+                        : `${nextLesson.duration} min de aula`
+                      : "Vídeo aula"}
+                  </p>
                   {isCompletedAll ? (
                     <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold">
                       <Sparkles className="h-3 w-3" /> Trilha 100% finalizada
@@ -513,7 +520,7 @@ function Dashboard() {
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[10px] text-muted-foreground font-medium">{m.size}</span>
                     <span className="text-foreground/20 text-[10px]">·</span>
-                    <span className="text-[10px] font-bold text-gold">Baixar</span>
+                    <span className="text-[10px] font-bold text-gold">Acessar</span>
                   </div>
                 </div>
                 <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/30 transition group-hover:text-gold group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

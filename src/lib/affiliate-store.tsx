@@ -1228,11 +1228,23 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from("profiles").update({
-            name: updated.name,
-            phone: updated.phone,
-            instagram: updated.instagram,
-          }).eq("id", user.id);
+          const updatePayload: Record<string, any> = {};
+          if (updated.name !== undefined) {
+            updatePayload.name = updated.name.trim();
+            updatePayload.first_name = updated.first || updated.name.trim().split(" ")[0] || "";
+          }
+          if (updated.phone !== undefined) {
+            updatePayload.phone = updated.phone.trim();
+          }
+          if (updated.instagram !== undefined) {
+            updatePayload.instagram = updated.instagram.trim();
+          }
+          if (updated.pix_key !== undefined) {
+            updatePayload.pix_key = updated.pix_key.trim();
+          }
+          if (Object.keys(updatePayload).length > 0) {
+            await supabase.from("profiles").update(updatePayload).eq("id", user.id);
+          }
         }
       } catch (e) {
         console.error("Supabase profile sync error:", e);

@@ -35,22 +35,23 @@ const adminNav = [
 ] as const;
 
 function AdminLayout() {
-  const { profile, logout, isAdmin, isTitular, isAuthenticated } = useAffiliateStore();
+  const { profile, logout, isAdmin, isTitular, isAuthenticated, authLoading } = useAffiliateStore();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       navigate({ to: "/admin/login" });
       return;
     }
-    if (!isAdmin) {
+    if (!isAdmin && !isTitular) {
       toast.error("Acesso negado: sua conta não possui privilégios de administrador.");
       navigate({ to: "/painel" });
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, isTitular, authLoading, navigate]);
 
   const isActive = (to: string) => path === to || (to !== "/admin" && path.startsWith(to));
 
@@ -59,7 +60,20 @@ function AdminLayout() {
     navigate({ to: "/admin/login" });
   };
 
-  if (!isAuthenticated || !isAdmin) {
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 animate-in fade-in duration-300">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gold-gradient shadow-gold animate-pulse">
+            <Shield className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Validando Acesso Executivo...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || (!isAdmin && !isTitular)) {
     return null;
   }
 

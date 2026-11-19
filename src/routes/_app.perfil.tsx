@@ -24,6 +24,7 @@ function Perfil() {
     email: profile.email,
     phone: profile.phone,
     instagram: profile.instagram,
+    pix_key: profile.pix_key || "",
   });
 
   useEffect(() => {
@@ -32,6 +33,7 @@ function Perfil() {
       email: profile.email,
       phone: profile.phone,
       instagram: profile.instagram,
+      pix_key: profile.pix_key || "",
     });
   }, [profile]);
 
@@ -116,14 +118,46 @@ function Perfil() {
               />
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-foreground">Instagram profissional</span>
+            <label className="block sm:col-span-2">
+              <span className="mb-1.5 block text-sm font-medium text-foreground">
+                Chave PIX (Para repasses e bonificações)
+              </span>
               <input
-                value={formData.instagram}
-                onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                value={formData.pix_key}
+                onChange={(e) => setFormData({ ...formData, pix_key: e.target.value })}
+                placeholder="CPF, E-mail, Celular ou Chave Aleatória"
                 className="h-11 w-full rounded-xl border bg-background px-4 text-sm outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
               />
             </label>
+          </div>
+
+          {/* Link Oficial de Indicação / Conexão Logzz */}
+          <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gold">
+              Seu Link Rápido de Afiliado Vellessa na Logzz
+            </span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <input
+                readOnly
+                value={`https://app.logzz.com.br/afiliados/cadastro?ref=${profile.id || "vellessa"}`}
+                className="h-10 flex-1 rounded-xl border border-white/10 bg-background/80 px-3 font-mono text-xs text-muted-foreground outline-none select-all"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  copyText(
+                    `https://app.logzz.com.br/afiliados/cadastro?ref=${profile.id || "vellessa"}`,
+                    "Link de afiliação copiado com sucesso!"
+                  )
+                }
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-bold text-primary-foreground shadow-gold hover:brightness-105 transition shrink-0"
+              >
+                <Copy className="h-3.5 w-3.5" /> Copiar Link
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Utilize este link de afiliação para conectar sua conta da Logzz e garantir o rastreio das suas comissões.
+            </p>
           </div>
 
           <div className="flex items-center justify-between rounded-2xl bg-muted/60 p-4 border">
