@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Play, ExternalLink } from "lucide-react";
 import { useAffiliateStore } from "@/lib/affiliate-store";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { cn } from "@/lib/utils";
@@ -71,13 +71,6 @@ function LessonPage() {
 
   const done = isLessonDone(lesson.id);
 
-  const handleDownloadMaterial = (filename: string) => {
-    const content = `=== VELESSA AFILIADOS - MATERIAL OFICIAL ===\n\nAula: ${lesson.title}\nMódulo: ${lesson.module.title}\nArquivo: ${filename}\nData: ${new Date().toLocaleDateString("pt-BR")}\n\nConteúdo prático recomendado para implementação e aumento de conversão no tráfego pago e orgânico.`;
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    downloadAsset(url, filename.replace(".pdf", ".txt"));
-  };
-
   const handleAutoComplete = useCallback(() => {
     if (lesson) {
       markLessonDone(lesson.id, lesson.title);
@@ -132,24 +125,32 @@ function LessonPage() {
           "Nesta aula você vai entender, de forma prática, como aplicar este conteúdo na sua rotina de divulgação do Sérum Vellessa — com exemplos reais, scripts de alta conversão e os erros mais comuns para evitar."}
       </p>
 
-      <div className="mt-6 rounded-2xl border bg-card p-5">
-        <p className="font-semibold text-foreground">Materiais complementares da aula</p>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {["Resumo da aula.pdf", "Checklist prático.pdf"].map((f) => (
-            <button
-              key={f}
-              onClick={() => handleDownloadMaterial(f)}
-              className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3 text-sm transition hover:bg-muted hover:text-gold border border-transparent hover:border-gold/30"
-            >
-              <span className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gold" />
-                {f}
-              </span>
-              <Download className="h-4 w-4 text-muted-foreground" />
-            </button>
-          ))}
+      {/* Materiais Complementares Reais Cadastrados pelo Administrador (100% Condicional) */}
+      {lesson.materials && lesson.materials.length > 0 && (
+        <div className="mt-6 rounded-2xl border bg-card p-5 shadow-xs">
+          <p className="font-semibold text-foreground text-sm flex items-center gap-2">
+            <FileText className="h-4 w-4 text-gold" />
+            Materiais complementares da aula ({lesson.materials.length})
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {lesson.materials.map((mat) => (
+              <a
+                key={mat.id || mat.url}
+                href={mat.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between rounded-xl bg-muted/60 px-4 py-3 text-sm transition hover:bg-muted hover:text-gold border border-transparent hover:border-gold/30 group"
+              >
+                <span className="flex items-center gap-2.5 truncate pr-2">
+                  <FileText className="h-4 w-4 text-gold shrink-0" />
+                  <span className="truncate font-medium">{mat.title}</span>
+                </span>
+                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-gold shrink-0 transition" />
+              </a>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mt-6 flex justify-between gap-3">
         {prev ? (

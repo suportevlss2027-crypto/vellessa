@@ -11,6 +11,13 @@ export const affiliate = {
   id: "",
 };
 
+export type LessonMaterial = {
+  id: string;
+  title: string;
+  url: string;
+  type?: "pdf" | "sheet" | "doc" | "drive" | "link";
+};
+
 export type Lesson = {
   id: string;
   title: string;
@@ -18,6 +25,7 @@ export type Lesson = {
   done?: boolean;
   video_url?: string;
   description?: string;
+  materials?: LessonMaterial[];
 };
 
 export type Module = {

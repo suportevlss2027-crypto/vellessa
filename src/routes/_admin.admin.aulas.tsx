@@ -17,11 +17,12 @@ import {
   CheckCircle2,
   RefreshCw,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useAffiliateStore, type DynamicModule } from "@/lib/affiliate-store";
 import { MediaUploadField } from "@/components/admin/MediaUploadField";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import { type Lesson } from "@/data/content";
+import { type Lesson, type LessonMaterial } from "@/data/content";
 import { detectVideoDuration } from "@/lib/video-duration";
 
 export const Route = createFileRoute("/_admin/admin/aulas")({
@@ -89,6 +90,8 @@ function AdminAulasPage() {
   const [lessonDuration, setLessonDuration] = useState("");
   const [lessonVideoUrl, setLessonVideoUrl] = useState("");
   const [lessonDescription, setLessonDescription] = useState("");
+  const [hasMaterialsNew, setHasMaterialsNew] = useState(false);
+  const [materialsNew, setMaterialsNew] = useState<LessonMaterial[]>([]);
   const [isDetectingNew, setIsDetectingNew] = useState(false);
   const [showManualNew, setShowManualNew] = useState(false);
 
@@ -98,6 +101,8 @@ function AdminAulasPage() {
   const [editLessonDuration, setEditLessonDuration] = useState("");
   const [editLessonVideoUrl, setEditLessonVideoUrl] = useState("");
   const [editLessonDescription, setEditLessonDescription] = useState("");
+  const [hasMaterialsEdit, setHasMaterialsEdit] = useState(false);
+  const [materialsEdit, setMaterialsEdit] = useState<LessonMaterial[]>([]);
   const [isDetectingEdit, setIsDetectingEdit] = useState(false);
   const [showManualEdit, setShowManualEdit] = useState(false);
 
@@ -243,32 +248,67 @@ function AdminAulasPage() {
       });
   };
 
+  // Handlers de Materiais Complementares - Nova Aula
+  const handleAddMaterialNew = () => {
+    setMaterialsNew((prev) => [...prev, { id: `mat-${Date.now()}-${prev.length}`, title: "", url: "" }]);
+  };
+  const handleUpdateMaterialNew = (idx: number, field: "title" | "url", value: string) => {
+    setMaterialsNew((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m)));
+  };
+  const handleRemoveMaterialNew = (idx: number) => {
+    setMaterialsNew((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Handlers de Materiais Complementares - Editar Aula
+  const handleAddMaterialEdit = () => {
+    setMaterialsEdit((prev) => [...prev, { id: `mat-${Date.now()}-${prev.length}`, title: "", url: "" }]);
+  };
+  const handleUpdateMaterialEdit = (idx: number, field: "title" | "url", value: string) => {
+    setMaterialsEdit((prev) => prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m)));
+  };
+  const handleRemoveMaterialEdit = (idx: number) => {
+    setMaterialsEdit((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   // Handlers for Lesson
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lessonTitle.trim() || !selectedModuleId) return;
+
+    const filteredMaterials = hasMaterialsNew
+      ? materialsNew
+          .filter((m) => m.title.trim() && m.url.trim())
+          .map((m) => ({ id: m.id || `mat-${Date.now()}`, title: m.title.trim(), url: m.url.trim() }))
+      : [];
+
     await createLesson({
       moduleId: selectedModuleId,
       title: lessonTitle.trim(),
       duration: lessonDuration.trim() || "10:00",
       videoUrl: lessonVideoUrl.trim(),
       description: lessonDescription.trim(),
+      materials: filteredMaterials,
     });
     setLessonTitle("");
     setLessonDuration("");
     setLessonVideoUrl("");
     setLessonDescription("");
+    setHasMaterialsNew(false);
+    setMaterialsNew([]);
     setIsDetectingNew(false);
     setShowManualNew(false);
     setShowLessonModal(false);
   };
 
   const handleOpenEditLesson = (moduleId: string, lesson: Lesson) => {
+    const existingMats = (lesson.materials || []).map((m) => ({ ...m }));
     setEditingLesson({ moduleId, lesson });
     setEditLessonTitle(lesson.title);
     setEditLessonDuration(lesson.duration || "");
     setEditLessonVideoUrl(lesson.video_url || "");
     setEditLessonDescription(lesson.description || "");
+    setHasMaterialsEdit(existingMats.length > 0);
+    setMaterialsEdit(existingMats);
     setIsDetectingEdit(false);
     setShowManualEdit(false);
   };
@@ -276,11 +316,19 @@ function AdminAulasPage() {
   const handleUpdateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingLesson || !editLessonTitle.trim()) return;
+
+    const filteredMaterials = hasMaterialsEdit
+      ? materialsEdit
+          .filter((m) => m.title.trim() && m.url.trim())
+          .map((m) => ({ id: m.id || `mat-${Date.now()}`, title: m.title.trim(), url: m.url.trim() }))
+      : [];
+
     await updateLesson(editingLesson.moduleId, editingLesson.lesson.id, {
       title: editLessonTitle.trim(),
       duration: editLessonDuration.trim() || "10:00",
       videoUrl: editLessonVideoUrl.trim(),
       description: editLessonDescription.trim(),
+      materials: filteredMaterials,
     });
     setEditingLesson(null);
   };
@@ -732,6 +780,74 @@ function AdminAulasPage() {
                   className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
                 />
               </label>
+
+              {/* Seção Opcional de Materiais Complementares */}
+              <div className="pt-3 border-t border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-gold" />
+                      Materiais Complementares da Aula
+                    </span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Disponibilizar arquivos reais para download ou links do Google Drive/PDF.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasMaterialsNew}
+                      onChange={(e) => {
+                        setHasMaterialsNew(e.target.checked);
+                        if (e.target.checked && materialsNew.length === 0) {
+                          setMaterialsNew([{ id: `mat-${Date.now()}`, title: "", url: "" }]);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold"></div>
+                  </label>
+                </div>
+
+                {hasMaterialsNew && (
+                  <div className="space-y-2.5 rounded-2xl border border-white/10 bg-background/50 p-3.5 animate-in fade-in">
+                    {materialsNew.map((mat, idx) => (
+                      <div key={mat.id || idx} className="flex items-center gap-2">
+                        <div className="grid flex-1 grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            value={mat.title}
+                            onChange={(e) => handleUpdateMaterialNew(idx, "title", e.target.value)}
+                            placeholder="Nome do arquivo (ex: Resumo da Aula.pdf)"
+                            className="h-9 w-full rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition"
+                          />
+                          <input
+                            value={mat.url}
+                            onChange={(e) => handleUpdateMaterialNew(idx, "url", e.target.value)}
+                            placeholder="Link do arquivo (Google Drive, PDF, etc.)"
+                            className="h-9 w-full rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono text-[11px]"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMaterialNew(idx)}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border/50 text-muted-foreground hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition"
+                          title="Remover material"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={handleAddMaterialNew}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-white/20 px-3 py-1.5 text-xs text-muted-foreground hover:border-gold hover:text-gold transition"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Adicionar Outro Material
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Footer fixo */}
@@ -877,6 +993,74 @@ function AdminAulasPage() {
                   className="mt-1 w-full rounded-xl border border-white/10 bg-background p-3 text-sm outline-none focus:border-gold transition"
                 />
               </label>
+
+              {/* Seção Opcional de Materiais Complementares */}
+              <div className="pt-3 border-t border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-gold" />
+                      Materiais Complementares da Aula
+                    </span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Disponibilizar arquivos reais para download ou links do Google Drive/PDF.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasMaterialsEdit}
+                      onChange={(e) => {
+                        setHasMaterialsEdit(e.target.checked);
+                        if (e.target.checked && materialsEdit.length === 0) {
+                          setMaterialsEdit([{ id: `mat-${Date.now()}`, title: "", url: "" }]);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold"></div>
+                  </label>
+                </div>
+
+                {hasMaterialsEdit && (
+                  <div className="space-y-2.5 rounded-2xl border border-white/10 bg-background/50 p-3.5 animate-in fade-in">
+                    {materialsEdit.map((mat, idx) => (
+                      <div key={mat.id || idx} className="flex items-center gap-2">
+                        <div className="grid flex-1 grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            value={mat.title}
+                            onChange={(e) => handleUpdateMaterialEdit(idx, "title", e.target.value)}
+                            placeholder="Nome do arquivo (ex: Resumo da Aula.pdf)"
+                            className="h-9 w-full rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition"
+                          />
+                          <input
+                            value={mat.url}
+                            onChange={(e) => handleUpdateMaterialEdit(idx, "url", e.target.value)}
+                            placeholder="Link do arquivo (Google Drive, PDF, etc.)"
+                            className="h-9 w-full rounded-xl border border-white/10 bg-background px-3 text-xs outline-none focus:border-gold transition font-mono text-[11px]"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMaterialEdit(idx)}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border/50 text-muted-foreground hover:border-red-500/50 hover:text-red-400 hover:bg-red-500/10 transition"
+                          title="Remover material"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={handleAddMaterialEdit}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-white/20 px-3 py-1.5 text-xs text-muted-foreground hover:border-gold hover:text-gold transition"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Adicionar Outro Material
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Footer fixo */}

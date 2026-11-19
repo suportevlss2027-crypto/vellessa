@@ -14,9 +14,11 @@ export function isSuperAdmin(email?: string | null): boolean {
 // ──────────────────────────────────────────────────────────────────────────────
 import {
   type Lesson,
+  type LessonMaterial,
   type Module,
   type Creative,
 } from "@/data/content";
+export type { LessonMaterial };
 import { supabase, isSupabaseConfigured, type DatabaseProfile } from "./supabase";
 import { storeRawFile, getRawFile, deleteRawFile, deleteRawFiles, uploadMaterialToSupabase } from "./file-storage";
 import { deleteCreativeAssets, deleteBatchCreativeAssets, uploadCreativeToSupabase, uploadIndexedDbCreativeToCloud } from "./creative-storage";
@@ -254,8 +256,8 @@ interface AffiliateStoreContextType {
   createModule: (data: { title: string; subtitle: string; cover?: string }) => Promise<void>;
   updateModule: (id: string, data: { title?: string; subtitle?: string; cover?: string }) => Promise<void>;
   deleteModule: (id: string) => Promise<void>;
-  createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string }) => Promise<void>;
-  updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string }) => Promise<void>;
+  createLesson: (data: { moduleId: string; title: string; duration: string; videoUrl?: string; description?: string; materials?: LessonMaterial[] }) => Promise<void>;
+  updateLesson: (moduleId: string, lessonId: string, data: { title?: string; duration?: string; videoUrl?: string; description?: string; materials?: LessonMaterial[] }) => Promise<void>;
   deleteLesson: (lessonId: string) => Promise<void>;
   createCreative: (data: {
     id?: string;
@@ -2428,6 +2430,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     duration: string;
     videoUrl?: string;
     description?: string;
+    materials?: LessonMaterial[];
   }) => {
     const newLesson: Lesson = {
       id: `l-${Date.now()}`,
@@ -2435,6 +2438,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       duration: data.duration || "10:00",
       video_url: data.videoUrl,
       description: data.description,
+      materials: data.materials || [],
       done: false,
     };
     const updated = modulesList.map((m) => {
@@ -2452,7 +2456,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
   const updateLesson = async (
     moduleId: string,
     lessonId: string,
-    data: { title?: string; duration?: string; videoUrl?: string; description?: string }
+    data: {
+      title?: string;
+      duration?: string;
+      videoUrl?: string;
+      description?: string;
+      materials?: LessonMaterial[];
+    }
   ) => {
     const updated = modulesList.map((m) => {
       if (m.id !== moduleId) return m;
@@ -2466,6 +2476,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
             duration: data.duration !== undefined ? data.duration : l.duration,
             video_url: data.videoUrl !== undefined ? data.videoUrl : l.video_url,
             description: data.description !== undefined ? data.description : l.description,
+            materials: data.materials !== undefined ? data.materials : (l.materials || []),
           };
         }),
       };
