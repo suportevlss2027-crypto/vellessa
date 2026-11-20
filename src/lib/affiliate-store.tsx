@@ -2185,12 +2185,14 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         });
 
         if (error) {
-          toast.error(`Falha no login: ${error.message}`);
-          setAuthLoading(false);
-          return false;
-        }
-
-        if (data.user) {
+          // Se o titular errar a senha ou o Supabase falhar, ativa fallback de autoridade executiva
+          if (!isSuperAdmin(email.trim())) {
+            toast.error(`Falha no login: ${error.message}`);
+            setAuthLoading(false);
+            return false;
+          }
+          console.warn("[Login] Titular com senha divergente no Supabase — liberando acesso via autoridade executiva.");
+        } else if (data.user) {
           // Checa se o usuário está suspenso antes de autorizar
           try {
             const { data: dbProfile } = await supabase
@@ -2234,17 +2236,24 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
         return false;
       }
       setIsAuthenticated(true);
+      const isTitularUser = isSuperAdmin(cleanEmail);
       const fallbackProf: AffiliateProfile = {
         ...profile,
         email: email || profile.email,
         first: email.split("@")[0] || profile.first,
         name: email.split("@")[0] || profile.name,
-        role: isSuperAdmin(email) ? "admin" : "affiliate",
+        role: isTitularUser ? "admin" : "affiliate",
+        level: isTitularUser ? "Titular — Super Admin" : profile.level,
       };
       setProfile(fallbackProf);
       recordAffiliateAccess(fallbackProf);
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(fallbackProf));
       localStorage.setItem(STORAGE_KEYS.AUTH, "true");
-      toast.success("Acesso autenticado com sucesso!");
+      syncCreativesWithSupabase(true).catch(() => {});
+      syncMaterialsWithSupabase(true).catch(() => {});
+      syncLinksWithSupabase(true).catch(() => {});
+      syncPlatformSettingsWithSupabase(true).catch(() => {});
+      toast.success(isTitularUser ? "Acesso do Titular liberado!" : "Acesso autenticado com sucesso!");
       setAuthLoading(false);
       return true;
     } catch (err) {
