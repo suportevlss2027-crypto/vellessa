@@ -17,6 +17,7 @@ import {
   LayoutGrid,
   Link2,
   List,
+  Loader2,
   Package,
   Palette,
   Pencil,
@@ -181,6 +182,7 @@ function AdminMateriaisPage() {
     linksList,
     materialsList,
     foldersList,
+    downloadAsset,
     createAffiliateLink,
     updateAffiliateLink,
     deleteAffiliateLink,
@@ -323,6 +325,7 @@ function AdminMateriaisPage() {
 
   // ── MODAL NOVO MATERIAL ────────────────────────────────────────────────────
   const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [isSubmittingMaterial, setIsSubmittingMaterial] = useState(false);
   const [matTitle, setMatTitle] = useState("");
   const [matKind, setMatKind] = useState("PDF");
   const [matSize, setMatSize] = useState("");
@@ -554,29 +557,38 @@ function AdminMateriaisPage() {
         ? formatBytes(matRawFile.size)
         : ESTIMATED_SIZES[matKind] || "1,0 MB");
 
-    await createMaterial({
-      title: matTitle.trim(),
-      kind: matKind.trim(),
-      size: calculatedSize,
-      file_url: matSourceType === "link" ? matFileUrl.trim() : undefined,
-      sourceType: matSourceType,
-      rawFileName: matFiles.length === 1 ? matFiles[0].name : matRawFileName || matRawFile?.name,
-      mimeType: matFiles.length === 1 ? matFiles[0].mimeType : matRawFile?.type,
-      rawFile: matRawFile || undefined,
-      files: matFiles.length > 0 ? matFiles : undefined,
-      folderId: matFolderId || undefined,
-    });
+    setIsSubmittingMaterial(true);
+    try {
+      const primaryRawFile = matFiles.length === 1 && matFiles[0].rawFile ? matFiles[0].rawFile : (matRawFile || undefined);
+      await createMaterial({
+        title: matTitle.trim(),
+        kind: matKind.trim(),
+        size: calculatedSize,
+        file_url: matSourceType === "link" ? matFileUrl.trim() : undefined,
+        sourceType: matSourceType,
+        rawFileName: matFiles.length === 1 ? matFiles[0].name : matRawFileName || matRawFile?.name,
+        mimeType: matFiles.length === 1 ? matFiles[0].mimeType : matRawFile?.type,
+        rawFile: primaryRawFile,
+        files: matFiles.length > 0 ? matFiles : undefined,
+        folderId: matFolderId || undefined,
+      });
 
-    setMatTitle("");
-    setMatKind("PDF");
-    setMatSize("");
-    setMatFileUrl("");
-    setMatRawFile(null);
-    setMatRawFileName("");
-    setMatFiles([]);
-    setMatSourceType("upload");
-    setMatFolderId("");
-    setShowMaterialModal(false);
+      setMatTitle("");
+      setMatKind("PDF");
+      setMatSize("");
+      setMatFileUrl("");
+      setMatRawFile(null);
+      setMatRawFileName("");
+      setMatFiles([]);
+      setMatSourceType("upload");
+      setMatFolderId("");
+      setShowMaterialModal(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao salvar material.");
+    } finally {
+      setIsSubmittingMaterial(false);
+    }
   };
 
   const openEditMaterial = (m: (typeof materialsList)[0]) => {
@@ -603,32 +615,51 @@ function AdminMateriaisPage() {
         ? formatBytes(editMatRawFile.size)
         : ESTIMATED_SIZES[editMatKind] || "1,0 MB");
 
-    await updateMaterial(editMatId, {
-      title: editMatTitle.trim(),
-      kind: editMatKind.trim(),
-      size: calculatedSize,
-      file_url: editMatSourceType === "link" ? editMatFileUrl.trim() : undefined,
-      sourceType: editMatSourceType,
-      rawFileName: editMatFiles.length === 1 ? editMatFiles[0].name : editMatRawFileName || editMatRawFile?.name,
-      mimeType: editMatFiles.length === 1 ? editMatFiles[0].mimeType : editMatRawFile?.type,
-      rawFile: editMatRawFile || undefined,
-      files: editMatFiles.length > 0 ? editMatFiles : undefined,
-      folderId: editMatFolderId || undefined,
-    });
+    setIsSubmittingMaterial(true);
+    try {
+      const primaryRawFile = editMatFiles.length === 1 && editMatFiles[0].rawFile ? editMatFiles[0].rawFile : (editMatRawFile || undefined);
+      await updateMaterial(editMatId, {
+        title: editMatTitle.trim(),
+        kind: editMatKind.trim(),
+        size: calculatedSize,
+        file_url: editMatSourceType === "link" ? editMatFileUrl.trim() : undefined,
+        sourceType: editMatSourceType,
+        rawFileName: editMatFiles.length === 1 ? editMatFiles[0].name : editMatRawFileName || editMatRawFile?.name,
+        mimeType: editMatFiles.length === 1 ? editMatFiles[0].mimeType : editMatRawFile?.type,
+        rawFile: primaryRawFile,
+        files: editMatFiles.length > 0 ? editMatFiles : undefined,
+        folderId: editMatFolderId || undefined,
+      });
 
-    setEditMatId(null);
-    setEditMatRawFile(null);
-    setEditMatRawFileName("");
-    setEditMatFiles([]);
+      setEditMatId(null);
+      setEditMatRawFile(null);
+      setEditMatRawFileName("");
+      setEditMatFiles([]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao atualizar material.");
+    } finally {
+      setIsSubmittingMaterial(false);
+    }
   };
 
   const handleTestDownload = async (m: DynamicMaterial) => {
+    const filename = m.rawFileName || `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${m.kind.toLowerCase()}`;
+    const activeUrl = m.file_url || (m.files && m.files.length > 0 ? m.files[0].file_url : undefined);
+
+    if (activeUrl && !activeUrl.startsWith("indexeddb://")) {
+      await downloadAsset(activeUrl, filename);
+      return;
+    }
+
     if (m.files && m.files.length > 0) {
       toast.info(`Baixando pacote com ${m.files.length} arquivos...`);
       for (let i = 0; i < m.files.length; i++) {
         const f = m.files[i];
         setTimeout(async () => {
-          if (f.sourceType === "upload" || !f.file_url) {
+          if (f.file_url) {
+            await downloadAsset(f.file_url, f.name);
+          } else {
             const blob = await getRawFile(f.id);
             if (blob) {
               const url = URL.createObjectURL(blob);
@@ -640,33 +671,29 @@ function AdminMateriaisPage() {
               document.body.removeChild(a);
               setTimeout(() => URL.revokeObjectURL(url), 30000);
             }
-          } else if (f.file_url) {
-            window.open(f.file_url, "_blank");
           }
         }, i * 350);
       }
       return;
     }
-    if (m.sourceType === "upload" || m.rawFileName) {
-      if (m.id) {
-        const blob = await getRawFile(m.id);
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const filename = m.rawFileName || `${m.title}.${m.kind.toLowerCase()}`;
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          toast.success(`Download de teste "${filename}" iniciado!`);
-          setTimeout(() => URL.revokeObjectURL(url), 30000);
-          return;
-        }
+
+    if (m.id) {
+      const blob = await getRawFile(m.id);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success(`Download de teste "${filename}" iniciado!`);
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        return;
       }
     }
-    if (m.file_url) window.open(m.file_url, "_blank");
-    else toast.info("Material sem arquivo ou link anexado.");
+
+    toast.info("Material sem arquivo ou link anexado.");
   };
 
   const handleDeleteMaterial = (idOrTitle: string) => {
@@ -1816,15 +1843,24 @@ function AdminMateriaisPage() {
               <button
                 type="button"
                 onClick={() => setShowMaterialModal(false)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
+                disabled={isSubmittingMaterial}
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+                disabled={isSubmittingMaterial}
+                className="inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-50"
               >
-                Cadastrar Material
+                {isSubmittingMaterial ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Enviando para Nuvem...</span>
+                  </>
+                ) : (
+                  <span>Cadastrar Material</span>
+                )}
               </button>
             </div>
           </form>
@@ -2128,15 +2164,24 @@ function AdminMateriaisPage() {
               <button
                 type="button"
                 onClick={() => setEditMatId(null)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
+                disabled={isSubmittingMaterial}
+                className="rounded-xl border px-4 py-2 text-xs font-semibold hover:bg-muted transition disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition"
+                disabled={isSubmittingMaterial}
+                className="inline-flex items-center gap-2 rounded-xl bg-gold-gradient px-4 py-2 text-xs font-semibold text-primary-foreground shadow-gold hover:brightness-105 transition disabled:opacity-50"
               >
-                Salvar Alterações
+                {isSubmittingMaterial ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Salvando na Nuvem...</span>
+                  </>
+                ) : (
+                  <span>Salvar Alterações</span>
+                )}
               </button>
             </div>
           </form>

@@ -203,50 +203,72 @@ function Materiais() {
   };
 
   // Downloads
-  const handleDownloadFileItem = async (f: MaterialFileItem) => {
+  const handleDownloadFileItem = async (f: MaterialFileItem, parentMaterial?: DynamicMaterial) => {
+    const activeUrl = f.file_url || parentMaterial?.file_url;
+    const activeName = f.name || parentMaterial?.rawFileName || `${(parentMaterial?.title || "material").toLowerCase().replace(/[^a-z0-9]/g, "-")}.${(f.kind || parentMaterial?.kind || "doc").toLowerCase()}`;
+
     // 1. Se tiver URL pública na nuvem (Supabase Storage ou link direto), baixa direto da nuvem
-    if (f.file_url && !f.file_url.startsWith("indexeddb://")) {
-      downloadAsset(f.file_url, f.name);
+    if (activeUrl && !activeUrl.startsWith("indexeddb://")) {
+      await downloadAsset(activeUrl, activeName);
       return;
     }
+
     // 2. Caso contrário, tenta resgatar do IndexedDB local
-    const blob = await getRawFile(f.id);
+    let blob = await getRawFile(f.id);
+    if (!blob && parentMaterial?.id) {
+      blob = await getRawFile(parentMaterial.id);
+    }
+
     if (blob) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = f.name;
+      a.download = activeName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 30000);
-      toast.success(`Download de "${f.name}" iniciado!`);
+      toast.success(`Download de "${activeName}" iniciado!`);
       return;
     }
-    toast.info("Arquivo não disponível para download.");
+
+    toast.error("Arquivo não disponível para download no momento.");
   };
 
   const handleDownloadAllFiles = async (m: DynamicMaterial) => {
-    if (m.files && m.files.length > 0) {
+    // 1. Se for pacote com múltiplos arquivos
+    if (m.files && m.files.length > 1) {
       toast.info(`Iniciando download do pacote (${m.files.length} arquivos)...`);
       for (let i = 0; i < m.files.length; i++) {
         const f = m.files[i];
         setTimeout(() => {
-          handleDownloadFileItem(f);
+          handleDownloadFileItem(f, m);
         }, i * 400);
       }
       return;
     }
-    handleDownloadMaterial(m);
+
+    // 2. Se for arquivo único dentro de files (ex: ZIP de fotos soltas)
+    if (m.files && m.files.length === 1) {
+      const singleFile = m.files[0];
+      await handleDownloadFileItem(singleFile, m);
+      return;
+    }
+
+    // 3. Material avulso padrão
+    await handleDownloadMaterial(m);
   };
 
   const handleDownloadMaterial = async (m: DynamicMaterial) => {
     const filename = m.rawFileName || `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.${m.kind.toLowerCase()}`;
+    const activeUrl = m.file_url || (m.files && m.files.length > 0 ? m.files[0].file_url : undefined);
+
     // 1. Se tiver URL na nuvem (Supabase CDN ou link externo), baixa diretamente
-    if (m.file_url && !m.file_url.startsWith("indexeddb://")) {
-      downloadAsset(m.file_url, filename);
+    if (activeUrl && !activeUrl.startsWith("indexeddb://")) {
+      await downloadAsset(activeUrl, filename);
       return;
     }
+
     // 2. Se tiver arquivo local no IndexedDB da máquina que criou
     if (m.id) {
       const blob = await getRawFile(m.id);
@@ -263,11 +285,12 @@ function Materiais() {
         return;
       }
     }
+
     // 3. Fallback oficial formatado com os dados do afiliado
     const content = `=== VELLESSA AFILIADOS - ARQUIVO OFICIAL DE APOIO ===\n\nTítulo: ${m.title}\nTipo: ${m.kind}\nTamanho do Pacote: ${m.size}\nMembro/Afiliado: ${profile.name} (ID: ${profile.id})\nData de Emissão: ${new Date().toLocaleDateString("pt-BR")}\n\nEste documento contém diretrizes oficiais de divulgação.`;
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    downloadAsset(url, `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`);
+    await downloadAsset(url, `${m.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.txt`);
   };
 
   // ── FILTROS E CONTEXTO DE DIRETÓRIO ATUAL ──────────────────────────────────

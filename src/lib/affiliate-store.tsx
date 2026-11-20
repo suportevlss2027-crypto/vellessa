@@ -419,7 +419,7 @@ interface AffiliateStoreContextType {
 
   // Utilities
   copyText: (text: string, successLabel?: string) => Promise<boolean>;
-  downloadAsset: (url: string, filename: string) => void;
+  downloadAsset: (url: string, filename: string) => Promise<void> | void;
 }
 
 const STORAGE_KEYS = {
@@ -3221,6 +3221,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           file_url: fUrl,
         });
       }
+
+      // Propaga a URL para o material caso seja arquivo único ou principal
+      if (!cloudFileUrl && sanitizedFiles.length > 0 && sanitizedFiles[0].file_url) {
+        cloudFileUrl = sanitizedFiles[0].file_url;
+      } else if (cloudFileUrl && sanitizedFiles.length === 1 && !sanitizedFiles[0].file_url) {
+        sanitizedFiles[0].file_url = cloudFileUrl;
+      }
     }
 
     const newM: DynamicMaterial = {
@@ -3312,6 +3319,13 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
           ...fileMeta,
           file_url: fUrl,
         });
+      }
+
+      // Propaga a URL para o material caso seja arquivo único ou principal
+      if (!cloudFileUrl && sanitizedFiles.length > 0 && sanitizedFiles[0].file_url) {
+        cloudFileUrl = sanitizedFiles[0].file_url;
+      } else if (cloudFileUrl && sanitizedFiles.length === 1 && !sanitizedFiles[0].file_url) {
+        sanitizedFiles[0].file_url = cloudFileUrl;
       }
     }
 
@@ -3943,7 +3957,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     toast.success("Aviso oficial publicado para todos os afiliados!");
   };
 
-  // 9. Safe Clipboard & Download
+  // 9. Safe Clipboard & Direct Blob / Stream Download
   const copyText = async (text: string, successLabel = "Copiado!"): Promise<boolean> => {
     try {
       if (navigator?.clipboard?.writeText) {
@@ -3971,10 +3985,57 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     }
   };
 
-  const downloadAsset = (url: string, filename: string) => {
+  const downloadAsset = async (url: string, filename: string) => {
+    if (!url) {
+      toast.error("URL do arquivo indisponível para download.");
+      return;
+    }
+
     try {
+      // 1. Se for blob ou data URL, download direto via elemento <a>
+      if (url.startsWith("blob:") || url.startsWith("data:")) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success(`Download de "${filename}" iniciado!`);
+        return;
+      }
+
+      // 2. Sanitização para links do Google Drive
+      let targetUrl = url;
+      if (targetUrl.includes("drive.google.com")) {
+        const fileIdMatch = targetUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || targetUrl.match(/id=([a-zA-Z0-9_-]+)/);
+        if (fileIdMatch && fileIdMatch[1]) {
+          targetUrl = `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+        }
+      }
+
+      // 3. Tenta baixar via fetch -> blob para contornar bloqueio de download Cross-Origin dos navegadores
+      try {
+        const res = await fetch(targetUrl, { mode: "cors" });
+        if (res.ok) {
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+          toast.success(`Download de "${filename}" concluído!`);
+          return;
+        }
+      } catch {
+        // Ignora erro de fetch (ex: CORS em links externos restritos) e segue para o fallback abaixo
+      }
+
+      // 4. Fallback padrão: abertura direta via âncora / nova aba
       const a = document.createElement("a");
-      a.href = url;
+      a.href = targetUrl;
       a.download = filename;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
