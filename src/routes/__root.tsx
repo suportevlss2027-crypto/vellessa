@@ -15,6 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { themeInitScript } from "../lib/theme";
 import { Toaster } from "sonner";
 import { AffiliateStoreProvider } from "../lib/affiliate-store";
+import { ResetPasswordModal } from "../components/ResetPasswordModal";
 
 function NotFoundComponent() {
   return (
@@ -132,6 +133,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AffiliateStoreProvider>
         <Outlet />
+        <ResetPasswordModal />
         <Toaster position="top-center" richColors closeButton />
       </AffiliateStoreProvider>
     </QueryClientProvider>

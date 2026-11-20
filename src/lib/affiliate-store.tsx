@@ -2,14 +2,20 @@ import React, { createContext, useContext, useEffect, useState, useMemo, useCall
 import { toast } from "sonner";
 
 // ─── RBAC: Super Admin Authority ──────────────────────────────────────────────
-// Somente e-mails que contêm "ymarssico" são reconhecidos como Titular (Super Admin).
-// Esta lógica é imutável e não pode ser sobrescrita por localStorage ou qualquer
-// outro mecanismo de sessão.
-const SUPER_ADMIN_IDENTIFIER = "ymarssico";
+// E-mails autorizados como Titular / Super Admin da Vellessa.
+// Esta lógica é imutável e protege as funções executivas da marca.
+const SUPER_ADMIN_IDENTIFIERS = [
+  "ymarssico",
+  "marssico",
+  "yandarssico",
+  "augustoyander",
+  "suportevlss2027",
+];
 
 export function isSuperAdmin(email?: string | null): boolean {
   if (!email) return false;
-  return email.toLowerCase().trim().includes(SUPER_ADMIN_IDENTIFIER);
+  const clean = email.toLowerCase().trim();
+  return SUPER_ADMIN_IDENTIFIERS.some((id) => clean.includes(id));
 }
 // ──────────────────────────────────────────────────────────────────────────────
 import {
@@ -401,6 +407,9 @@ interface AffiliateStoreContextType {
   }) => Promise<boolean>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
+  updatePassword: (newPassword: string) => Promise<boolean>;
+  isRecoveryMode: boolean;
+  setIsRecoveryMode: (open: boolean) => void;
   // Gestão de Tráfego & Campanhas (Meta Ads)
   campaignsList: Campaign[];
   createCampaign: (data: Omit<Campaign, "id">) => void;
@@ -844,6 +853,31 @@ const AffiliateStoreContext = createContext<AffiliateStoreContextType | null>(nu
 
 export function AffiliateStoreProvider({ children }: { children: React.ReactNode }) {
   const [authLoading, setAuthLoading] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const checkRecoveryUrl = () => {
+      const hash = window.location.hash || "";
+      const search = window.location.search || "";
+      if (hash.includes("type=recovery") || search.includes("type=recovery")) {
+        setIsRecoveryMode(true);
+      }
+    };
+    checkRecoveryUrl();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          setIsRecoveryMode(true);
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   // 1. Profile State (100% limpo, sem nomes fictícios)
   const [profile, setProfile] = useState<AffiliateProfile>(() => {
@@ -2610,6 +2644,40 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
     return true;
   };
 
+  const updatePassword = async (newPassword: string): Promise<boolean> => {
+    if (!newPassword.trim() || newPassword.length < 6) {
+      toast.error("A nova senha deve ter no mínimo 6 caracteres.");
+      return false;
+    }
+    setAuthLoading(true);
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword.trim(),
+        });
+        if (error) {
+          toast.error(`Falha ao redefinir senha: ${error.message}`);
+          setAuthLoading(false);
+          return false;
+        }
+      }
+      toast.success("Senha redefinida com sucesso! Acessando sua conta...");
+      setIsRecoveryMode(false);
+      if (typeof window !== "undefined" && window.location.hash) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+      setIsAuthenticated(true);
+      localStorage.setItem(STORAGE_KEYS.AUTH, "true");
+      await checkSupabaseSession();
+      setAuthLoading(false);
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || "Erro inesperado ao redefinir a senha.");
+      setAuthLoading(false);
+      return false;
+    }
+  };
+
   const logout = async () => {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut().catch(() => {});
@@ -3986,6 +4054,9 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       completeOnboarding,
       logout,
       resetPassword,
+      updatePassword,
+      isRecoveryMode,
+      setIsRecoveryMode,
       copyText,
       downloadAsset,
       featureSettings,
@@ -4018,6 +4089,7 @@ export function AffiliateStoreProvider({ children }: { children: React.ReactNode
       unreadAnnouncementsCount,
       isAuthenticated,
       authLoading,
+      isRecoveryMode,
       featureSettings,
       billboardSettings,
     ]
